@@ -3,6 +3,7 @@ import plotly.express as px
 import streamlit as st
 
 from app_pages.common import render_module_header
+from reports.excel_exporter import generate_structured_products_report
 from engines.structured_products_engine import (
     AutocallableTerms,
     build_standard_basket_scenario_paths,
@@ -348,6 +349,41 @@ def render() -> None:
         labels={"total_pnl": "Total P&L"},
     )
     st.plotly_chart(fig_mc, use_container_width=True)
+
+
+    st.subheader("Structured Products Excel Report")
+
+    structured_report_bytes = generate_structured_products_report(
+        terms_summary={
+            "product_type": terms.product_type,
+            "nominal": terms.nominal,
+            "coupon_rate_per_period": terms.coupon_rate_per_period,
+            "autocall_barrier": terms.autocall_barrier,
+            "coupon_barrier": terms.coupon_barrier,
+            "protection_barrier": terms.protection_barrier,
+            "memory_coupon": terms.memory_coupon,
+            "performance_path": performance_path,
+            "simulation_mode": simulation_mode,
+            "number_of_simulations": int(n_simulations),
+            "volatility": volatility_pct / 100.0,
+            "drift": drift_pct / 100.0,
+            "maturity_years": float(maturity_years),
+            "correlation": float(correlation) if simulation_mode == "Worst-of basket" else None,
+            "seed": int(seed),
+        },
+        custom_path_result=result_dict,
+        single_scenario_df=scenario_df,
+        basket_scenario_df=basket_df,
+        monte_carlo_summary=mc_summary,
+        monte_carlo_results_df=mc_results_df,
+    )
+
+    st.download_button(
+        label="Download Structured Products Report",
+        data=structured_report_bytes,
+        file_name="structured_products_report.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
     st.subheader("Methodology Notes")
 

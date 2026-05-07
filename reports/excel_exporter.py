@@ -16,14 +16,17 @@ import pandas as pd
 
 
 def _auto_adjust_columns(writer: pd.ExcelWriter, sheet_name: str, df: pd.DataFrame) -> None:
-    """Auto-adjust Excel column widths based on dataframe content."""
+    """Auto-adjust Excel column widths based on dataframe content.
+
+    Robust against strings, floats, integers, booleans, None, and mixed object columns.
+    """
 
     worksheet = writer.sheets[sheet_name]
 
     for idx, column in enumerate(df.columns):
-        series = df[column].astype(str)
+        values = df[column].to_numpy().flatten()
         max_length = max(
-            [len(str(column))] + [len(value) for value in series.values]
+            [len(str(column))] + [len(str(value)) for value in values]
         )
         worksheet.set_column(idx, idx, min(max_length + 2, 45))
 
@@ -350,6 +353,141 @@ def generate_financing_margin_report(
 
         methodology_ws = writer.sheets["Methodology"]
         methodology_ws.write(0, 0, "Financing & Margin Report — Methodology", title_format)
+        methodology_ws.set_row(2, None, header_format)
+        methodology_ws.set_column(0, 0, 130, wrap_format)
+
+    output.seek(0)
+    return output.getvalue()
+
+def generate_structured_products_report(
+    terms_summary: dict[str, Any],
+    custom_path_result: dict[str, Any],
+    single_scenario_df: pd.DataFrame,
+    basket_scenario_df: pd.DataFrame,
+    monte_carlo_summary: dict[str, Any],
+    monte_carlo_results_df: pd.DataFrame,
+) -> bytes:
+    """Generate a Structured Products Excel report.
+
+    Sheets:
+    1. Terms
+    2. Custom_Path_Result
+    3. Single_Scenarios
+    4. Worst_Of_Basket
+    5. Monte_Carlo_Summary
+    6. MC_Distribution
+    7. Methodology
+
+    The report uses deterministic payoff logic and simplified Monte Carlo
+    analytics. It is not bank-grade pricing and not investment advice.
+    """
+
+    output = BytesIO()
+
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        workbook = writer.book
+
+        header_format = workbook.add_format(
+            {"bold": True, "bg_color": "#EAF3F8", "border": 1}
+        )
+        title_format = workbook.add_format({"bold": True, "font_size": 16})
+        wrap_format = workbook.add_format({"text_wrap": True, "valign": "top"})
+
+        _write_key_value_sheet(
+            writer=writer,
+            sheet_name="Terms",
+            title="Structured Product Terms",
+            data=terms_summary,
+            commentary=[
+                "Terms are represented as simplified deterministic payoff inputs.",
+                "Barrier levels are stored as performance thresholds versus initial level.",
+            ],
+        )
+
+        _write_key_value_sheet(
+            writer=writer,
+            sheet_name="Custom_Path_Result",
+            title="Custom Path Payoff Result",
+            data=custom_path_result,
+            commentary=[
+                "Custom path result is calculated from the user-defined observation path.",
+            ],
+        )
+
+        single_scenario_df.to_excel(
+            writer,
+            sheet_name="Single_Scenarios",
+            index=False,
+        )
+        writer.sheets["Single_Scenarios"].set_row(0, None, header_format)
+        _auto_adjust_columns(writer, "Single_Scenarios", single_scenario_df)
+
+        basket_scenario_df.to_excel(
+            writer,
+            sheet_name="Worst_Of_Basket",
+            index=False,
+        )
+        writer.sheets["Worst_Of_Basket"].set_row(0, None, header_format)
+        _auto_adjust_columns(writer, "Worst_Of_Basket", basket_scenario_df)
+
+        _write_key_value_sheet(
+            writer=writer,
+            sheet_name="Monte_Carlo_Summary",
+            title="Monte Carlo Proxy Summary",
+            data=monte_carlo_summary,
+            commentary=[
+                "Monte Carlo output is a simplified GBM-based proxy.",
+                "The output should be used for intuition, not calibrated pricing or fair value.",
+            ],
+        )
+
+        mc_distribution_cols = [
+            "autocalled",
+            "autocall_observation",
+            "final_performance",
+            "total_coupons_paid",
+            "redemption_amount",
+            "capital_pnl",
+            "total_payoff",
+            "total_pnl",
+            "payoff_return",
+            "protection_barrier_breached",
+        ]
+
+        mc_distribution = monte_carlo_results_df[mc_distribution_cols].copy()
+        mc_distribution.to_excel(
+            writer,
+            sheet_name="MC_Distribution",
+            index=False,
+        )
+        writer.sheets["MC_Distribution"].set_row(0, None, header_format)
+        _auto_adjust_columns(writer, "MC_Distribution", mc_distribution)
+
+        methodology_items = [
+            "Nominal is the invested notional.",
+            "Performance values are measured versus initial level.",
+            "Autocall barrier at 100% of initial corresponds to 0% performance threshold.",
+            "Protection barrier at 60% of initial corresponds to -40% performance threshold.",
+            "Worst-of basket payoff is driven by the weakest underlying at each observation.",
+            "Athena logic is simplified as accumulated coupon paid if autocall occurs.",
+            "Phoenix coupon is paid when coupon condition is met.",
+            "Phoenix memory coupon recovers missed coupons if the coupon condition is later met.",
+            "Capital loss applies if final performance is below the protection barrier.",
+            "Monte Carlo uses simplified geometric Brownian motion paths.",
+            "Worst-of Monte Carlo uses a constant-correlation proxy.",
+            "This report is not bank-grade pricing, not fair value, not investment advice, and not a trading signal.",
+        ]
+
+        methodology_df = pd.DataFrame({"Methodology / Assumption": methodology_items})
+        methodology_df.to_excel(
+            writer,
+            sheet_name="Methodology",
+            index=False,
+            startrow=2,
+        )
+
+        methodology_ws = writer.sheets["Methodology"]
+        methodology_ws.write(0, 0, "Structured Products Report — Methodology", title_format)
         methodology_ws.set_row(2, None, header_format)
         methodology_ws.set_column(0, 0, 130, wrap_format)
 
