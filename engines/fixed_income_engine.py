@@ -398,3 +398,290 @@ def portfolio_summary_to_dict(summary: PortfolioSummary) -> dict:
         "total_dv01": summary.total_dv01,
         "number_of_bonds": summary.number_of_bonds,
     }
+
+
+# ---------------------------------------------------------------------------
+# Step 6: DV01 buckets, scenario P&L, commentary, and hedge approximation
+# ---------------------------------------------------------------------------
+
+def calculate_dv01_by_bucket(risk_df: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate DV01 and market value by curve bucket.
+
+    Returns a table with:
+    - curve_bucket
+    - market_value
+    - dv01
+    - pct_total_dv01
+
+    Financial convention:
+    DV01 is positive and represents the approximate gain for a 1 bp fall in yield.
+    """
+
+    required_columns = {"curve_bucket", "market_value", "dv01"}
+    missing = required_columns - set(risk_df.columns)
+    if missing:
+        raise ValueError(f"Missing required columns for DV01 bucket calculation: {missing}")
+
+    bucket_df = (
+        risk_df.groupby("curve_bucket", as_index=False)
+        .agg(
+            market_value=("market_value", "sum"),
+            dv01=("dv01", "sum"),
+        )
+        .sort_values("curve_bucket")
+    )
+
+    total_dv01 = float(bucket_df["dv01"].sum())
+
+    if total_dv01 <= 0:
+        bucket_df["pct_total_dv01"] = 0.0
+    else:
+        bucket_df["pct_total_dv01"] = bucket_df["dv01"] / total_dv01
+
+    return bucket_df
+
+
+def estimate_pnl_with_duration_convexity(
+    modified_duration: float,
+    convexity: float,
+    market_value: float,
+    yield_move_bps: float,
+) -> dict:
+    """Estimate P&L from a yield move using duration and convexity.
+
+    Formula:
+    price_change = -modified_duration * market_value * delta_y
+                   + 0.5 * convexity * market_value * delta_y^2
+
+    where delta_y is in decimal rate terms.
+
+    Interpretation:
+    - Positive yield move usually creates negative P&L.
+    - Positive convexity partially offsets losses for large moves.
+    """
+
+    delta_y = yield_move_bps / 10_000.0
+
+    duration_pnl = -modified_duration * market_value * delta_y
+    convexity_pnl = 0.5 * convexity * market_value * (delta_y**2)
+    estimated_pnl = duration_pnl + convexity_pnl
+
+    return {
+        "duration_pnl": float(duration_pnl),
+        "convexity_pnl": float(convexity_pnl),
+        "estimated_pnl": float(estimated_pnl),
+    }
+
+
+def _bucket_shock_bps_for_scenario(curve_bucket: str, scenario_name: str) -> float:
+    """Map curve bucket to shock in bps for predefined rate scenarios."""
+
+    if scenario_name == "+25 bps parallel":
+        return 25.0
+
+    if scenario_name == "+50 bps parallel":
+        return 50.0
+
+    if scenario_name == "-25 bps parallel":
+        return -25.0
+
+    if scenario_name == "2s10s steepener":
+        shock_map = {
+            "0-2Y": 10.0,
+            "2-5Y": 15.0,
+            "5-10Y": 25.0,
+            "10Y+": 35.0,
+        }
+        return shock_map.get(curve_bucket, 25.0)
+
+    if scenario_name == "2s10s flattener":
+        shock_map = {
+            "0-2Y": 35.0,
+            "2-5Y": 25.0,
+            "5-10Y": 15.0,
+            "10Y+": 10.0,
+        }
+        return shock_map.get(curve_bucket, 25.0)
+
+    raise ValueError(f"Unknown scenario name: {scenario_name}")
+
+
+def calculate_scenario_pnl(risk_df: pd.DataFrame) -> pd.DataFrame:
+    """Calculate desk-style scenario P&L for the fixed income portfolio.
+
+    Scenarios:
+    - +25 bps parallel rates shock
+    - +50 bps parallel rates shock
+    - -25 bps parallel rates shock
+    - 2s10s steepener proxy
+    - 2s10s flattener proxy
+    - credit spread +50 bps proxy
+
+    Spread shock note:
+    The spread shock uses modified duration as a proxy for spread duration.
+    This is transparent and useful for demonstration, but not a substitute for
+    issuer-specific spread duration or full curve analytics.
+    """
+
+    required_columns = {
+        "bond_id",
+        "curve_bucket",
+        "market_value",
+        "modified_duration",
+        "convexity",
+        "dv01",
+    }
+
+    missing = required_columns - set(risk_df.columns)
+    if missing:
+        raise ValueError(f"Missing required columns for scenario P&L: {missing}")
+
+    scenario_names = [
+        "+25 bps parallel",
+        "+50 bps parallel",
+        "-25 bps parallel",
+        "2s10s steepener",
+        "2s10s flattener",
+    ]
+
+    scenario_rows = []
+
+    for scenario_name in scenario_names:
+        total_duration_pnl = 0.0
+        total_convexity_pnl = 0.0
+        total_estimated_pnl = 0.0
+
+        for _, row in risk_df.iterrows():
+            shock_bps = _bucket_shock_bps_for_scenario(
+                curve_bucket=row["curve_bucket"],
+                scenario_name=scenario_name,
+            )
+
+            pnl_components = estimate_pnl_with_duration_convexity(
+                modified_duration=float(row["modified_duration"]),
+                convexity=float(row["convexity"]),
+                market_value=float(row["market_value"]),
+                yield_move_bps=shock_bps,
+            )
+
+            total_duration_pnl += pnl_components["duration_pnl"]
+            total_convexity_pnl += pnl_components["convexity_pnl"]
+            total_estimated_pnl += pnl_components["estimated_pnl"]
+
+        scenario_rows.append(
+            {
+                "scenario_name": scenario_name,
+                "risk_factor": "rates",
+                "shock_description": _describe_fixed_income_scenario(scenario_name),
+                "duration_pnl": total_duration_pnl,
+                "convexity_pnl": total_convexity_pnl,
+                "estimated_pnl": total_estimated_pnl,
+                "main_driver": "Rates duration / curve exposure",
+            }
+        )
+
+    spread_shock_bps = 50.0
+    spread_pnl = float(-(risk_df["dv01"] * spread_shock_bps).sum())
+
+    scenario_rows.append(
+        {
+            "scenario_name": "Credit spread +50 bps",
+            "risk_factor": "credit",
+            "shock_description": "All credit spreads widen by 50 bps. Uses modified duration as spread-duration proxy.",
+            "duration_pnl": spread_pnl,
+            "convexity_pnl": 0.0,
+            "estimated_pnl": spread_pnl,
+            "main_driver": "Credit spread duration proxy",
+        }
+    )
+
+    return pd.DataFrame(scenario_rows)
+
+
+def _describe_fixed_income_scenario(scenario_name: str) -> str:
+    """Return a readable description for fixed income scenario labels."""
+
+    descriptions = {
+        "+25 bps parallel": "All yield buckets increase by 25 bps.",
+        "+50 bps parallel": "All yield buckets increase by 50 bps.",
+        "-25 bps parallel": "All yield buckets decrease by 25 bps.",
+        "2s10s steepener": "Long-end rates rise more than front-end rates.",
+        "2s10s flattener": "Front-end rates rise more than long-end rates.",
+    }
+
+    return descriptions.get(scenario_name, scenario_name)
+
+
+def identify_worst_scenario(scenario_df: pd.DataFrame) -> dict:
+    """Identify the scenario with the largest estimated loss."""
+
+    if scenario_df.empty:
+        raise ValueError("Scenario DataFrame is empty.")
+
+    worst_row = scenario_df.loc[scenario_df["estimated_pnl"].idxmin()]
+    return worst_row.to_dict()
+
+
+def generate_fixed_income_commentary(
+    risk_df: pd.DataFrame,
+    bucket_df: pd.DataFrame,
+    scenario_df: pd.DataFrame,
+) -> list[str]:
+    """Generate concise desk-style commentary for the fixed income module."""
+
+    comments = []
+
+    if bucket_df.empty:
+        return ["No DV01 bucket data available."]
+
+    largest_bucket = bucket_df.loc[bucket_df["dv01"].idxmax()]
+    largest_bucket_name = largest_bucket["curve_bucket"]
+    largest_bucket_pct = float(largest_bucket["pct_total_dv01"])
+
+    if largest_bucket_name in ["10Y+", "5-10Y"]:
+        concentration_label = "long-end"
+    elif largest_bucket_name == "0-2Y":
+        concentration_label = "front-end"
+    else:
+        concentration_label = "belly"
+
+    comments.append(
+        f"DV01 is concentrated in the {largest_bucket_name} bucket "
+        f"({largest_bucket_pct:.1%} of total DV01), indicating mainly {concentration_label} rate exposure."
+    )
+
+    worst_scenario = identify_worst_scenario(scenario_df)
+    comments.append(
+        f"The largest estimated loss comes from '{worst_scenario['scenario_name']}' "
+        f"with estimated P&L of {worst_scenario['estimated_pnl']:,.0f}."
+    )
+
+    if largest_bucket_pct >= 0.50:
+        comments.append(
+            "Risk is materially concentrated in one maturity bucket. A hedge or risk reduction should focus first on that bucket."
+        )
+    else:
+        comments.append(
+            "DV01 is relatively diversified across curve buckets, but scenario P&L should still be monitored under non-parallel curve moves."
+        )
+
+    comments.append(
+        "Scenario P&L uses duration/convexity approximations and should be treated as a desk analytics proxy, not a full revaluation engine."
+    )
+
+    return comments
+
+
+def calculate_hedge_units(portfolio_dv01: float, hedge_instrument_dv01: float) -> float:
+    """Calculate approximate hedge units from DV01.
+
+    Formula:
+    hedge_units = portfolio_dv01 / hedge_instrument_dv01
+
+    This is an approximation and not an execution recommendation.
+    """
+
+    if hedge_instrument_dv01 <= 0:
+        raise ValueError("Hedge instrument DV01 must be positive.")
+
+    return float(portfolio_dv01 / hedge_instrument_dv01)

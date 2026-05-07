@@ -5,7 +5,12 @@ import streamlit as st
 from app_pages.common import render_module_header
 from engines.fixed_income_engine import (
     calculate_bond_risk_metrics,
+    calculate_dv01_by_bucket,
+    calculate_hedge_units,
+    calculate_scenario_pnl,
     estimate_pnl_from_yield_move,
+    generate_fixed_income_commentary,
+    identify_worst_scenario,
     load_bond_data,
     portfolio_summary_to_dict,
     summarize_portfolio,
@@ -26,7 +31,7 @@ def render() -> None:
         caption="Bond portfolio risk analytics: duration, convexity, DV01, curve shocks, and risk reports.",
         objective=(
             "Objective: help a sales, trader, PM, or risk analyst understand where bond portfolio risk "
-            "is concentrated and how the portfolio reacts to yield moves."
+            "is concentrated and how the portfolio reacts to yield curve and spread shocks."
         ),
     )
 
@@ -52,6 +57,11 @@ def render() -> None:
     summary = summarize_portfolio(risk_df)
     summary_dict = portfolio_summary_to_dict(summary)
 
+    bucket_df = calculate_dv01_by_bucket(risk_df)
+    scenario_df = calculate_scenario_pnl(risk_df)
+    worst_scenario = identify_worst_scenario(scenario_df)
+    commentary = generate_fixed_income_commentary(risk_df, bucket_df, scenario_df)
+
     st.subheader("Portfolio Summary")
 
     c1, c2, c3, c4, c5 = st.columns(5)
@@ -64,6 +74,94 @@ def render() -> None:
     )
     c4.metric("Total DV01", _format_currency(summary_dict["total_dv01"]))
     c5.metric("Bonds", f"{summary_dict['number_of_bonds']}")
+
+    st.subheader("Desk Commentary")
+
+    with st.container(border=True):
+        for comment in commentary:
+            st.markdown(f"- {comment}")
+
+    st.subheader("DV01 Bucket Decomposition")
+
+    c1, c2 = st.columns([1, 1])
+
+    with c1:
+        st.dataframe(
+            bucket_df.style.format(
+                {
+                    "market_value": "{:,.0f}",
+                    "dv01": "{:,.0f}",
+                    "pct_total_dv01": "{:.1%}",
+                }
+            ),
+            use_container_width=True,
+        )
+
+    with c2:
+        fig_bucket = px.bar(
+            bucket_df,
+            x="curve_bucket",
+            y="dv01",
+            title="DV01 by Curve Bucket",
+            labels={"curve_bucket": "Curve Bucket", "dv01": "DV01"},
+        )
+        st.plotly_chart(fig_bucket, use_container_width=True)
+
+    st.subheader("Scenario P&L")
+
+    c1, c2 = st.columns([2, 1])
+
+    with c1:
+        st.dataframe(
+            scenario_df.style.format(
+                {
+                    "duration_pnl": "{:,.0f}",
+                    "convexity_pnl": "{:,.0f}",
+                    "estimated_pnl": "{:,.0f}",
+                }
+            ),
+            use_container_width=True,
+        )
+
+    with c2:
+        st.metric(
+            "Worst Scenario",
+            worst_scenario["scenario_name"],
+            delta=_format_currency(worst_scenario["estimated_pnl"]),
+            delta_color="inverse",
+        )
+        st.caption(worst_scenario["shock_description"])
+
+    fig_scenarios = px.bar(
+        scenario_df,
+        x="scenario_name",
+        y="estimated_pnl",
+        color="risk_factor",
+        title="Estimated P&L by Scenario",
+        labels={"scenario_name": "Scenario", "estimated_pnl": "Estimated P&L"},
+    )
+    st.plotly_chart(fig_scenarios, use_container_width=True)
+
+    st.subheader("Simple Hedge Approximation")
+
+    st.caption(
+        "This approximates hedge size using DV01 only. It is a risk sizing proxy, not an execution recommendation."
+    )
+
+    hedge_dv01 = st.number_input(
+        "Hedge instrument DV01 per unit",
+        min_value=1.0,
+        value=75.0,
+        step=5.0,
+        help="Example: approximate DV01 of one futures contract or hedge instrument unit.",
+    )
+
+    hedge_units = calculate_hedge_units(
+        portfolio_dv01=summary.total_dv01,
+        hedge_instrument_dv01=hedge_dv01,
+    )
+
+    st.metric("Approximate hedge units", f"{hedge_units:,.1f}")
 
     st.subheader("Bond-Level Risk Metrics")
 
@@ -114,7 +212,7 @@ def render() -> None:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("Simple Yield Move P&L")
+    st.subheader("Custom Parallel Yield Move P&L")
 
     yield_move_bps = st.slider(
         "Yield move in bps",
@@ -148,6 +246,9 @@ def render() -> None:
         - Market value = clean price / 100 × notional.
         - Duration and convexity are approximate and based on yield-implied cashflows.
         - DV01 = modified duration × market value × 0.0001.
+        - Scenario P&L uses duration/convexity approximation.
+        - Credit spread shock uses modified duration as a spread-duration proxy.
+        - Hedge approximation uses portfolio DV01 / hedge instrument DV01.
         - This MVP does not yet build a full discount curve or use bond-specific day-count conventions.
         """
     )
