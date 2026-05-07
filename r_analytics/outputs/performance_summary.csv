@@ -1,0 +1,11 @@
+"metric","value"
+"number_of_assets",5
+"number_of_observations",504
+"annualized_return",-0.0214838090420507
+"annualized_volatility",0.0681531072536765
+"sharpe_ratio",-0.608685512865047
+"max_drawdown",-0.114867944708226
+"historical_var_95",0.00689375868343443
+"historical_cvar_95",0.00846183086670665
+"best_daily_return",0.0129025026841715
+"worst_daily_return",-0.0165099367447327
