@@ -655,3 +655,282 @@ def generate_worst_of_basket_commentary(
     )
 
     return comments
+
+# ---------------------------------------------------------------------------
+# Step 14: Monte Carlo simulation layer
+# ---------------------------------------------------------------------------
+
+def simulate_single_underlying_paths(
+    number_of_observations: int,
+    n_simulations: int = 5000,
+    initial_level: float = 100.0,
+    drift: float = 0.00,
+    volatility: float = 0.20,
+    maturity_years: float = 1.0,
+    seed: int | None = None,
+):
+    """Simulate single-underlying performance paths using GBM.
+
+    Returns:
+    numpy array with shape:
+    - rows = simulations
+    - columns = observation dates
+    - values = performance versus initial level
+
+    This is a simplified risk-neutral/proxy simulation layer. It is not
+    calibrated pricing.
+    """
+
+    import numpy as np
+
+    if number_of_observations <= 0:
+        raise ValueError("Number of observations must be positive.")
+
+    if n_simulations <= 0:
+        raise ValueError("Number of simulations must be positive.")
+
+    if initial_level <= 0:
+        raise ValueError("Initial level must be positive.")
+
+    if volatility < 0:
+        raise ValueError("Volatility cannot be negative.")
+
+    if maturity_years <= 0:
+        raise ValueError("Maturity must be positive.")
+
+    rng = np.random.default_rng(seed)
+
+    dt = maturity_years / number_of_observations
+
+    shocks = rng.normal(
+        loc=0.0,
+        scale=1.0,
+        size=(n_simulations, number_of_observations),
+    )
+
+    increments = (
+        (drift - 0.5 * volatility**2) * dt
+        + volatility * (dt**0.5) * shocks
+    )
+
+    log_levels = np.log(initial_level) + np.cumsum(increments, axis=1)
+    levels = np.exp(log_levels)
+
+    performances = levels / initial_level - 1.0
+
+    return performances
+
+
+def build_constant_correlation_matrix(
+    n_underlyings: int,
+    correlation: float,
+):
+    """Build a constant-correlation matrix."""
+
+    import numpy as np
+
+    if n_underlyings <= 1:
+        raise ValueError("Number of underlyings must be greater than 1.")
+
+    lower_bound = -1.0 / (n_underlyings - 1)
+
+    if correlation <= lower_bound or correlation >= 1.0:
+        raise ValueError(
+            f"Correlation must be greater than {lower_bound:.4f} and lower than 1."
+        )
+
+    matrix = np.full((n_underlyings, n_underlyings), correlation)
+    np.fill_diagonal(matrix, 1.0)
+
+    return matrix
+
+
+def simulate_worst_of_basket_paths(
+    number_of_observations: int,
+    n_underlyings: int = 3,
+    n_simulations: int = 5000,
+    initial_level: float = 100.0,
+    drift: float = 0.00,
+    volatility: float = 0.25,
+    correlation: float = 0.50,
+    maturity_years: float = 1.0,
+    seed: int | None = None,
+) -> dict:
+    """Simulate worst-of basket performance paths with correlated GBM.
+
+    Returns:
+    {
+        "underlying_performance_paths": array with shape
+            (n_simulations, number_of_observations, n_underlyings),
+        "worst_of_performance_paths": array with shape
+            (n_simulations, number_of_observations)
+    }
+    """
+
+    import numpy as np
+
+    if number_of_observations <= 0:
+        raise ValueError("Number of observations must be positive.")
+
+    if n_underlyings <= 1:
+        raise ValueError("Number of underlyings must be greater than 1.")
+
+    if n_simulations <= 0:
+        raise ValueError("Number of simulations must be positive.")
+
+    if initial_level <= 0:
+        raise ValueError("Initial level must be positive.")
+
+    if volatility < 0:
+        raise ValueError("Volatility cannot be negative.")
+
+    if maturity_years <= 0:
+        raise ValueError("Maturity must be positive.")
+
+    rng = np.random.default_rng(seed)
+
+    corr_matrix = build_constant_correlation_matrix(
+        n_underlyings=n_underlyings,
+        correlation=correlation,
+    )
+
+    cholesky = np.linalg.cholesky(corr_matrix)
+
+    dt = maturity_years / number_of_observations
+
+    independent_shocks = rng.normal(
+        loc=0.0,
+        scale=1.0,
+        size=(n_simulations, number_of_observations, n_underlyings),
+    )
+
+    correlated_shocks = independent_shocks @ cholesky.T
+
+    increments = (
+        (drift - 0.5 * volatility**2) * dt
+        + volatility * (dt**0.5) * correlated_shocks
+    )
+
+    log_levels = np.log(initial_level) + np.cumsum(increments, axis=1)
+    levels = np.exp(log_levels)
+
+    underlying_performance_paths = levels / initial_level - 1.0
+    worst_of_performance_paths = underlying_performance_paths.min(axis=2)
+
+    return {
+        "underlying_performance_paths": underlying_performance_paths,
+        "worst_of_performance_paths": worst_of_performance_paths,
+    }
+
+
+def calculate_monte_carlo_results_table(
+    terms: AutocallableTerms,
+    performance_paths,
+) -> pd.DataFrame:
+    """Calculate payoff results for simulated performance paths."""
+
+    import numpy as np
+
+    paths = np.asarray(performance_paths)
+
+    if paths.ndim != 2:
+        raise ValueError("Performance paths must be a 2D array.")
+
+    rows = []
+
+    for path in paths:
+        result = calculate_autocallable_payoff(
+            terms=terms,
+            performance_path=[float(x) for x in path],
+        )
+
+        rows.append(
+            {
+                "autocalled": result.autocalled,
+                "autocall_observation": result.autocall_observation,
+                "final_performance": result.final_performance,
+                "total_coupons_paid": result.total_coupons_paid,
+                "redemption_amount": result.redemption_amount,
+                "capital_pnl": result.capital_pnl,
+                "total_payoff": result.total_payoff,
+                "total_pnl": result.total_pnl,
+                "payoff_return": result.payoff_return,
+                "protection_barrier_breached": result.protection_barrier_breached,
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def summarize_monte_carlo_results(results_df: pd.DataFrame) -> dict:
+    """Summarize Monte Carlo payoff results."""
+
+    required_columns = {
+        "autocalled",
+        "protection_barrier_breached",
+        "total_payoff",
+        "total_pnl",
+        "payoff_return",
+        "total_coupons_paid",
+        "redemption_amount",
+    }
+
+    missing = required_columns - set(results_df.columns)
+    if missing:
+        raise ValueError(f"Missing Monte Carlo result columns: {missing}")
+
+    n = len(results_df)
+
+    if n == 0:
+        raise ValueError("Monte Carlo results cannot be empty.")
+
+    return {
+        "number_of_simulations": int(n),
+        "autocall_probability": float(results_df["autocalled"].mean()),
+        "barrier_breach_probability": float(results_df["protection_barrier_breached"].mean()),
+        "expected_payoff": float(results_df["total_payoff"].mean()),
+        "expected_pnl": float(results_df["total_pnl"].mean()),
+        "expected_return": float(results_df["payoff_return"].mean()),
+        "payoff_volatility": float(results_df["payoff_return"].std()),
+        "expected_coupons": float(results_df["total_coupons_paid"].mean()),
+        "expected_redemption": float(results_df["redemption_amount"].mean()),
+        "p5_payoff": float(results_df["total_payoff"].quantile(0.05)),
+        "p50_payoff": float(results_df["total_payoff"].quantile(0.50)),
+        "p95_payoff": float(results_df["total_payoff"].quantile(0.95)),
+    }
+
+
+def generate_monte_carlo_commentary(summary: dict, is_worst_of: bool) -> list[str]:
+    """Generate desk-style commentary for Monte Carlo output."""
+
+    structure_label = "worst-of basket" if is_worst_of else "single-underlying"
+
+    comments = [
+        (
+            f"Monte Carlo proxy ran {summary['number_of_simulations']:,} simulations "
+            f"for a {structure_label} autocallable."
+        ),
+        (
+            f"Estimated autocall probability is {summary['autocall_probability']:.2%}; "
+            f"estimated barrier breach probability is {summary['barrier_breach_probability']:.2%}."
+        ),
+        (
+            f"Expected payoff is {summary['expected_payoff']:,.0f}, implying expected P&L "
+            f"of {summary['expected_pnl']:,.0f} and expected return of {summary['expected_return']:.2%}."
+        ),
+    ]
+
+    if is_worst_of:
+        comments.append(
+            "Worst-of simulation is sensitive to both volatility and correlation. Lower correlation can increase dispersion risk because one name may underperform the basket."
+        )
+    else:
+        comments.append(
+            "Single-underlying simulation isolates direction, volatility, and barrier risk without basket dispersion."
+        )
+
+    comments.append(
+        "This is a simplified Monte Carlo proxy, not calibrated pricing, not a fair value, and not investment advice."
+    )
+
+    return comments

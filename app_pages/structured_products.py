@@ -9,10 +9,15 @@ from engines.structured_products_engine import (
     build_standard_scenario_paths,
     calculate_autocallable_payoff,
     calculate_basket_scenario_table,
+    calculate_monte_carlo_results_table,
     calculate_scenario_table,
+    generate_monte_carlo_commentary,
     generate_structured_product_commentary,
     generate_worst_of_basket_commentary,
     payoff_result_to_dict,
+    simulate_single_underlying_paths,
+    simulate_worst_of_basket_paths,
+    summarize_monte_carlo_results,
 )
 
 
@@ -27,10 +32,10 @@ def _format_percent(value: float) -> str:
 def render() -> None:
     render_module_header(
         title="Structured Products",
-        caption="Autocallable note analytics: payoff logic, worst-of scenarios, barrier risk, and desk explanations.",
+        caption="Autocallable note analytics: payoff logic, worst-of scenarios, Monte Carlo proxies, barrier risk, and desk explanations.",
         objective=(
             "Objective: convert Athena and Phoenix terms into transparent payoff outcomes, "
-            "scenario analysis, worst-of basket behavior, and client/desk-ready explanations."
+            "scenario analysis, worst-of basket behavior, Monte Carlo proxies, and client/desk-ready explanations."
         ),
     )
 
@@ -224,6 +229,126 @@ def render() -> None:
         for comment in basket_commentary:
             st.markdown(f"- {comment}")
 
+    st.subheader("Monte Carlo Proxy")
+
+    st.caption(
+        "Simplified GBM simulation. This is a risk/payoff proxy, not calibrated issuer pricing."
+    )
+
+    mc1, mc2, mc3 = st.columns(3)
+
+    with mc1:
+        simulation_mode = st.selectbox(
+            "Simulation mode",
+            ["Single underlying", "Worst-of basket"],
+        )
+        n_simulations = st.number_input(
+            "Number of simulations",
+            min_value=500,
+            max_value=20_000,
+            value=5_000,
+            step=500,
+        )
+
+    with mc2:
+        volatility_pct = st.number_input(
+            "Volatility (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=25.0,
+            step=1.0,
+        )
+        drift_pct = st.number_input(
+            "Drift / proxy rate (%)",
+            min_value=-20.0,
+            max_value=20.0,
+            value=0.0,
+            step=0.5,
+        )
+
+    with mc3:
+        maturity_years = st.number_input(
+            "Maturity in years",
+            min_value=0.25,
+            max_value=10.0,
+            value=1.0,
+            step=0.25,
+        )
+        correlation = st.number_input(
+            "Basket correlation",
+            min_value=-0.40,
+            max_value=0.99,
+            value=0.50,
+            step=0.05,
+            disabled=simulation_mode == "Single underlying",
+        )
+        seed = st.number_input(
+            "Random seed",
+            min_value=1,
+            max_value=999_999,
+            value=42,
+            step=1,
+        )
+
+    if simulation_mode == "Single underlying":
+        simulated_paths = simulate_single_underlying_paths(
+            number_of_observations=int(number_of_observations),
+            n_simulations=int(n_simulations),
+            drift=drift_pct / 100.0,
+            volatility=volatility_pct / 100.0,
+            maturity_years=float(maturity_years),
+            seed=int(seed),
+        )
+        is_worst_of = False
+    else:
+        basket_simulation = simulate_worst_of_basket_paths(
+            number_of_observations=int(number_of_observations),
+            n_underlyings=3,
+            n_simulations=int(n_simulations),
+            drift=drift_pct / 100.0,
+            volatility=volatility_pct / 100.0,
+            correlation=float(correlation),
+            maturity_years=float(maturity_years),
+            seed=int(seed),
+        )
+        simulated_paths = basket_simulation["worst_of_performance_paths"]
+        is_worst_of = True
+
+    mc_results_df = calculate_monte_carlo_results_table(
+        terms=terms,
+        performance_paths=simulated_paths,
+    )
+
+    mc_summary = summarize_monte_carlo_results(mc_results_df)
+    mc_commentary = generate_monte_carlo_commentary(mc_summary, is_worst_of=is_worst_of)
+
+    m1, m2, m3, m4, m5 = st.columns(5)
+
+    m1.metric("Autocall Prob.", _format_percent(mc_summary["autocall_probability"]))
+    m2.metric("Barrier Breach Prob.", _format_percent(mc_summary["barrier_breach_probability"]))
+    m3.metric("Expected Payoff", _format_currency(mc_summary["expected_payoff"]))
+    m4.metric("Expected P&L", _format_currency(mc_summary["expected_pnl"]))
+    m5.metric("Expected Return", _format_percent(mc_summary["expected_return"]))
+
+    with st.container(border=True):
+        for comment in mc_commentary:
+            st.markdown(f"- {comment}")
+
+    summary_table = pd.DataFrame(
+        [{"Metric": key, "Value": value} for key, value in mc_summary.items()]
+    )
+
+    st.dataframe(summary_table, use_container_width=True)
+
+    fig_mc = px.histogram(
+        mc_results_df,
+        x="total_pnl",
+        nbins=50,
+        title="Monte Carlo Total P&L Distribution",
+        labels={"total_pnl": "Total P&L"},
+    )
+    st.plotly_chart(fig_mc, use_container_width=True)
+
     st.subheader("Methodology Notes")
 
     st.markdown(
@@ -236,7 +361,7 @@ def render() -> None:
         - Phoenix memory coupon allows missed coupons to be recovered later if the coupon condition is met.
         - Worst-of basket payoff is driven by the weakest underlying at each observation.
         - Worst-of structures are exposed to dispersion risk: one weak name can dominate the payoff.
-        - Monte Carlo pricing and correlation simulation will be added later.
-        - This module is deterministic payoff logic, not bank-grade pricing.
+        - Monte Carlo uses simplified GBM paths and should be treated as a proxy layer only.
+        - This module is not bank-grade pricing, not fair value, and not investment advice.
         """
     )
