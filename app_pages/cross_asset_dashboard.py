@@ -1,23 +1,46 @@
-import streamlit as st
+from app_pages.common import (
+    render_module_header,
+    render_planned_outputs,
+    render_validation_box,
+    render_status_badge,
+)
 
 
 def render() -> None:
-    st.title("Cross-Asset Dashboard")
-    st.caption("Market monitoring dashboard for equities, rates, FX, commodities, volatility, and credit proxies.")
+    render_module_header(
+        title="Cross-Asset Dashboard",
+        caption="Market monitoring dashboard for equities, rates, FX, commodities, volatility, and credit proxies.",
+        objective=(
+            "Objective: produce a morning-meeting style dashboard that summarizes what moved, "
+            "market tone, affected asset classes, and what to watch next."
+        ),
+    )
 
-    st.info("This module will be implemented after the core risk modules.")
+    render_status_badge("Planned — build after core risk modules")
 
-    st.subheader("Planned Desk Outputs")
-    st.markdown(
-        """
-        - Equity index moves
-        - Rates moves
-        - FX moves
-        - Commodity moves
-        - Volatility regime
-        - Credit proxy moves
-        - Risk-on / risk-off score
-        - Market narrative
-        - Morning market snapshot export
-        """
+    render_planned_outputs(
+        [
+            "Equity index moves",
+            "Rates and curve moves",
+            "FX moves",
+            "Commodity moves",
+            "Volatility regime",
+            "Credit proxy moves",
+            "Key movers table",
+            "Risk-on / risk-off score",
+            "Rates-led risk-off detection",
+            "Mixed market signal detection",
+            "Short market narrative",
+            "Morning market snapshot export",
+        ]
+    )
+
+    render_validation_box(
+        [
+            "Rates up must be treated as ambiguous unless confirmed by equity/vol/FX reaction.",
+            "USD up can reflect risk-off or relative rates advantage.",
+            "Oil up can be inflationary or growth-positive depending on context.",
+            "Narrative must separate facts from interpretation.",
+            "The dashboard must not generate buy/sell signals.",
+        ]
     )

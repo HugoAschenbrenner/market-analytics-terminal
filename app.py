@@ -15,6 +15,34 @@ st.set_page_config(
     layout="wide",
 )
 
+CUSTOM_CSS = """
+<style>
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+}
+
+.metric-card {
+    padding: 1.1rem;
+    border: 1px solid rgba(49, 51, 63, 0.15);
+    border-radius: 0.75rem;
+    background-color: rgba(250, 250, 250, 0.65);
+}
+
+.module-caption {
+    color: #6c757d;
+    font-size: 0.92rem;
+}
+
+.small-muted {
+    color: #6c757d;
+    font-size: 0.85rem;
+}
+</style>
+"""
+
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
 PAGES = {
     "Home": home.render,
     "Fixed Income Risk": fixed_income.render,
@@ -33,9 +61,13 @@ selected_page = st.sidebar.radio(
 )
 
 st.sidebar.divider()
+st.sidebar.markdown("### Build standard")
+st.sidebar.caption("Input → Calculation → Scenario → Interpretation → Export")
+
+st.sidebar.divider()
 st.sidebar.caption(
-    "Educational/proxy analytics only. "
-    "Not investment advice or bank-grade pricing."
+    "Educational/proxy analytics only. Not investment advice, not a trading bot, "
+    "and not bank-grade pricing."
 )
 
 PAGES[selected_page]()
