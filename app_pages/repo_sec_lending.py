@@ -12,6 +12,12 @@ from engines.repo_engine import (
     margin_result_to_dict,
     repo_result_to_dict,
 )
+from engines.sec_lending_engine import (
+    calculate_borrow_fee_comparison_table,
+    calculate_securities_lending_trade,
+    generate_sec_lending_commentary,
+    sec_lending_result_to_dict,
+)
 
 
 def _format_currency(value: float, currency: str = "EUR") -> str:
@@ -26,14 +32,14 @@ def _format_percent(value: float) -> str:
 def render() -> None:
     render_module_header(
         title="Repo & Securities Lending",
-        caption="Funding, collateral, haircut, margin call, and borrow fee analytics.",
+        caption="Funding, collateral, haircut, margin call, borrow fee, rebate, and specialness analytics.",
         objective=(
-            "Objective: explain how repo funding terms affect cash proceeds, repo interest, "
-            "repurchase amount, collateral eligibility, and margin calls."
+            "Objective: explain how repo and securities lending terms affect funding proceeds, collateral eligibility, "
+            "margin calls, borrow cost, and lending revenue."
         ),
     )
 
-    repo_tab, sec_lending_tab = st.tabs(["Repo Cashflow & Margin Analytics", "Securities Lending - Planned"])
+    repo_tab, sec_lending_tab = st.tabs(["Repo Cashflow & Margin Analytics", "Securities Lending Analytics"])
 
     with repo_tab:
         st.subheader("Repo Trade Inputs")
@@ -41,7 +47,7 @@ def render() -> None:
         c1, c2, c3 = st.columns(3)
 
         with c1:
-            currency = st.selectbox("Currency", ["EUR", "USD", "GBP", "CHF"])
+            currency = st.selectbox("Repo currency", ["EUR", "USD", "GBP", "CHF"])
             collateral_market_value = st.number_input(
                 "Collateral market value",
                 min_value=1_000.0,
@@ -66,9 +72,9 @@ def render() -> None:
             )
 
         with c3:
-            start_date = st.date_input("Start date", value=date.today())
-            end_date = st.date_input("End date", value=date.today() + timedelta(days=30))
-            day_count_basis = st.selectbox("Day-count basis", [360, 365], index=0)
+            start_date = st.date_input("Repo start date", value=date.today())
+            end_date = st.date_input("Repo end date", value=date.today() + timedelta(days=30))
+            day_count_basis = st.selectbox("Repo day-count basis", [360, 365], index=0)
 
         haircut = haircut_pct / 100.0
         repo_rate = repo_rate_pct / 100.0
@@ -221,7 +227,7 @@ def render() -> None:
             use_container_width=True,
         )
 
-        st.subheader("Methodology Notes")
+        st.subheader("Repo Methodology Notes")
 
         st.markdown(
             """
@@ -237,15 +243,124 @@ def render() -> None:
         )
 
     with sec_lending_tab:
-        st.info("Securities lending analytics will be implemented after the repo margin call layer.")
+        st.subheader("Securities Lending Inputs")
+
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+            sec_currency = st.selectbox("Securities lending currency", ["EUR", "USD", "GBP", "CHF"])
+            security_market_value = st.number_input(
+                "Security market value",
+                min_value=1_000.0,
+                value=5_000_000.0,
+                step=100_000.0,
+            )
+            collateralization_pct = st.number_input(
+                "Collateralization rate (%)",
+                min_value=1.0,
+                max_value=200.0,
+                value=102.0,
+                step=0.5,
+            )
+
+        with c2:
+            borrow_fee_pct = st.number_input(
+                "Borrow fee rate (%)",
+                min_value=0.0,
+                max_value=50.0,
+                value=1.25,
+                step=0.10,
+            )
+            rebate_rate_pct = st.number_input(
+                "Rebate rate (%)",
+                min_value=-10.0,
+                max_value=20.0,
+                value=0.50,
+                step=0.10,
+            )
+
+        with c3:
+            loan_days = st.number_input(
+                "Loan days",
+                min_value=1,
+                max_value=365,
+                value=30,
+                step=1,
+            )
+            sec_day_count_basis = st.selectbox("Securities lending day-count basis", [360, 365], index=0)
+            utilization_pct = st.number_input(
+                "Utilization proxy (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=65.0,
+                step=1.0,
+            )
+            is_special = st.checkbox("Flag as special / hard-to-borrow", value=False)
+
+        sec_result = calculate_securities_lending_trade(
+            security_market_value=security_market_value,
+            borrow_fee_rate=borrow_fee_pct / 100.0,
+            rebate_rate=rebate_rate_pct / 100.0,
+            collateralization_rate=collateralization_pct / 100.0,
+            loan_days=int(loan_days),
+            day_count_basis=int(sec_day_count_basis),
+            utilization_proxy=utilization_pct / 100.0,
+            is_special=is_special,
+        )
+
+        sec_result_dict = sec_lending_result_to_dict(sec_result)
+        sec_commentary = generate_sec_lending_commentary(sec_result)
+
+        st.subheader("Securities Lending Summary")
+
+        s1, s2, s3, s4, s5 = st.columns(5)
+
+        s1.metric("Collateral Required", _format_currency(sec_result.collateral_required, sec_currency))
+        s2.metric("Borrow Fee Amount", _format_currency(sec_result.borrow_fee_amount, sec_currency))
+        s3.metric("Rebate Amount", _format_currency(sec_result.rebate_amount, sec_currency))
+        s4.metric("Net Revenue", _format_currency(sec_result.net_lending_revenue, sec_currency))
+        s5.metric("Specialness", sec_result.specialness_label)
+
+        with st.container(border=True):
+            for comment in sec_commentary:
+                st.markdown(f"- {comment}")
+
+        st.subheader("Normal vs Special Borrow Comparison")
+
+        comparison_df = calculate_borrow_fee_comparison_table(
+            security_market_value=security_market_value,
+            rebate_rate=rebate_rate_pct / 100.0,
+            collateralization_rate=collateralization_pct / 100.0,
+            loan_days=int(loan_days),
+            day_count_basis=int(sec_day_count_basis),
+        )
+
+        st.dataframe(
+            comparison_df.style.format(
+                {
+                    "borrow_fee_rate": "{:.2%}",
+                    "rebate_rate": "{:.2%}",
+                    "utilization_proxy": "{:.2%}",
+                    "collateral_required": "{:,.0f}",
+                    "borrow_fee_amount": "{:,.0f}",
+                    "rebate_amount": "{:,.0f}",
+                    "net_lending_revenue": "{:,.0f}",
+                }
+            ),
+            use_container_width=True,
+        )
+
+        st.subheader("Securities Lending Methodology Notes")
 
         st.markdown(
             """
-            Planned outputs:
-            - borrow fee
-            - rebate
-            - collateralization
-            - lending revenue
-            - specialness indicator
+            - Borrow fee is an annualized fee charged for borrowing the security.
+            - Rebate is the rate paid on collateral in this simplified framework.
+            - Collateral required = security market value x collateralization rate.
+            - Borrow fee amount = security market value x borrow fee x days / day-count basis.
+            - Rebate amount = collateral required x rebate rate x days / day-count basis.
+            - Simplified net lending revenue = borrow fee amount - rebate amount.
+            - Specialness classification is based on borrow fee, utilization proxy, and manual special flag.
+            - This module does not model recall risk, manufactured dividends, settlement, counterparty risk, or full securities finance economics.
             """
         )
