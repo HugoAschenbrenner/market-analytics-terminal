@@ -3,6 +3,7 @@ import plotly.express as px
 import streamlit as st
 
 from app_pages.common import render_module_header
+from reports.excel_exporter import generate_fixed_income_risk_report
 from engines.fixed_income_engine import (
     calculate_bond_risk_metrics,
     calculate_dv01_by_bucket,
@@ -162,6 +163,24 @@ def render() -> None:
     )
 
     st.metric("Approximate hedge units", f"{hedge_units:,.1f}")
+
+
+    st.subheader("Excel Risk Report")
+
+    report_bytes = generate_fixed_income_risk_report(
+        summary=summary_dict,
+        risk_df=risk_df,
+        bucket_df=bucket_df,
+        scenario_df=scenario_df,
+        commentary=commentary,
+    )
+
+    st.download_button(
+        label="Download Fixed Income Risk Report",
+        data=report_bytes,
+        file_name="fixed_income_risk_report.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
     st.subheader("Bond-Level Risk Metrics")
 
