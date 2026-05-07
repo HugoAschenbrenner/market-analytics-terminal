@@ -420,3 +420,238 @@ def generate_structured_product_commentary(
     )
 
     return comments
+
+# ---------------------------------------------------------------------------
+# Step 13: Worst-of basket analytics
+# ---------------------------------------------------------------------------
+
+def validate_basket_paths(underlying_paths: dict[str, list[float]]) -> int:
+    """Validate basket paths and return number of observations."""
+
+    if not underlying_paths:
+        raise ValueError("Underlying paths cannot be empty.")
+
+    lengths = set()
+
+    for underlying, path in underlying_paths.items():
+        if not underlying:
+            raise ValueError("Underlying name cannot be empty.")
+
+        if not path:
+            raise ValueError(f"Performance path for {underlying} cannot be empty.")
+
+        for performance in path:
+            if performance <= -1.0:
+                raise ValueError("Performance cannot be less than or equal to -100%.")
+
+        lengths.add(len(path))
+
+    if len(lengths) != 1:
+        raise ValueError("All underlying paths must have the same number of observations.")
+
+    return lengths.pop()
+
+
+def calculate_worst_of_path(underlying_paths: dict[str, list[float]]) -> list[float]:
+    """Calculate worst-of performance path across multiple underlyings.
+
+    At each observation date, worst-of performance is the minimum performance
+    among all underlyings.
+    """
+
+    number_of_observations = validate_basket_paths(underlying_paths)
+
+    worst_of_path = []
+
+    for obs_idx in range(number_of_observations):
+        obs_performances = [
+            path[obs_idx] for path in underlying_paths.values()
+        ]
+        worst_of_path.append(float(min(obs_performances)))
+
+    return worst_of_path
+
+
+def identify_worst_performer(underlying_performances: dict[str, float]) -> dict:
+    """Identify the worst performer from a dictionary of underlying performances."""
+
+    if not underlying_performances:
+        raise ValueError("Underlying performances cannot be empty.")
+
+    worst_name = min(underlying_performances, key=underlying_performances.get)
+
+    return {
+        "underlying": worst_name,
+        "performance": float(underlying_performances[worst_name]),
+    }
+
+
+def identify_worst_performer_at_maturity(underlying_paths: dict[str, list[float]]) -> dict:
+    """Identify worst performer at final observation."""
+
+    validate_basket_paths(underlying_paths)
+
+    final_performances = {
+        underlying: path[-1]
+        for underlying, path in underlying_paths.items()
+    }
+
+    return identify_worst_performer(final_performances)
+
+
+def _constant_path(number_of_observations: int, interim_value: float, final_value: float) -> list[float]:
+    """Build a simple path with repeated interim value and explicit final value."""
+
+    if number_of_observations <= 0:
+        raise ValueError("Number of observations must be positive.")
+
+    return [interim_value] * max(number_of_observations - 1, 0) + [final_value]
+
+
+def build_standard_basket_scenario_paths(
+    number_of_observations: int,
+) -> dict[str, dict[str, list[float]]]:
+    """Build deterministic worst-of basket scenario paths.
+
+    Each scenario contains three underlyings. Product payoff is calculated
+    on the worst-of path.
+    """
+
+    if number_of_observations <= 0:
+        raise ValueError("Number of observations must be positive.")
+
+    return {
+        "All names above autocall barrier": {
+            "Equity A": [0.05] * number_of_observations,
+            "Equity B": [0.03] * number_of_observations,
+            "Equity C": [0.01] * number_of_observations,
+        },
+        "Dispersion / late autocall": {
+            "Equity A": _constant_path(number_of_observations, 0.10, 0.04),
+            "Equity B": _constant_path(number_of_observations, -0.15, 0.02),
+            "Equity C": _constant_path(number_of_observations, -0.05, 0.01),
+        },
+        "No autocall / protected maturity": {
+            "Equity A": _constant_path(number_of_observations, -0.10, -0.20),
+            "Equity B": _constant_path(number_of_observations, -0.15, -0.25),
+            "Equity C": _constant_path(number_of_observations, -0.20, -0.30),
+        },
+        "Single-name barrier breach": {
+            "Equity A": _constant_path(number_of_observations, -0.10, -0.20),
+            "Equity B": _constant_path(number_of_observations, -0.20, -0.50),
+            "Equity C": _constant_path(number_of_observations, -0.15, -0.25),
+        },
+        "Correlated downside shock": {
+            "Equity A": _constant_path(number_of_observations, -0.25, -0.55),
+            "Equity B": _constant_path(number_of_observations, -0.30, -0.60),
+            "Equity C": _constant_path(number_of_observations, -0.20, -0.50),
+        },
+    }
+
+
+def calculate_worst_of_basket_payoff(
+    terms: AutocallableTerms,
+    underlying_paths: dict[str, list[float]],
+) -> dict:
+    """Calculate payoff using the worst-of path of a basket."""
+
+    worst_of_path = calculate_worst_of_path(underlying_paths)
+    payoff_result = calculate_autocallable_payoff(terms, worst_of_path)
+    worst_performer = identify_worst_performer_at_maturity(underlying_paths)
+
+    return {
+        "worst_of_path": worst_of_path,
+        "payoff_result": payoff_result,
+        "worst_performer_at_maturity": worst_performer["underlying"],
+        "worst_performance_at_maturity": worst_performer["performance"],
+    }
+
+
+def calculate_basket_scenario_table(
+    terms: AutocallableTerms,
+    basket_scenario_paths: dict[str, dict[str, list[float]]],
+) -> pd.DataFrame:
+    """Calculate deterministic scenario table for worst-of basket autocallables."""
+
+    rows = []
+
+    for scenario_name, underlying_paths in basket_scenario_paths.items():
+        basket_result = calculate_worst_of_basket_payoff(
+            terms=terms,
+            underlying_paths=underlying_paths,
+        )
+
+        payoff = basket_result["payoff_result"]
+        worst_of_path = basket_result["worst_of_path"]
+
+        rows.append(
+            {
+                "scenario": scenario_name,
+                "worst_of_path": ", ".join([f"{x:.0%}" for x in worst_of_path]),
+                "worst_performer_at_maturity": basket_result["worst_performer_at_maturity"],
+                "worst_performance_at_maturity": basket_result["worst_performance_at_maturity"],
+                "autocalled": payoff.autocalled,
+                "autocall_observation": payoff.autocall_observation,
+                "total_coupons_paid": payoff.total_coupons_paid,
+                "redemption_amount": payoff.redemption_amount,
+                "capital_pnl": payoff.capital_pnl,
+                "total_payoff": payoff.total_payoff,
+                "total_pnl": payoff.total_pnl,
+                "payoff_return": payoff.payoff_return,
+                "protection_barrier_breached": payoff.protection_barrier_breached,
+                "explanation": payoff.explanation,
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def generate_worst_of_basket_commentary(
+    terms: AutocallableTerms,
+    underlying_paths: dict[str, list[float]],
+) -> list[str]:
+    """Generate desk-style commentary for worst-of basket autocallables."""
+
+    basket_result = calculate_worst_of_basket_payoff(
+        terms=terms,
+        underlying_paths=underlying_paths,
+    )
+
+    payoff = basket_result["payoff_result"]
+    worst_name = basket_result["worst_performer_at_maturity"]
+    worst_perf = basket_result["worst_performance_at_maturity"]
+
+    comments = [
+        (
+            f"Payoff is driven by the worst-of path, not the average basket performance. "
+            f"The final worst performer is {worst_name} at {worst_perf:.2%}."
+        )
+    ]
+
+    if payoff.autocalled:
+        comments.append(
+            f"The product autocalled at observation {payoff.autocall_observation} because the worst-of performance met the autocall condition."
+        )
+    else:
+        comments.append(
+            "The product did not autocall because the worst-of performance did not meet the autocall condition on any observation date."
+        )
+
+    if payoff.protection_barrier_breached:
+        comments.append(
+            "The protection barrier was breached by the worst performer at maturity, so capital loss applies."
+        )
+    else:
+        comments.append(
+            "The protection barrier was not breached at maturity, or the product autocalled before maturity."
+        )
+
+    comments.append(
+        "Worst-of structures are highly sensitive to dispersion: one weak underlying can dominate the payoff even if the rest of the basket performs well."
+    )
+
+    comments.append(
+        "This is deterministic payoff analytics only, not stochastic pricing or a recommendation."
+    )
+
+    return comments

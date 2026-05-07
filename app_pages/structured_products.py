@@ -5,10 +5,13 @@ import streamlit as st
 from app_pages.common import render_module_header
 from engines.structured_products_engine import (
     AutocallableTerms,
+    build_standard_basket_scenario_paths,
     build_standard_scenario_paths,
     calculate_autocallable_payoff,
+    calculate_basket_scenario_table,
     calculate_scenario_table,
     generate_structured_product_commentary,
+    generate_worst_of_basket_commentary,
     payoff_result_to_dict,
 )
 
@@ -24,10 +27,10 @@ def _format_percent(value: float) -> str:
 def render() -> None:
     render_module_header(
         title="Structured Products",
-        caption="Autocallable note analytics: payoff logic, scenarios, barrier risk, and desk explanations.",
+        caption="Autocallable note analytics: payoff logic, worst-of scenarios, barrier risk, and desk explanations.",
         objective=(
             "Objective: convert Athena and Phoenix terms into transparent payoff outcomes, "
-            "scenario analysis, and client/desk-ready explanations."
+            "scenario analysis, worst-of basket behavior, and client/desk-ready explanations."
         ),
     )
 
@@ -99,7 +102,7 @@ def render() -> None:
         memory_coupon=bool(memory_coupon if product_type == "Phoenix" else False),
     )
 
-    st.subheader("Custom Performance Path")
+    st.subheader("Custom Single-Underlying Performance Path")
 
     st.caption(
         "Enter performance versus initial level for each observation. Example: -20 means underlying is down 20%."
@@ -145,7 +148,7 @@ def render() -> None:
 
     st.dataframe(result_table, use_container_width=True)
 
-    st.subheader("Standard Scenario Table")
+    st.subheader("Single-Underlying Standard Scenario Table")
 
     scenario_paths = build_standard_scenario_paths(int(number_of_observations))
     scenario_df = calculate_scenario_table(terms, scenario_paths)
@@ -170,10 +173,56 @@ def render() -> None:
         x="scenario",
         y="total_pnl",
         color="protection_barrier_breached",
-        title="Total P&L by Scenario",
+        title="Single-Underlying Total P&L by Scenario",
         labels={"scenario": "Scenario", "total_pnl": "Total P&L"},
     )
     st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Worst-of Basket Scenario Table")
+
+    basket_scenario_paths = build_standard_basket_scenario_paths(int(number_of_observations))
+    basket_df = calculate_basket_scenario_table(terms, basket_scenario_paths)
+
+    st.dataframe(
+        basket_df.style.format(
+            {
+                "worst_performance_at_maturity": "{:.2%}",
+                "total_coupons_paid": "{:,.0f}",
+                "redemption_amount": "{:,.0f}",
+                "capital_pnl": "{:,.0f}",
+                "total_payoff": "{:,.0f}",
+                "total_pnl": "{:,.0f}",
+                "payoff_return": "{:.2%}",
+            }
+        ),
+        use_container_width=True,
+    )
+
+    fig_basket = px.bar(
+        basket_df,
+        x="scenario",
+        y="total_pnl",
+        color="worst_performer_at_maturity",
+        title="Worst-of Basket Total P&L by Scenario",
+        labels={"scenario": "Scenario", "total_pnl": "Total P&L"},
+    )
+    st.plotly_chart(fig_basket, use_container_width=True)
+
+    st.subheader("Worst-of Basket Commentary")
+
+    selected_basket_scenario = st.selectbox(
+        "Select basket scenario for commentary",
+        list(basket_scenario_paths.keys()),
+    )
+
+    basket_commentary = generate_worst_of_basket_commentary(
+        terms=terms,
+        underlying_paths=basket_scenario_paths[selected_basket_scenario],
+    )
+
+    with st.container(border=True):
+        for comment in basket_commentary:
+            st.markdown(f"- {comment}")
 
     st.subheader("Methodology Notes")
 
@@ -185,7 +234,9 @@ def render() -> None:
         - Athena coupon is simplified as accumulated coupon paid only if autocall occurs.
         - Phoenix coupon can be paid periodically if the coupon barrier is met.
         - Phoenix memory coupon allows missed coupons to be recovered later if the coupon condition is met.
-        - Worst-of basket and Monte Carlo layers will be added later.
+        - Worst-of basket payoff is driven by the weakest underlying at each observation.
+        - Worst-of structures are exposed to dispersion risk: one weak name can dominate the payoff.
+        - Monte Carlo pricing and correlation simulation will be added later.
         - This module is deterministic payoff logic, not bank-grade pricing.
         """
     )
