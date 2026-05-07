@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.DS_Store
+
+# Outputs
+outputs/*
+!outputs/.gitkeep
+
+# Temporary Excel files
+~$*.xlsx
+*.tmp
+
+# R history and environment
+.Rhistory
+.RData
+.Rproj.user/
+
+# IDE
+.vscode/
+.idea/
