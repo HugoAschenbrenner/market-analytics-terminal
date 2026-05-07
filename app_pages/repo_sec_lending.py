@@ -4,8 +4,12 @@ import streamlit as st
 
 from app_pages.common import render_module_header
 from engines.repo_engine import (
+    calculate_margin_call,
+    calculate_margin_stress_table,
     calculate_repo_sensitivity_table,
     calculate_repo_trade,
+    generate_repo_margin_commentary,
+    margin_result_to_dict,
     repo_result_to_dict,
 )
 
@@ -25,11 +29,11 @@ def render() -> None:
         caption="Funding, collateral, haircut, margin call, and borrow fee analytics.",
         objective=(
             "Objective: explain how repo funding terms affect cash proceeds, repo interest, "
-            "repurchase amount, and future collateral analytics."
+            "repurchase amount, collateral eligibility, and margin calls."
         ),
     )
 
-    repo_tab, sec_lending_tab = st.tabs(["Repo Cashflow MVP", "Securities Lending - Planned"])
+    repo_tab, sec_lending_tab = st.tabs(["Repo Cashflow & Margin Analytics", "Securities Lending - Planned"])
 
     with repo_tab:
         st.subheader("Repo Trade Inputs")
@@ -47,7 +51,7 @@ def render() -> None:
 
         with c2:
             haircut_pct = st.number_input(
-                "Haircut (%)",
+                "Initial haircut (%)",
                 min_value=0.0,
                 max_value=99.0,
                 value=2.0,
@@ -92,23 +96,103 @@ def render() -> None:
         m5.metric("Repurchase Amount", _format_currency(result.repurchase_amount, currency))
 
         st.caption(
-            "Cash amount = collateral market value × (1 - haircut). "
-            "Repo interest = cash amount × repo rate × days / day-count basis."
+            "Cash amount = collateral market value x (1 - haircut). "
+            "Repo interest = cash amount x repo rate x days / day-count basis."
         )
 
         st.subheader("Trade Details")
 
         trade_details = {
-            "Currency": result.currency,
-            "Start Date": result_dict["start_date"],
-            "End Date": result_dict["end_date"],
-            "Repo Days": result.repo_days,
-            "Day-Count Basis": result.day_count_basis,
+            "Currency": str(result.currency),
+            "Start Date": str(result_dict["start_date"]),
+            "End Date": str(result_dict["end_date"]),
+            "Repo Days": str(result.repo_days),
+            "Day-Count Basis": str(result.day_count_basis),
             "Repo Rate": _format_percent(result.repo_rate),
         }
 
         st.dataframe(
             [{"Metric": key, "Value": value} for key, value in trade_details.items()],
+            use_container_width=True,
+        )
+
+        st.subheader("Collateral Shock & Margin Call")
+
+        s1, s2 = st.columns(2)
+
+        with s1:
+            collateral_price_shock_pct = st.number_input(
+                "Collateral price shock (%)",
+                min_value=-50.0,
+                max_value=50.0,
+                value=-5.0,
+                step=0.5,
+            )
+
+        with s2:
+            new_haircut_pct = st.number_input(
+                "Stressed haircut (%)",
+                min_value=0.0,
+                max_value=99.0,
+                value=haircut_pct + 2.0,
+                step=0.25,
+            )
+
+        margin_result = calculate_margin_call(
+            collateral_market_value=result.collateral_market_value,
+            cash_amount=result.cash_amount,
+            original_haircut=result.haircut,
+            collateral_price_shock=collateral_price_shock_pct / 100.0,
+            new_haircut=new_haircut_pct / 100.0,
+        )
+
+        margin_dict = margin_result_to_dict(margin_result)
+        commentary = generate_repo_margin_commentary(margin_result)
+
+        mc1, mc2, mc3, mc4 = st.columns(4)
+
+        mc1.metric(
+            "Adjusted Collateral",
+            _format_currency(margin_result.adjusted_collateral_value, currency),
+        )
+        mc2.metric(
+            "Eligible Collateral",
+            _format_currency(margin_result.new_eligible_collateral, currency),
+        )
+        mc3.metric(
+            "Margin Deficit",
+            _format_currency(margin_result.margin_deficit, currency),
+        )
+        mc4.metric(
+            "Margin Call?",
+            "Yes" if margin_result.margin_call_required else "No",
+        )
+
+        with st.container(border=True):
+            for comment in commentary:
+                st.markdown(f"- {comment}")
+
+        st.subheader("Margin Stress Scenarios")
+
+        margin_stress_df = calculate_margin_stress_table(
+            collateral_market_value=result.collateral_market_value,
+            cash_amount=result.cash_amount,
+            original_haircut=result.haircut,
+        )
+
+        st.dataframe(
+            margin_stress_df.style.format(
+                {
+                    "collateral_price_shock": "{:.2%}",
+                    "original_haircut": "{:.2%}",
+                    "new_haircut": "{:.2%}",
+                    "adjusted_collateral_value": "{:,.0f}",
+                    "new_eligible_collateral": "{:,.0f}",
+                    "margin_deficit": "{:,.0f}",
+                    "margin_surplus": "{:,.0f}",
+                    "deficit_pct_of_original_collateral": "{:.2%}",
+                }
+            ),
             use_container_width=True,
         )
 
@@ -145,7 +229,10 @@ def render() -> None:
             - A higher haircut reduces the cash amount available against the same collateral.
             - Repo interest is calculated using a simple money-market convention.
             - Repurchase amount equals initial cash amount plus repo interest.
-            - This MVP does not yet include collateral price shocks, margin calls, counterparty default, or legal close-out mechanics.
+            - Adjusted collateral value = original collateral value x (1 + collateral price shock).
+            - Eligible collateral = adjusted collateral value x (1 - stressed haircut).
+            - Margin deficit = max(0, cash amount - eligible collateral).
+            - This module does not model legal close-out, settlement frictions, or counterparty default.
             """
         )
 
