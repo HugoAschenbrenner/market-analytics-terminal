@@ -3,6 +3,7 @@ from datetime import date, timedelta
 import streamlit as st
 
 from app_pages.common import render_module_header
+from reports.excel_exporter import generate_financing_margin_report
 from engines.repo_engine import (
     calculate_margin_call,
     calculate_margin_stress_table,
@@ -348,6 +349,27 @@ def render() -> None:
                 }
             ),
             use_container_width=True,
+        )
+
+
+        st.subheader("Financing & Margin Excel Report")
+
+        financing_report_bytes = generate_financing_margin_report(
+            repo_summary=result_dict,
+            repo_sensitivity_df=sensitivity_df,
+            margin_summary=margin_dict,
+            margin_stress_df=margin_stress_df,
+            repo_commentary=commentary,
+            sec_lending_summary=sec_result_dict,
+            borrow_comparison_df=comparison_df,
+            sec_lending_commentary=sec_commentary,
+        )
+
+        st.download_button(
+            label="Download Financing & Margin Report",
+            data=financing_report_bytes,
+            file_name="financing_margin_report.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
         st.subheader("Securities Lending Methodology Notes")

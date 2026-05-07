@@ -201,3 +201,157 @@ def generate_fixed_income_risk_report(
 
     output.seek(0)
     return output.getvalue()
+
+def _write_key_value_sheet(
+    writer: pd.ExcelWriter,
+    sheet_name: str,
+    title: str,
+    data: dict,
+    commentary: list[str] | None = None,
+) -> None:
+    """Write a key-value summary sheet with optional commentary."""
+
+    workbook = writer.book
+    title_format = workbook.add_format({"bold": True, "font_size": 16})
+    header_format = workbook.add_format({"bold": True, "bg_color": "#D9EAF7", "border": 1})
+    wrap_format = workbook.add_format({"text_wrap": True, "valign": "top"})
+
+    summary_df = pd.DataFrame(
+        [{"Metric": key, "Value": value} for key, value in data.items()]
+    )
+
+    summary_df.to_excel(writer, sheet_name=sheet_name, index=False, startrow=3)
+
+    worksheet = writer.sheets[sheet_name]
+    worksheet.write(0, 0, title, title_format)
+    worksheet.set_row(3, None, header_format)
+    worksheet.set_column(0, 0, 42)
+    worksheet.set_column(1, 1, 45)
+
+    if commentary:
+        start_row = len(summary_df) + 6
+        worksheet.write(start_row, 0, "Desk Commentary", header_format)
+
+        for offset, comment in enumerate(commentary, start=1):
+            worksheet.write(start_row + offset, 0, comment, wrap_format)
+
+        worksheet.set_column(0, 0, 120, wrap_format)
+
+
+def generate_financing_margin_report(
+    repo_summary: dict[str, Any],
+    repo_sensitivity_df: pd.DataFrame,
+    margin_summary: dict[str, Any],
+    margin_stress_df: pd.DataFrame,
+    repo_commentary: list[str],
+    sec_lending_summary: dict[str, Any],
+    borrow_comparison_df: pd.DataFrame,
+    sec_lending_commentary: list[str],
+) -> bytes:
+    """Generate a Repo & Securities Lending Financing/Margin Excel report.
+
+    Sheets:
+    1. Repo_Summary
+    2. Repo_Sensitivity
+    3. Margin_Summary
+    4. Margin_Stress
+    5. Sec_Lending_Summary
+    6. Borrow_Comparison
+    7. Methodology
+
+    The report uses simplified analytics and synthetic/manual inputs. It is not
+    a legal, collateral management, settlement, or counterparty risk system.
+    """
+
+    output = BytesIO()
+
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        workbook = writer.book
+
+        header_format = workbook.add_format(
+            {"bold": True, "bg_color": "#EAF3F8", "border": 1}
+        )
+        title_format = workbook.add_format({"bold": True, "font_size": 16})
+        wrap_format = workbook.add_format({"text_wrap": True, "valign": "top"})
+
+        _write_key_value_sheet(
+            writer=writer,
+            sheet_name="Repo_Summary",
+            title="Repo Cashflow Summary",
+            data=repo_summary,
+            commentary=None,
+        )
+
+        repo_sensitivity_df.to_excel(
+            writer,
+            sheet_name="Repo_Sensitivity",
+            index=False,
+        )
+        writer.sheets["Repo_Sensitivity"].set_row(0, None, header_format)
+        _auto_adjust_columns(writer, "Repo_Sensitivity", repo_sensitivity_df)
+
+        _write_key_value_sheet(
+            writer=writer,
+            sheet_name="Margin_Summary",
+            title="Repo Margin Call Summary",
+            data=margin_summary,
+            commentary=repo_commentary,
+        )
+
+        margin_stress_df.to_excel(
+            writer,
+            sheet_name="Margin_Stress",
+            index=False,
+        )
+        writer.sheets["Margin_Stress"].set_row(0, None, header_format)
+        _auto_adjust_columns(writer, "Margin_Stress", margin_stress_df)
+
+        _write_key_value_sheet(
+            writer=writer,
+            sheet_name="Sec_Lending_Summary",
+            title="Securities Lending Summary",
+            data=sec_lending_summary,
+            commentary=sec_lending_commentary,
+        )
+
+        borrow_comparison_df.to_excel(
+            writer,
+            sheet_name="Borrow_Comparison",
+            index=False,
+        )
+        writer.sheets["Borrow_Comparison"].set_row(0, None, header_format)
+        _auto_adjust_columns(writer, "Borrow_Comparison", borrow_comparison_df)
+
+        methodology_items = [
+            "Repo haircut is stored as a decimal, e.g. 2% = 0.02.",
+            "Repo cash amount equals collateral market value multiplied by one minus haircut.",
+            "Repo interest equals cash amount multiplied by repo rate multiplied by days divided by day-count basis.",
+            "Repurchase amount equals cash amount plus repo interest.",
+            "Adjusted collateral value equals collateral market value multiplied by one plus collateral price shock.",
+            "Eligible collateral equals adjusted collateral value multiplied by one minus stressed haircut.",
+            "Margin deficit equals max(0, cash amount minus eligible collateral).",
+            "Margin surplus equals max(0, eligible collateral minus cash amount).",
+            "Securities lending borrow fee is an annualized decimal rate.",
+            "Collateral required equals security market value multiplied by collateralization rate.",
+            "Borrow fee amount equals security market value multiplied by borrow fee rate multiplied by days divided by day-count basis.",
+            "Rebate amount equals collateral required multiplied by rebate rate multiplied by days divided by day-count basis.",
+            "Simplified net lending revenue equals borrow fee amount minus rebate amount.",
+            "Specialness classification is a heuristic based on borrow fee, utilization proxy, and manual special flag.",
+            "This report is a simplified analytics proxy and does not model legal close-out, settlement timing, counterparty default, dividend events, recall risk, or full securities finance economics.",
+        ]
+
+        methodology_df = pd.DataFrame({"Methodology / Assumption": methodology_items})
+        methodology_df.to_excel(
+            writer,
+            sheet_name="Methodology",
+            index=False,
+            startrow=2,
+        )
+
+        methodology_ws = writer.sheets["Methodology"]
+        methodology_ws.write(0, 0, "Financing & Margin Report — Methodology", title_format)
+        methodology_ws.set_row(2, None, header_format)
+        methodology_ws.set_column(0, 0, 130, wrap_format)
+
+    output.seek(0)
+    return output.getvalue()
