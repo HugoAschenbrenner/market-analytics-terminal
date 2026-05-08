@@ -192,11 +192,11 @@ def render() -> None:
         aspect="auto",
         labels={"color": "Risk score"},
     )
-    st.plotly_chart(fig_heatmap, use_container_width=True)
+    st.plotly_chart(fig_heatmap, width="stretch")
 
     st.dataframe(
         heatmap_df.style.format({"risk_score": "{:.1f}"}),
-        use_container_width=True,
+        width="stretch",
     )
 
     fig_scores = px.bar(
@@ -207,7 +207,7 @@ def render() -> None:
         title="Risk Score by Bucket",
         labels={"risk_bucket": "Risk Bucket", "risk_score": "Risk Score"},
     )
-    st.plotly_chart(fig_scores, use_container_width=True)
+    st.plotly_chart(fig_scores, width="stretch")
 
     st.subheader("Cross-Asset Stress Scenarios")
 
@@ -221,7 +221,7 @@ def render() -> None:
                 "total_proxy_impact_pct": "{:.2%}",
             }
         ),
-        use_container_width=True,
+        width="stretch",
     )
 
     fig_stress = px.bar(
@@ -231,7 +231,7 @@ def render() -> None:
         title="Total Proxy Impact by Cross-Asset Stress Scenario",
         labels={"scenario": "Scenario", "total_proxy_impact_pct": "Total Proxy Impact"},
     )
-    st.plotly_chart(fig_stress, use_container_width=True)
+    st.plotly_chart(fig_stress, width="stretch")
 
     st.subheader("Dashboard Inputs Snapshot")
 
@@ -240,7 +240,7 @@ def render() -> None:
     )
     input_snapshot_df["value"] = input_snapshot_df["value"].astype(str)
 
-    st.dataframe(input_snapshot_df, use_container_width=True)
+    st.dataframe(input_snapshot_df, width="stretch")
 
     st.subheader("Methodology Notes")
 
