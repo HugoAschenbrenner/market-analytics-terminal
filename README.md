@@ -1,5 +1,13 @@
 # Market Analytics Terminal
 
+
+## Live Demo
+
+[Open the Market Analytics Terminal](TON_LIEN_STREAMLIT)
+
+A Python/R multi-asset analytics project built by Hugo Aschenbrenner, covering fixed income risk, repo and securities lending, structured products, portfolio risk, and cross-asset stress dashboards.
+
+
 A multi-asset desk utility platform built with Python, Streamlit, and R.
 
 The objective is not to build a generic student pricer. The objective is to build a practical analytics terminal that converts market, portfolio, trade, and product inputs into outputs a sales, trader, structurer, portfolio manager, or risk analyst can actually use:
