@@ -1,47 +1,19 @@
 import streamlit as st
 
 from app_pages import (
-    home,
+    cross_asset_dashboard,
     fixed_income,
+    home,
+    portfolio_risk,
     repo_sec_lending,
     structured_products,
-    portfolio_risk,
-    cross_asset_dashboard,
 )
 
 st.set_page_config(
-    page_title="Multi-Asset Desk Utility Platform",
+    page_title="Market Analytics Terminal",
     page_icon="📊",
     layout="wide",
 )
-
-CUSTOM_CSS = """
-<style>
-.block-container {
-    padding-top: 2rem;
-    padding-bottom: 3rem;
-}
-
-.metric-card {
-    padding: 1.1rem;
-    border: 1px solid rgba(49, 51, 63, 0.15);
-    border-radius: 0.75rem;
-    background-color: rgba(250, 250, 250, 0.65);
-}
-
-.module-caption {
-    color: #6c757d;
-    font-size: 0.92rem;
-}
-
-.small-muted {
-    color: #6c757d;
-    font-size: 0.85rem;
-}
-</style>
-"""
-
-st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 PAGES = {
     "Home": home.render,
@@ -52,22 +24,30 @@ PAGES = {
     "Cross-Asset Dashboard": cross_asset_dashboard.render,
 }
 
-st.sidebar.title("Market Analytics Terminal")
-st.sidebar.caption("Desk-ready analytics toolkit")
+if "selected_page" not in st.session_state:
+    st.session_state["selected_page"] = "Home"
 
-selected_page = st.sidebar.radio(
-    "Select module",
-    list(PAGES.keys()),
-)
+with st.sidebar:
+    st.title("Market Analytics Terminal")
+    st.caption("Desk-ready analytics toolkit")
 
-st.sidebar.divider()
-st.sidebar.markdown("### Build standard")
-st.sidebar.caption("Input → Calculation → Scenario → Interpretation → Export")
+    st.radio(
+        "Select module",
+        list(PAGES.keys()),
+        key="selected_page",
+    )
 
-st.sidebar.divider()
-st.sidebar.caption(
-    "Educational/proxy analytics only. Not investment advice, not a trading bot, "
-    "and not bank-grade pricing."
-)
+    st.divider()
 
+    st.markdown("### Build standard")
+    st.caption("Input → Calculation → Scenario → Interpretation → Export")
+
+    st.divider()
+
+    st.caption(
+        "Educational/proxy analytics only. Not investment advice, "
+        "not a trading bot, and not bank-grade pricing."
+    )
+
+selected_page = st.session_state["selected_page"]
 PAGES[selected_page]()
