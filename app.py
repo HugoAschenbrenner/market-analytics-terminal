@@ -32,7 +32,7 @@ if st.session_state["selected_page"] not in PAGES:
 
 with st.sidebar:
     st.title("Market Analytics Terminal")
-    st.caption("Desk-ready analytics toolkit")
+    st.caption("Personal multi-asset analytics project")
 
     current_page = st.session_state["selected_page"]
     current_index = list(PAGES.keys()).index(current_page)
@@ -55,6 +55,22 @@ with st.sidebar:
     st.caption(
         "Educational/proxy analytics only. Not investment advice, "
         "not a trading bot, and not bank-grade pricing."
+    )
+
+    st.divider()
+
+    st.markdown("### Project")
+    st.caption("Built by Hugo Aschenbrenner")
+    st.caption("SKEMA MSc Financial Markets & Investments")
+    st.link_button(
+        "GitHub repository",
+        "https://github.com/HugoAschenbrenner/market-analytics-terminal",
+        width="stretch",
+    )
+    st.link_button(
+        "LinkedIn profile",
+        "https://www.linkedin.com/in/hugo-aschenbrenner-pro",
+        width="stretch",
     )
 
 selected_page = st.session_state["selected_page"]

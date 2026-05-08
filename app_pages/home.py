@@ -60,7 +60,7 @@ def _render_module_card(module: dict[str, str]) -> None:
 
         with right:
             st.markdown("**Status**")
-            st.success("Live")
+            st.success("Implemented")
             if st.button(
                 "Open module",
                 key=f"open_{module['page']}",
@@ -83,6 +83,42 @@ def render() -> None:
         "Educational/proxy analytics only. Not investment advice, not a trading bot, and not bank-grade pricing.",
         icon="⚠️",
     )
+
+    st.info(
+        "Built by Hugo Aschenbrenner, MSc Financial Markets & Investments student at SKEMA Business School. "
+        "This project was built to turn market concepts from fixed income, repo/securities lending, "
+        "structured products, and portfolio risk into a practical desk-style analytics workflow.",
+        icon="👤",
+    )
+
+    st.subheader("About This Project")
+
+    about_col_1, about_col_2, about_col_3 = st.columns(3)
+
+    with about_col_1:
+        with st.container(border=True):
+            st.markdown("#### Project intent")
+            st.write(
+                "Build a transparent multi-asset analytics terminal that connects market theory, "
+                "risk decomposition, scenario analysis, and practical reporting."
+            )
+
+    with about_col_2:
+        with st.container(border=True):
+            st.markdown("#### Data policy")
+            st.write(
+                "The app uses synthetic sample data and user-provided inputs only. "
+                "No proprietary client, employer, or confidential market data is included."
+            )
+
+    with about_col_3:
+        with st.container(border=True):
+            st.markdown("#### Build facts")
+            st.write(
+                "Python, Streamlit, R companion analytics, Excel exports, modular engines, "
+                "GitHub documentation, screenshots, and 150+ automated tests."
+            )
+
 
     st.subheader("Desk Workflow")
 
