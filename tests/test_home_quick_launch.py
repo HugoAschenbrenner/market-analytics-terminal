@@ -1,11 +1,12 @@
 from pathlib import Path
 
 
-def test_app_uses_session_state_navigation_key():
+def test_app_uses_session_state_navigation_without_widget_key_conflict():
     text = Path("app.py").read_text()
 
-    assert 'key="selected_page"' in text
     assert 'st.session_state["selected_page"]' in text
+    assert "st.radio(" in text
+    assert 'key="selected_page"' not in text
 
 
 def test_home_page_contains_quick_launch_buttons():

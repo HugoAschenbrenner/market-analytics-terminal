@@ -27,15 +27,23 @@ PAGES = {
 if "selected_page" not in st.session_state:
     st.session_state["selected_page"] = "Home"
 
+if st.session_state["selected_page"] not in PAGES:
+    st.session_state["selected_page"] = "Home"
+
 with st.sidebar:
     st.title("Market Analytics Terminal")
     st.caption("Desk-ready analytics toolkit")
 
-    st.radio(
+    current_page = st.session_state["selected_page"]
+    current_index = list(PAGES.keys()).index(current_page)
+
+    sidebar_selection = st.radio(
         "Select module",
         list(PAGES.keys()),
-        key="selected_page",
+        index=current_index,
     )
+
+    st.session_state["selected_page"] = sidebar_selection
 
     st.divider()
 

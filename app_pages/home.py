@@ -64,7 +64,7 @@ def _render_module_card(module: dict[str, str]) -> None:
             if st.button(
                 "Open module",
                 key=f"open_{module['page']}",
-                use_container_width=True,
+                width="stretch",
             ):
                 _go_to_page(module["page"])
 
