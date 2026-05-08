@@ -17,6 +17,36 @@ This project is educational and proxy-based. It is not bank-grade pricing, not i
 
 ---
 
+
+---
+
+## Demo Screenshots
+
+### Home — Multi-Asset Desk Utility Platform
+
+![Home](docs/screenshots/01_home.png)
+
+### Fixed Income Risk
+
+![Fixed Income Risk](docs/screenshots/02_fixed_income_risk.png)
+
+### Repo & Securities Lending
+
+![Repo and Securities Lending](docs/screenshots/03_repo_sec_lending.png)
+
+### Structured Products
+
+![Structured Products](docs/screenshots/04_structured_products.png)
+
+### Portfolio Risk
+
+![Portfolio Risk](docs/screenshots/05_portfolio_risk.png)
+
+### Cross-Asset Dashboard
+
+![Cross-Asset Dashboard](docs/screenshots/06_cross_asset_dashboard.png)
+
+
 ## Core Modules
 
 ### 1. Fixed Income Risk
