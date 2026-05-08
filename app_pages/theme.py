@@ -342,6 +342,77 @@ def apply_global_styles() -> None:
             color: inherit;
         }
 
+
+        /* Strong sidebar link reset and Apple-style command menu */
+        section[data-testid="stSidebar"] a.mat-sidebar-link,
+        section[data-testid="stSidebar"] a.mat-sidebar-link:visited,
+        section[data-testid="stSidebar"] a.mat-sidebar-link:link {
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.55rem !important;
+            min-height: 38px !important;
+            padding: 0.54rem 0.70rem !important;
+            margin: 0.12rem 0 !important;
+            border-radius: 12px !important;
+            color: #2f343b !important;
+            text-decoration: none !important;
+            border: 1px solid transparent !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            line-height: 1.1rem !important;
+            transition: background-color 0.14s ease-in-out, border-color 0.14s ease-in-out !important;
+        }
+
+        section[data-testid="stSidebar"] a.mat-sidebar-link:hover {
+            background: rgba(120, 120, 128, 0.10) !important;
+            border-color: rgba(120, 120, 128, 0.08) !important;
+            color: #111827 !important;
+            text-decoration: none !important;
+        }
+
+        section[data-testid="stSidebar"] a.mat-sidebar-link.mat-sidebar-active,
+        section[data-testid="stSidebar"] a.mat-sidebar-link.mat-sidebar-active:visited,
+        section[data-testid="stSidebar"] a.mat-sidebar-link.mat-sidebar-active:link {
+            background: rgba(120, 120, 128, 0.16) !important;
+            border-color: rgba(120, 120, 128, 0.10) !important;
+            color: #111827 !important;
+            font-weight: 760 !important;
+            text-decoration: none !important;
+        }
+
+        section[data-testid="stSidebar"] a.mat-sidebar-link *,
+        section[data-testid="stSidebar"] a.mat-sidebar-link:hover *,
+        section[data-testid="stSidebar"] a.mat-sidebar-link:visited * {
+            color: inherit !important;
+            text-decoration: none !important;
+        }
+
+        section[data-testid="stSidebar"] .mat-sidebar-icon {
+            width: 1.15rem !important;
+            min-width: 1.15rem !important;
+            display: inline-flex !important;
+            justify-content: center !important;
+            color: inherit !important;
+            font-weight: 800 !important;
+            text-decoration: none !important;
+        }
+
+        section[data-testid="stSidebar"] .mat-sidebar-label {
+            font-size: 0.92rem !important;
+            letter-spacing: -0.01em !important;
+            color: inherit !important;
+            text-decoration: none !important;
+        }
+
+        section[data-testid="stSidebar"] a.mat-sidebar-link,
+        section[data-testid="stSidebar"] a.mat-sidebar-link:hover,
+        section[data-testid="stSidebar"] a.mat-sidebar-link:focus,
+        section[data-testid="stSidebar"] a.mat-sidebar-link:active {
+            transform: none !important;
+            box-shadow: none !important;
+            outline: none !important;
+        }
+
         .stAlert {
             border-radius: 16px;
         }
