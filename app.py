@@ -1,7 +1,8 @@
+import html
+
 import streamlit as st
 
 from app_pages.theme import apply_global_styles
-
 from app_pages import (
     cross_asset_dashboard,
     fixed_income,
@@ -28,26 +29,86 @@ PAGES = {
     "Cross-Asset Dashboard": cross_asset_dashboard.render,
 }
 
-if "selected_page" not in st.session_state:
-    st.session_state["selected_page"] = "Home"
+PAGE_SLUGS = {
+    "Home": "home",
+    "Fixed Income Risk": "fixed-income-risk",
+    "Repo & Securities Lending": "repo-sec-lending",
+    "Structured Products": "structured-products",
+    "Portfolio Risk": "portfolio-risk",
+    "Cross-Asset Dashboard": "cross-asset-dashboard",
+}
 
-if st.session_state["selected_page"] not in PAGES:
-    st.session_state["selected_page"] = "Home"
+SLUG_TO_PAGE = {slug: page for page, slug in PAGE_SLUGS.items()}
+
+PAGE_ICONS = {
+    "Home": "⌂",
+    "Fixed Income Risk": "◔",
+    "Repo & Securities Lending": "⇄",
+    "Structured Products": "◇",
+    "Portfolio Risk": "▣",
+    "Cross-Asset Dashboard": "◎",
+}
+
+
+def _get_query_page_slug() -> str:
+    page_slug = st.query_params.get("page", "home")
+
+    if isinstance(page_slug, list):
+        page_slug = page_slug[0] if page_slug else "home"
+
+    if page_slug not in SLUG_TO_PAGE:
+        return "home"
+
+    return page_slug
+
+
+def render_sidebar_nav_link(page_name: str, selected_page: str) -> None:
+    icon = PAGE_ICONS.get(page_name, "•")
+    slug = PAGE_SLUGS[page_name]
+    active_class = " mat-sidebar-active" if page_name == selected_page else ""
+
+    safe_page_name = html.escape(page_name)
+    safe_icon = html.escape(icon)
+
+    st.markdown(
+        f"""
+        <a class="mat-sidebar-link{active_class}" href="?page={slug}" target="_self">
+            <span class="mat-sidebar-icon">{safe_icon}</span>
+            <span class="mat-sidebar-label">{safe_page_name}</span>
+        </a>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+selected_slug = _get_query_page_slug()
+selected_page = SLUG_TO_PAGE[selected_slug]
 
 with st.sidebar:
     st.title("Market Analytics Terminal")
     st.caption("Personal multi-asset analytics project")
 
-    current_page = st.session_state["selected_page"]
-    current_index = list(PAGES.keys()).index(current_page)
+    st.caption("Built by Hugo Aschenbrenner")
+    st.caption("SKEMA MSc Financial Markets & Investments")
 
-    sidebar_selection = st.radio(
-        "Select module",
-        list(PAGES.keys()),
-        index=current_index,
+    st.link_button(
+        "GitHub",
+        "https://github.com/HugoAschenbrenner/market-analytics-terminal",
+        width="stretch",
+    )
+    st.link_button(
+        "LinkedIn",
+        "https://www.linkedin.com/in/hugo-aschenbrenner-pro",
+        width="stretch",
     )
 
-    st.session_state["selected_page"] = sidebar_selection
+    st.divider()
+
+    st.markdown("##### Command Menu")
+    st.caption("Open an analytics module")
+
+    for page_name in PAGES:
+        render_sidebar_nav_link(page_name, selected_page)
 
     st.divider()
 
@@ -61,21 +122,4 @@ with st.sidebar:
         "not a trading bot, and not bank-grade pricing."
     )
 
-    st.divider()
-
-    st.markdown("### Project")
-    st.caption("Built by Hugo Aschenbrenner")
-    st.caption("SKEMA MSc Financial Markets & Investments")
-    st.link_button(
-        "GitHub repository",
-        "https://github.com/HugoAschenbrenner/market-analytics-terminal",
-        width="stretch",
-    )
-    st.link_button(
-        "LinkedIn profile",
-        "https://www.linkedin.com/in/hugo-aschenbrenner-pro",
-        width="stretch",
-    )
-
-selected_page = st.session_state["selected_page"]
 PAGES[selected_page]()

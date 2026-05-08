@@ -1,6 +1,15 @@
 import streamlit as st
 
 
+PAGE_SLUGS = {
+    "Fixed Income Risk": "fixed-income-risk",
+    "Repo & Securities Lending": "repo-sec-lending",
+    "Structured Products": "structured-products",
+    "Portfolio Risk": "portfolio-risk",
+    "Cross-Asset Dashboard": "cross-asset-dashboard",
+}
+
+
 MODULES = [
     {
         "title": "Fixed Income Risk",
@@ -68,7 +77,8 @@ QUESTIONS = [
 
 
 def _go_to_page(page_name: str) -> None:
-    st.session_state["selected_page"] = page_name
+    slug = PAGE_SLUGS.get(page_name, "home")
+    st.query_params["page"] = slug
     st.rerun()
 
 
