@@ -35,6 +35,38 @@ MODULES = [
 ]
 
 
+EXECUTIVE_INSIGHTS = [
+    {
+        "risk": "Rates concentration",
+        "why": "Fixed income exposure is summarized through DV01, curve buckets, and shock P&L.",
+        "next_check": "Review the Fixed Income Risk module to identify long-end duration concentration.",
+        "page": "Fixed Income Risk",
+    },
+    {
+        "risk": "Collateral and funding stress",
+        "why": "Repo margin calls are driven by collateral depreciation and haircut widening.",
+        "next_check": "Open Repo & Securities Lending to stress collateral value and haircut assumptions.",
+        "page": "Repo & Securities Lending",
+    },
+    {
+        "risk": "Worst-of barrier risk",
+        "why": "Structured product downside can be dominated by the weakest underlying in the basket.",
+        "next_check": "Open Structured Products to review worst-of scenarios and Monte Carlo barrier risk.",
+        "page": "Structured Products",
+    },
+]
+
+
+QUESTIONS = [
+    "Where is duration risk concentrated in a bond portfolio?",
+    "How much margin call is created by collateral depreciation and haircut widening?",
+    "What is the payoff profile of a Phoenix or Athena autocallable?",
+    "How does worst-of basket dispersion affect barrier risk?",
+    "Which asset contributes most to portfolio volatility?",
+    "Which cross-asset stress scenario creates the largest proxy loss?",
+]
+
+
 def _go_to_page(page_name: str) -> None:
     st.session_state["selected_page"] = page_name
     st.rerun()
@@ -69,14 +101,28 @@ def _render_module_card(module: dict[str, str]) -> None:
                 _go_to_page(module["page"])
 
 
+def _render_executive_insight_card(insight: dict[str, str], index: int) -> None:
+    with st.container(border=True):
+        st.markdown(f"#### {index}. {insight['risk']}")
+        st.write(insight["why"])
+        st.caption(f"Recommended next check: {insight['next_check']}")
+
+        if st.button(
+            f"Open {insight['page']}",
+            key=f"executive_insight_{index}_{insight['page']}",
+            width="stretch",
+        ):
+            _go_to_page(insight["page"])
+
+
 def render() -> None:
     st.title("Multi-Asset Desk Utility Platform")
-    st.caption("Desk-ready analytics for pricing proxies, risk, scenarios, interpretation, and exports.")
+    st.caption("Personal multi-asset analytics project built by Hugo Aschenbrenner.")
 
     st.write(
-        "This platform is designed to convert market, portfolio, trade, and product inputs into "
-        "practical desk outputs: stress tests, P&L explainers, DV01 decomposition, repo margin analytics, "
-        "structured product scenarios, portfolio risk reports, and cross-asset market snapshots."
+        "This platform converts market, portfolio, trade, and product inputs into practical desk outputs: "
+        "stress tests, P&L explainers, DV01 decomposition, repo margin analytics, structured product scenarios, "
+        "portfolio risk reports, R performance analytics, and cross-asset market snapshots."
     )
 
     st.warning(
@@ -90,6 +136,40 @@ def render() -> None:
         "structured products, and portfolio risk into a practical desk-style analytics workflow.",
         icon="👤",
     )
+
+    st.subheader("Executive Snapshot")
+
+    snapshot_cols = st.columns(5)
+
+    snapshot_items = [
+        ("Modules", "5", "Fixed income, repo, structured products, portfolio risk, cross-asset."),
+        ("Tests", "150+", "Automated checks across engines, reports, UI integration, and documentation."),
+        ("Reports", "4", "Excel exports for fixed income, financing, structured products, and portfolio risk."),
+        ("Languages", "Python/R", "Streamlit terminal with R portfolio analytics companion."),
+        ("Data policy", "Synthetic", "Synthetic sample data and user-provided inputs only."),
+    ]
+
+    for col, (label, value, help_text) in zip(snapshot_cols, snapshot_items):
+        with col:
+            st.metric(label, value)
+            st.caption(help_text)
+
+    st.subheader("What This Terminal Can Answer")
+
+    question_cols = st.columns(2)
+
+    for idx, question in enumerate(QUESTIONS):
+        with question_cols[idx % 2]:
+            with st.container(border=True):
+                st.write(f"• {question}")
+
+    st.subheader("Top 3 Risk Insights")
+
+    insight_cols = st.columns(3)
+
+    for idx, insight in enumerate(EXECUTIVE_INSIGHTS, start=1):
+        with insight_cols[idx - 1]:
+            _render_executive_insight_card(insight, idx)
 
     st.subheader("About This Project")
 
@@ -118,7 +198,6 @@ def render() -> None:
                 "Python, Streamlit, R companion analytics, Excel exports, modular engines, "
                 "GitHub documentation, screenshots, and 150+ automated tests."
             )
-
 
     st.subheader("Desk Workflow")
 
