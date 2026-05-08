@@ -238,6 +238,7 @@ def render() -> None:
     input_snapshot_df = pd.DataFrame(
         [{"metric": key, "value": value} for key, value in summary_dict.items()]
     )
+    input_snapshot_df["value"] = input_snapshot_df["value"].astype(str)
 
     st.dataframe(input_snapshot_df, use_container_width=True)
 
