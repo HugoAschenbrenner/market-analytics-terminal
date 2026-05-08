@@ -1,5 +1,7 @@
 import streamlit as st
 
+from app_pages.theme import apply_global_styles
+
 from app_pages import (
     cross_asset_dashboard,
     fixed_income,
@@ -14,6 +16,8 @@ st.set_page_config(
     page_icon="📊",
     layout="wide",
 )
+
+apply_global_styles()
 
 PAGES = {
     "Home": home.render,
