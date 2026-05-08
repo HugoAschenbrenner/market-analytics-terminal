@@ -5,6 +5,7 @@ import plotly.express as px
 import streamlit as st
 
 from app_pages.common import render_module_header
+from reports.excel_exporter import generate_portfolio_risk_report
 from engines.portfolio_risk_engine import (
     build_sample_price_data,
     calculate_asset_returns,
@@ -238,6 +239,37 @@ def render() -> None:
         },
     )
     st.plotly_chart(fig_stress, use_container_width=True)
+
+
+
+    st.subheader("Portfolio Risk Excel Report")
+
+    weights_df = pd.DataFrame(
+        [{"asset": asset, "weight": weight} for asset, weight in weights.items()]
+    )
+
+    portfolio_returns_df = portfolio_returns.reset_index()
+    portfolio_returns_df.columns = ["date", "portfolio_return"]
+
+    drawdown_df = drawdown_series.reset_index()
+    drawdown_df.columns = ["date", "drawdown"]
+
+    portfolio_report_bytes = generate_portfolio_risk_report(
+        summary=summary_dict,
+        weights_df=weights_df,
+        risk_contribution_df=risk_contribution_df,
+        correlation_matrix=correlation_matrix,
+        stress_df=stress_df,
+        portfolio_returns_df=portfolio_returns_df,
+        drawdown_df=drawdown_df,
+    )
+
+    st.download_button(
+        label="Download Portfolio Risk Report",
+        data=portfolio_report_bytes,
+        file_name="portfolio_risk_report.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 
     st.subheader("R Portfolio Analytics Companion")

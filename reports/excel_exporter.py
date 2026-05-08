@@ -493,3 +493,106 @@ def generate_structured_products_report(
 
     output.seek(0)
     return output.getvalue()
+
+def generate_portfolio_risk_report(
+    summary: dict[str, Any],
+    weights_df: pd.DataFrame,
+    risk_contribution_df: pd.DataFrame,
+    correlation_matrix: pd.DataFrame,
+    stress_df: pd.DataFrame,
+    portfolio_returns_df: pd.DataFrame,
+    drawdown_df: pd.DataFrame,
+) -> bytes:
+    """Generate a Portfolio Risk Excel report.
+
+    Sheets:
+    1. Portfolio_Summary
+    2. Weights
+    3. Risk_Contribution
+    4. Correlation_Matrix
+    5. Stress_Scenarios
+    6. Portfolio_Returns
+    7. Drawdown
+    8. Methodology
+
+    The report is a simplified analytics output and is not a production risk system.
+    """
+
+    output = BytesIO()
+
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        workbook = writer.book
+
+        header_format = workbook.add_format(
+            {"bold": True, "bg_color": "#EAF3F8", "border": 1}
+        )
+        title_format = workbook.add_format({"bold": True, "font_size": 16})
+        wrap_format = workbook.add_format({"text_wrap": True, "valign": "top"})
+
+        _write_key_value_sheet(
+            writer=writer,
+            sheet_name="Portfolio_Summary",
+            title="Portfolio Risk Summary",
+            data=summary,
+            commentary=[
+                "Portfolio risk metrics are calculated from historical/simple returns.",
+                "VaR and CVaR are historical and reported as positive loss numbers.",
+                "This is a simplified risk report, not a production risk system.",
+            ],
+        )
+
+        weights_df.to_excel(writer, sheet_name="Weights", index=False)
+        writer.sheets["Weights"].set_row(0, None, header_format)
+        _auto_adjust_columns(writer, "Weights", weights_df)
+
+        risk_contribution_df.to_excel(writer, sheet_name="Risk_Contribution", index=False)
+        writer.sheets["Risk_Contribution"].set_row(0, None, header_format)
+        _auto_adjust_columns(writer, "Risk_Contribution", risk_contribution_df)
+
+        correlation_matrix.to_excel(writer, sheet_name="Correlation_Matrix", index=True)
+        writer.sheets["Correlation_Matrix"].set_row(0, None, header_format)
+        writer.sheets["Correlation_Matrix"].set_column(0, len(correlation_matrix.columns), 18)
+
+        stress_df.to_excel(writer, sheet_name="Stress_Scenarios", index=False)
+        writer.sheets["Stress_Scenarios"].set_row(0, None, header_format)
+        _auto_adjust_columns(writer, "Stress_Scenarios", stress_df)
+
+        portfolio_returns_df.to_excel(writer, sheet_name="Portfolio_Returns", index=False)
+        writer.sheets["Portfolio_Returns"].set_row(0, None, header_format)
+        _auto_adjust_columns(writer, "Portfolio_Returns", portfolio_returns_df)
+
+        drawdown_df.to_excel(writer, sheet_name="Drawdown", index=False)
+        writer.sheets["Drawdown"].set_row(0, None, header_format)
+        _auto_adjust_columns(writer, "Drawdown", drawdown_df)
+
+        methodology_items = [
+            "Price data is converted into simple returns.",
+            "Portfolio return is the weighted sum of asset returns.",
+            "Weights are normalized before risk calculations.",
+            "Annualized return equals average periodic return multiplied by periods per year.",
+            "Annualized volatility equals periodic volatility multiplied by square root of periods per year.",
+            "Sharpe ratio equals annualized excess return divided by annualized volatility.",
+            "Historical VaR is reported as a positive loss number.",
+            "Historical CVaR is the average tail loss beyond VaR.",
+            "Max drawdown is calculated from the cumulative return index.",
+            "Risk contribution uses covariance-based contribution to portfolio volatility.",
+            "Stress scenarios are simplified generic shocks based on asset labels.",
+            "This report does not model liquidity, transaction costs, slippage, factor risk, or intraday risk.",
+            "This report is not investment advice, not a trading signal, and not a production risk system.",
+        ]
+
+        methodology_df = pd.DataFrame({"Methodology / Assumption": methodology_items})
+        methodology_df.to_excel(
+            writer,
+            sheet_name="Methodology",
+            index=False,
+            startrow=2,
+        )
+
+        methodology_ws = writer.sheets["Methodology"]
+        methodology_ws.write(0, 0, "Portfolio Risk Report — Methodology", title_format)
+        methodology_ws.set_row(2, None, header_format)
+        methodology_ws.set_column(0, 0, 130, wrap_format)
+
+    output.seek(0)
+    return output.getvalue()
