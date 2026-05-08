@@ -1,36 +1,234 @@
-# Multi-Asset Desk Utility Platform
+# Market Analytics Terminal
 
-## Objective
+A multi-asset desk utility platform built with Python, Streamlit, and R.
 
-This project is a desk-oriented market analytics platform designed to convert market, portfolio, and product inputs into practical outputs such as risk metrics, stress tests, P&L explainers, scenario reports, and Excel exports.
+The objective is not to build a generic student pricer. The objective is to build a practical analytics terminal that converts market, portfolio, trade, and product inputs into outputs a sales, trader, structurer, portfolio manager, or risk analyst can actually use:
 
-The goal is not to build generic student calculators or a trading bot. The goal is to create a modular analytics toolkit close to the workflow of a sales, trader, structurer, portfolio analyst, or risk analyst.
+- risk summaries
+- scenario analysis
+- stress tests
+- payoff explainers
+- margin analytics
+- portfolio diagnostics
+- Excel reports
+- R-generated performance analytics
 
-## Planned Modules
+This project is educational and proxy-based. It is not bank-grade pricing, not investment advice, and not a production risk system.
 
-1. Fixed Income Risk  
-   DV01, duration, convexity, curve shock P&L, bucket risk decomposition, risk report.
+---
 
-2. Repo & Securities Lending  
-   Haircuts, repo cashflows, collateral shocks, margin calls, borrow fees, specialness analytics.
+## Core Modules
 
-3. Structured Products  
-   Athena/Phoenix payoff logic, autocall probability, barrier breach probability, worst-of analytics, stress tests, factsheet export.
+### 1. Fixed Income Risk
 
-4. Portfolio Risk  
-   Volatility, Sharpe ratio, VaR, Expected Shortfall, drawdowns, tracking error, benchmark comparison, R analytics layer.
+Bond portfolio analytics:
 
-5. Cross-Asset Dashboard  
-   Equities, rates, FX, commodities, volatility, credit proxies, market regime, morning snapshot export.
+- clean / dirty price handling
+- accrued interest proxy
+- modified duration
+- convexity
+- DV01
+- bucket risk decomposition
+- curve shock scenarios
+- simple hedge approximation
+- Excel risk report
 
-## Core Workflow
+### 2. Repo & Securities Lending
 
-Input → Calculation → Scenario Analysis → Interpretation → Export
+Financing and collateral analytics:
 
-## Current Status
+- repo cash amount
+- repo interest
+- repurchase amount
+- haircut sensitivity
+- collateral shock
+- margin deficit / surplus
+- margin call logic
+- securities lending borrow fee
+- rebate amount
+- collateralization rate
+- specialness indicator
+- financing and margin Excel report
 
-Initial project structure created. Financial engines will be implemented module by module.
+### 3. Structured Products
 
-## Disclaimer
+Autocallable analytics:
 
-This project uses synthetic/sample data and simplified analytics for educational and demonstration purposes. It is not investment advice, not a trading signal engine, and not a bank-grade pricing platform.
+- Athena payoff logic
+- Phoenix payoff logic
+- memory coupon
+- autocall condition
+- coupon condition
+- protection barrier
+- capital loss logic
+- worst-of basket analytics
+- Monte Carlo proxy
+- autocall probability
+- barrier breach probability
+- expected payoff / P&L
+- payoff distribution
+- structured products Excel report
+
+### 4. Portfolio Risk
+
+Portfolio and risk analytics:
+
+- asset weights
+- portfolio returns
+- annualized return
+- annualized volatility
+- Sharpe ratio
+- max drawdown
+- historical VaR / CVaR
+- correlation matrix
+- covariance-based risk contribution
+- predefined stress scenarios
+- portfolio risk Excel report
+
+### 5. R Portfolio Analytics Companion
+
+R companion layer for buy-side style analytics:
+
+- performance summary
+- rolling volatility
+- rolling Sharpe
+- drawdown series
+- monthly returns
+- correlation matrix
+- R-generated charts
+- outputs displayed inside Streamlit
+
+---
+
+## Tech Stack
+
+Python:
+
+- Streamlit
+- pandas
+- numpy
+- scipy
+- plotly
+- openpyxl
+- xlsxwriter
+- pytest
+
+R:
+
+- Base R implementation
+- CSV output generation
+- PNG chart generation
+- portfolio analytics companion workflow
+
+---
+
+## Project Structure
+
+market-analytics-terminal/
+│
+├── app.py
+├── app_pages/
+│   ├── home.py
+│   ├── fixed_income.py
+│   ├── repo_sec_lending.py
+│   ├── structured_products.py
+│   ├── portfolio_risk.py
+│   └── cross_asset_dashboard.py
+│
+├── engines/
+│   ├── fixed_income_engine.py
+│   ├── repo_engine.py
+│   ├── sec_lending_engine.py
+│   ├── structured_products_engine.py
+│   ├── portfolio_risk_engine.py
+│   └── scenario_engine.py
+│
+├── reports/
+│   └── excel_exporter.py
+│
+├── r_analytics/
+│   ├── portfolio_performance_report.R
+│   ├── README.md
+│   └── outputs/
+│
+├── data/
+│   ├── sample_bonds.csv
+│   └── portfolio_returns_sample.csv
+│
+├── docs/
+│   ├── project_overview.md
+│   ├── technical_validation.md
+│   └── cv_positioning.md
+│
+└── tests/
+
+---
+
+## How to Run
+
+Create and activate a virtual environment:
+
+python3 -m venv .venv
+source .venv/bin/activate
+
+Install requirements:
+
+python -m pip install -r requirements.txt
+
+Run the app:
+
+python -m streamlit run app.py
+
+Run the R analytics companion:
+
+Rscript r_analytics/portfolio_performance_report.R
+
+Run the full test suite:
+
+python -m pytest -q
+
+---
+
+## Current Test Coverage
+
+The project contains more than 130 passing tests covering:
+
+- fixed income analytics
+- repo and securities lending
+- Excel report generation
+- structured product payoff logic
+- worst-of basket analytics
+- Monte Carlo simulation outputs
+- portfolio risk analytics
+- R analytics structure
+- Streamlit integration checks
+
+---
+
+## Why This Project Matters
+
+A basic pricer shows that someone can code a formula.
+
+This project is different because it focuses on desk workflow:
+
+1. Inputs are converted into interpretable risk outputs.
+2. Outputs are linked to sales/trading/risk use cases.
+3. Scenario analysis is prioritized over static valuation.
+4. Excel reports are generated because desks still use Excel heavily.
+5. R is used where it is credible: portfolio analytics and reporting.
+6. Each module is tested, modular, and documented.
+
+---
+
+## Important Limitations
+
+This project is not:
+
+- bank-grade pricing
+- live market data infrastructure
+- a trading bot
+- investment advice
+- a production risk system
+- a replacement for Bloomberg, Murex, Sophis, or internal desk tools
+
+It is a transparent educational and portfolio project designed to demonstrate market understanding, technical execution, and practical desk workflow thinking.
