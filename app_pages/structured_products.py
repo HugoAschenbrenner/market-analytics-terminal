@@ -1,5 +1,6 @@
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 from app_pages.common import render_module_header
@@ -21,6 +22,11 @@ from engines.structured_products_engine import (
     summarize_monte_carlo_results,
 )
 
+from engines.options_payoff_engine import (
+    SUPPORTED_STRATEGIES,
+    build_options_strategy_snapshot,
+)
+
 
 def _format_currency(value: float) -> str:
     return f"{value:,.0f}"
@@ -28,6 +34,266 @@ def _format_currency(value: float) -> str:
 
 def _format_percent(value: float) -> str:
     return f"{value:.2%}"
+
+
+def _format_optional_value(value: object) -> str:
+    """Format numeric/string risk-profile values for Streamlit metrics."""
+    if value is None:
+        return "N/A"
+
+    if isinstance(value, str):
+        return value
+
+    try:
+        return f"{float(value):,.2f}"
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _format_breakevens(breakevens: list[float]) -> str:
+    """Format breakeven list for compact display."""
+    if not breakevens:
+        return "N/A"
+
+    return ", ".join(f"{value:,.2f}" for value in breakevens)
+
+
+def _strategy_requires_second_leg(strategy: str) -> bool:
+    """Return whether the selected strategy requires a second strike and premium."""
+    return strategy in {
+        "Bull Call Spread",
+        "Bear Put Spread",
+        "Long Strangle",
+        "Collar",
+    }
+
+
+def _second_leg_labels(strategy: str) -> tuple[str, str]:
+    """Return contextual labels for the second strike/premium inputs."""
+    if strategy == "Bull Call Spread":
+        return "Upper call strike", "Short call premium"
+
+    if strategy == "Bear Put Spread":
+        return "Lower put strike", "Short put premium"
+
+    if strategy == "Long Strangle":
+        return "Call strike", "Call premium"
+
+    if strategy == "Collar":
+        return "Short call strike", "Short call premium"
+
+    return "Strike 2", "Premium 2"
+
+
+def _first_leg_labels(strategy: str) -> tuple[str, str]:
+    """Return contextual labels for the first strike/premium inputs."""
+    if strategy == "Long Strangle":
+        return "Put strike", "Put premium"
+
+    if strategy == "Collar":
+        return "Protective put strike", "Put premium"
+
+    if strategy == "Long Straddle":
+        return "ATM strike", "Premium per option leg"
+
+    return "Strike", "Premium"
+
+
+def _build_options_payoff_figure(snapshot: dict) -> go.Figure:
+    """Build dynamic payoff/P&L chart for the selected option strategy."""
+    payoff_df = snapshot["payoff_table"]
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatter(
+            x=payoff_df["underlying_price"],
+            y=payoff_df["payoff"],
+            mode="lines",
+            name="Payoff before premium",
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=payoff_df["underlying_price"],
+            y=payoff_df["pnl"],
+            mode="lines",
+            name="P&L after premium",
+        )
+    )
+
+    fig.add_hline(y=0, line_dash="dash", annotation_text="Break-even line")
+    fig.add_vline(
+        x=snapshot["spot"],
+        line_dash="dot",
+        annotation_text="Spot",
+        annotation_position="top",
+    )
+
+    for breakeven in snapshot.get("breakevens", []):
+        fig.add_vline(
+            x=breakeven,
+            line_dash="dash",
+            annotation_text="BE",
+            annotation_position="bottom",
+        )
+
+    fig.update_layout(
+        title=f"{snapshot['strategy']} Payoff / P&L at Maturity",
+        xaxis_title="Underlying Price at Maturity",
+        yaxis_title="Payoff / P&L",
+        legend_title="Series",
+        height=520,
+        margin={"l": 20, "r": 20, "t": 70, "b": 20},
+    )
+
+    return fig
+
+
+def _render_options_payoff_lab() -> None:
+    """Render dynamic option payoff and strategy lab."""
+    st.subheader("Options Payoff Lab")
+
+    with st.container(border=True):
+        st.caption(
+            "Dynamic maturity payoff and P&L view for vanilla options and classic option strategies. "
+            "This is a payoff intuition layer, not a volatility model or executable pricing tool."
+        )
+
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+            strategy = st.selectbox(
+                "Strategy",
+                SUPPORTED_STRATEGIES,
+                index=0,
+                help="Select a vanilla option or standard option strategy.",
+            )
+            spot = st.number_input(
+                "Spot",
+                min_value=1.0,
+                value=100.0,
+                step=1.0,
+                key="options_lab_spot",
+            )
+            quantity = st.number_input(
+                "Quantity / notional multiplier",
+                min_value=0.1,
+                value=1.0,
+                step=0.1,
+                key="options_lab_quantity",
+            )
+
+        strike_label, premium_label = _first_leg_labels(strategy)
+
+        with c2:
+            strike = st.number_input(
+                strike_label,
+                min_value=1.0,
+                value=100.0,
+                step=1.0,
+                key="options_lab_strike_1",
+            )
+            premium = st.number_input(
+                premium_label,
+                min_value=0.0,
+                value=5.0,
+                step=0.5,
+                key="options_lab_premium_1",
+            )
+
+            lower_pct = st.slider(
+                "Price range lower bound (% of spot)",
+                min_value=10,
+                max_value=100,
+                value=50,
+                step=5,
+                key="options_lab_lower_pct",
+            )
+
+        requires_second_leg = _strategy_requires_second_leg(strategy)
+        second_strike_label, second_premium_label = _second_leg_labels(strategy)
+
+        with c3:
+            default_strike_2 = 90.0 if strategy == "Bear Put Spread" else 110.0
+
+            strike_2 = st.number_input(
+                second_strike_label,
+                min_value=1.0,
+                value=default_strike_2,
+                step=1.0,
+                disabled=not requires_second_leg,
+                key="options_lab_strike_2",
+            )
+            premium_2 = st.number_input(
+                second_premium_label,
+                min_value=0.0,
+                value=2.0,
+                step=0.5,
+                disabled=not requires_second_leg,
+                key="options_lab_premium_2",
+            )
+
+            upper_pct = st.slider(
+                "Price range upper bound (% of spot)",
+                min_value=100,
+                max_value=300,
+                value=150,
+                step=5,
+                key="options_lab_upper_pct",
+            )
+
+        try:
+            snapshot = build_options_strategy_snapshot(
+                strategy_name=strategy,
+                spot=float(spot),
+                strike=float(strike),
+                premium=float(premium),
+                strike_2=float(strike_2) if requires_second_leg else None,
+                premium_2=float(premium_2) if requires_second_leg else None,
+                quantity=float(quantity),
+                lower_pct=lower_pct / 100.0,
+                upper_pct=upper_pct / 100.0,
+                points=201,
+            )
+        except ValueError as exc:
+            st.warning(str(exc))
+            return
+
+        fig = _build_options_payoff_figure(snapshot)
+        st.plotly_chart(fig, use_container_width=True)
+
+        risk_profile = snapshot["risk_profile"]
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Breakeven(s)", _format_breakevens(snapshot["breakevens"]))
+        m2.metric("Max Gain", _format_optional_value(risk_profile.get("max_gain")))
+        m3.metric("Max Loss", _format_optional_value(risk_profile.get("max_loss")))
+        m4.metric("Primary View", str(risk_profile.get("primary_view", "N/A")))
+
+        st.markdown("**Strategy Legs**")
+        legs_df = pd.DataFrame(snapshot["legs"])
+        st.dataframe(legs_df, use_container_width=True)
+
+        st.markdown("**Scenario Table**")
+        scenario_df = snapshot["scenario_table"]
+        st.dataframe(
+            scenario_df.style.format(
+                {
+                    "underlying_price": "{:,.2f}",
+                    "payoff": "{:,.2f}",
+                    "pnl": "{:,.2f}",
+                }
+            ),
+            use_container_width=True,
+        )
+
+        st.markdown("**Desk Interpretation**")
+        for line in snapshot["desk_interpretation"]:
+            st.markdown(f"- {line}")
+
+        st.caption(snapshot["disclaimer"])
 
 
 def render() -> None:
@@ -39,6 +305,10 @@ def render() -> None:
             "scenario analysis, worst-of basket behavior, Monte Carlo proxies, and client/desk-ready explanations."
         ),
     )
+
+    _render_options_payoff_lab()
+
+    st.divider()
 
     st.subheader("Product Terms")
 
