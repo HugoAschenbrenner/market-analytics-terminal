@@ -120,7 +120,7 @@ def render() -> None:
 
         st.dataframe(
             [{"Metric": key, "Value": value} for key, value in trade_details.items()],
-            width="stretch",
+            use_container_width=True,
         )
 
         st.subheader("Collateral Shock & Margin Call")
@@ -200,7 +200,7 @@ def render() -> None:
                     "deficit_pct_of_original_collateral": "{:.2%}",
                 }
             ),
-            width="stretch",
+            use_container_width=True,
         )
 
         st.subheader("Simple Funding Sensitivity")
@@ -225,7 +225,7 @@ def render() -> None:
                     "repurchase_amount": "{:,.0f}",
                 }
             ),
-            width="stretch",
+            use_container_width=True,
         )
 
         st.subheader("Repo Methodology Notes")
@@ -348,7 +348,7 @@ def render() -> None:
                     "net_lending_revenue": "{:,.0f}",
                 }
             ),
-            width="stretch",
+            use_container_width=True,
         )
 
 

@@ -94,12 +94,12 @@ with st.sidebar:
     st.link_button(
         "GitHub",
         "https://github.com/HugoAschenbrenner/market-analytics-terminal",
-        width="stretch",
+        use_container_width=True,
     )
     st.link_button(
         "LinkedIn",
         "https://www.linkedin.com/in/hugo-aschenbrenner-pro",
-        width="stretch",
+        use_container_width=True,
     )
 
     st.divider()

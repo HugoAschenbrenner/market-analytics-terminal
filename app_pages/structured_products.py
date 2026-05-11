@@ -152,7 +152,7 @@ def render() -> None:
         [{"Metric": key, "Value": str(value)} for key, value in result_dict.items()]
     )
 
-    st.dataframe(result_table, width="stretch")
+    st.dataframe(result_table, use_container_width=True)
 
     st.subheader("Single-Underlying Standard Scenario Table")
 
@@ -171,7 +171,7 @@ def render() -> None:
                 "payoff_return": "{:.2%}",
             }
         ),
-        width="stretch",
+        use_container_width=True,
     )
 
     fig = px.bar(
@@ -182,7 +182,7 @@ def render() -> None:
         title="Single-Underlying Total P&L by Scenario",
         labels={"scenario": "Scenario", "total_pnl": "Total P&L"},
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Worst-of Basket Scenario Table")
 
@@ -201,7 +201,7 @@ def render() -> None:
                 "payoff_return": "{:.2%}",
             }
         ),
-        width="stretch",
+        use_container_width=True,
     )
 
     fig_basket = px.bar(
@@ -212,7 +212,7 @@ def render() -> None:
         title="Worst-of Basket Total P&L by Scenario",
         labels={"scenario": "Scenario", "total_pnl": "Total P&L"},
     )
-    st.plotly_chart(fig_basket, width="stretch")
+    st.plotly_chart(fig_basket, use_container_width=True)
 
     st.subheader("Worst-of Basket Commentary")
 
@@ -339,7 +339,7 @@ def render() -> None:
         [{"Metric": key, "Value": value} for key, value in mc_summary.items()]
     )
 
-    st.dataframe(summary_table, width="stretch")
+    st.dataframe(summary_table, use_container_width=True)
 
     fig_mc = px.histogram(
         mc_results_df,
@@ -348,7 +348,7 @@ def render() -> None:
         title="Monte Carlo Total P&L Distribution",
         labels={"total_pnl": "Total P&L"},
     )
-    st.plotly_chart(fig_mc, width="stretch")
+    st.plotly_chart(fig_mc, use_container_width=True)
 
 
     st.subheader("Structured Products Excel Report")

@@ -106,7 +106,7 @@ def _render_module_card(module: dict[str, str]) -> None:
             if st.button(
                 "Open module",
                 key=f"open_{module['page']}",
-                width="stretch",
+                use_container_width=True,
             ):
                 _go_to_page(module["page"])
 
@@ -120,7 +120,7 @@ def _render_executive_insight_card(insight: dict[str, str], index: int) -> None:
         if st.button(
             f"Open {insight['page']}",
             key=f"executive_insight_{index}_{insight['page']}",
-            width="stretch",
+            use_container_width=True,
         ):
             _go_to_page(insight["page"])
 

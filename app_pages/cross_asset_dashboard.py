@@ -13,6 +13,8 @@ from engines.cross_asset_dashboard_engine import (
     generate_cross_asset_commentary,
 )
 
+from engines.market_data_engine import build_market_snapshot, default_watchlist, normalize_symbols
+
 
 def _format_percent(value: float) -> str:
     return f"{value:.2%}"
@@ -26,6 +28,112 @@ def _format_amount(value: float) -> str:
     return f"{value:,.0f}"
 
 
+def _parse_watchlist_text(watchlist_text: str) -> list[str]:
+    """Parse comma-separated Streamlit watchlist input into normalized tickers."""
+    return normalize_symbols(watchlist_text.split(","))
+
+
+def _market_snapshot_to_dataframe(payload: dict) -> pd.DataFrame:
+    """Convert market data payload into a Streamlit-friendly table."""
+    rows = []
+
+    for symbol, quote in payload.get("quotes", {}).items():
+        rows.append(
+            {
+                "symbol": quote.get("symbol", symbol),
+                "price": quote.get("price"),
+                "change_pct": quote.get("change_pct"),
+                "currency": quote.get("currency") or "",
+                "status": quote.get("status"),
+                "source": quote.get("source", payload.get("source")),
+                "data_mode": quote.get("data_mode", payload.get("data_mode")),
+                "timestamp_utc": quote.get("timestamp_utc", payload.get("timestamp_utc")),
+            }
+        )
+
+    return pd.DataFrame(
+        rows,
+        columns=[
+            "symbol",
+            "price",
+            "change_pct",
+            "currency",
+            "status",
+            "source",
+            "data_mode",
+            "timestamp_utc",
+        ],
+    )
+
+
+def _format_optional_number(value: float | None, decimals: int = 2, suffix: str = "") -> str:
+    """Format optional numeric values without breaking on missing provider data."""
+    if value is None or pd.isna(value):
+        return "N/A"
+
+    return f"{float(value):,.{decimals}f}{suffix}"
+
+
+def _render_market_data_snapshot() -> None:
+    """Render optional public market data snapshot without automatic network calls."""
+    st.subheader("Free Market Data Snapshot")
+
+    with st.container(border=True):
+        st.caption(
+            "Optional public-market data adapter. Quotes are near-live or delayed depending on "
+            "provider availability and are used for demo context only."
+        )
+
+        default_symbols = ", ".join(default_watchlist())
+
+        watchlist_text = st.text_input(
+            "Watchlist",
+            value=default_symbols,
+            help="Use Yahoo/yfinance ticker format, for example: SPY, QQQ, TLT, GLD, AAPL.",
+        )
+
+        refresh = st.button("Refresh market data", key="refresh_market_data_snapshot")
+
+        if refresh:
+            symbols = _parse_watchlist_text(watchlist_text)
+
+            if not symbols:
+                st.warning("Enter at least one valid ticker.")
+                return
+
+            with st.spinner("Fetching public market data..."):
+                st.session_state["market_data_snapshot_payload"] = build_market_snapshot(symbols)
+
+        payload = st.session_state.get("market_data_snapshot_payload")
+
+        if payload is None:
+            st.info("Click Refresh market data to load the optional public quote snapshot.")
+            return
+
+        snapshot_df = _market_snapshot_to_dataframe(payload)
+
+        if snapshot_df.empty:
+            st.warning("No market data returned for the selected watchlist.")
+            return
+
+        st.dataframe(
+            snapshot_df.style.format(
+                {
+                    "price": lambda value: _format_optional_number(value, decimals=4),
+                    "change_pct": lambda value: _format_optional_number(value, decimals=2, suffix="%"),
+                }
+            ),
+            use_container_width=True,
+        )
+
+        st.caption(
+            f"Source: {payload.get('source')} | "
+            f"Mode: {payload.get('data_mode')} | "
+            f"Updated: {payload.get('timestamp_utc')}"
+        )
+        st.caption(payload.get("disclaimer", ""))
+
+
 def render() -> None:
     render_module_header(
         title="Cross-Asset Dashboard",
@@ -35,6 +143,10 @@ def render() -> None:
             "for desk discussion, risk monitoring, and scenario comparison."
         ),
     )
+
+    _render_market_data_snapshot()
+
+    st.divider()
 
     default_inputs = build_default_cross_asset_inputs()
 
@@ -192,11 +304,11 @@ def render() -> None:
         aspect="auto",
         labels={"color": "Risk score"},
     )
-    st.plotly_chart(fig_heatmap, width="stretch")
+    st.plotly_chart(fig_heatmap, use_container_width=True)
 
     st.dataframe(
         heatmap_df.style.format({"risk_score": "{:.1f}"}),
-        width="stretch",
+        use_container_width=True,
     )
 
     fig_scores = px.bar(
@@ -207,7 +319,7 @@ def render() -> None:
         title="Risk Score by Bucket",
         labels={"risk_bucket": "Risk Bucket", "risk_score": "Risk Score"},
     )
-    st.plotly_chart(fig_scores, width="stretch")
+    st.plotly_chart(fig_scores, use_container_width=True)
 
     st.subheader("Cross-Asset Stress Scenarios")
 
@@ -221,7 +333,7 @@ def render() -> None:
                 "total_proxy_impact_pct": "{:.2%}",
             }
         ),
-        width="stretch",
+        use_container_width=True,
     )
 
     fig_stress = px.bar(
@@ -231,7 +343,7 @@ def render() -> None:
         title="Total Proxy Impact by Cross-Asset Stress Scenario",
         labels={"scenario": "Scenario", "total_proxy_impact_pct": "Total Proxy Impact"},
     )
-    st.plotly_chart(fig_stress, width="stretch")
+    st.plotly_chart(fig_stress, use_container_width=True)
 
     st.subheader("Dashboard Inputs Snapshot")
 
@@ -240,7 +352,7 @@ def render() -> None:
     )
     input_snapshot_df["value"] = input_snapshot_df["value"].astype(str)
 
-    st.dataframe(input_snapshot_df, width="stretch")
+    st.dataframe(input_snapshot_df, use_container_width=True)
 
     st.subheader("Methodology Notes")
 

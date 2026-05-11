@@ -55,7 +55,7 @@ def render() -> None:
         st.info("Using default synthetic multi-asset dataset.")
 
     with st.expander("Raw price data", expanded=False):
-        st.dataframe(price_df.tail(20), width="stretch")
+        st.dataframe(price_df.tail(20), use_container_width=True)
 
     returns_df = calculate_asset_returns(price_df)
     assets = list(returns_df.columns)
@@ -152,7 +152,7 @@ def render() -> None:
         title="Portfolio Cumulative Return Index",
         labels={"cumulative_return_index": "Cumulative Return Index"},
     )
-    st.plotly_chart(fig_cumulative, width="stretch")
+    st.plotly_chart(fig_cumulative, use_container_width=True)
 
     drawdown_df = drawdown_series.reset_index()
     drawdown_df.columns = ["date", "drawdown"]
@@ -164,7 +164,7 @@ def render() -> None:
         title="Portfolio Drawdown",
         labels={"drawdown": "Drawdown"},
     )
-    st.plotly_chart(fig_drawdown, width="stretch")
+    st.plotly_chart(fig_drawdown, use_container_width=True)
 
     st.subheader("Risk Contribution")
 
@@ -177,7 +177,7 @@ def render() -> None:
                 "pct_contribution_to_volatility": "{:.2%}",
             }
         ),
-        width="stretch",
+        use_container_width=True,
     )
 
     fig_contribution = px.bar(
@@ -190,7 +190,7 @@ def render() -> None:
             "pct_contribution_to_volatility": "% Contribution to Volatility",
         },
     )
-    st.plotly_chart(fig_contribution, width="stretch")
+    st.plotly_chart(fig_contribution, use_container_width=True)
 
     st.subheader("Correlation Matrix")
 
@@ -207,12 +207,12 @@ def render() -> None:
         title="Asset Return Correlation Matrix",
         aspect="auto",
     )
-    st.plotly_chart(fig_corr, width="stretch")
+    st.plotly_chart(fig_corr, use_container_width=True)
 
     with st.expander("Correlation table", expanded=False):
         st.dataframe(
             correlation_matrix.style.format("{:.2f}"),
-            width="stretch",
+            use_container_width=True,
         )
 
     st.subheader("Stress Scenarios")
@@ -225,7 +225,7 @@ def render() -> None:
                 "estimated_gain": "{:.2%}",
             }
         ),
-        width="stretch",
+        use_container_width=True,
     )
 
     fig_stress = px.bar(
@@ -238,7 +238,7 @@ def render() -> None:
             "estimated_portfolio_return": "Estimated Portfolio Return",
         },
     )
-    st.plotly_chart(fig_stress, width="stretch")
+    st.plotly_chart(fig_stress, use_container_width=True)
 
 
 
@@ -314,7 +314,7 @@ def render() -> None:
         r_summary_display = r_summary_df.copy()
         r_summary_display["value"] = r_summary_display["value"].astype(str)
 
-        st.dataframe(r_summary_display, width="stretch")
+        st.dataframe(r_summary_display, use_container_width=True)
 
         st.markdown("#### R-Generated Charts")
 
@@ -342,7 +342,7 @@ def render() -> None:
 
         st.dataframe(
             rolling_risk_df.tail(20),
-            width="stretch",
+            use_container_width=True,
         )
 
         rolling_risk_clean = rolling_risk_df.dropna(subset=["rolling_volatility"])
@@ -355,13 +355,13 @@ def render() -> None:
                 title="R Companion - Rolling Volatility",
                 labels={"rolling_volatility": "Rolling Volatility"},
             )
-            st.plotly_chart(fig_r_rolling_vol, width="stretch")
+            st.plotly_chart(fig_r_rolling_vol, use_container_width=True)
 
         st.markdown("#### Monthly Returns from R")
 
         st.dataframe(
             monthly_returns_df.tail(24),
-            width="stretch",
+            use_container_width=True,
         )
 
         fig_r_monthly = px.bar(
@@ -371,7 +371,7 @@ def render() -> None:
             title="R Companion - Monthly Portfolio Returns",
             labels={"portfolio_monthly_return": "Monthly Return"},
         )
-        st.plotly_chart(fig_r_monthly, width="stretch")
+        st.plotly_chart(fig_r_monthly, use_container_width=True)
 
         st.markdown("#### R Correlation Matrix")
 
@@ -381,12 +381,12 @@ def render() -> None:
             title="R Companion - Correlation Matrix",
             aspect="auto",
         )
-        st.plotly_chart(fig_r_corr, width="stretch")
+        st.plotly_chart(fig_r_corr, use_container_width=True)
 
         with st.expander("R correlation table", expanded=False):
             st.dataframe(
                 r_correlation_df.style.format("{:.2f}"),
-                width="stretch",
+                use_container_width=True,
             )
 
 

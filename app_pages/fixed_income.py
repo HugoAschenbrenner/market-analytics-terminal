@@ -52,7 +52,7 @@ def render() -> None:
         st.info("Using default synthetic sample bond dataset.")
 
     with st.expander("Raw bond data", expanded=False):
-        st.dataframe(bonds, width="stretch")
+        st.dataframe(bonds, use_container_width=True)
 
     risk_df = calculate_bond_risk_metrics(bonds)
     summary = summarize_portfolio(risk_df)
@@ -95,7 +95,7 @@ def render() -> None:
                     "pct_total_dv01": "{:.1%}",
                 }
             ),
-            width="stretch",
+            use_container_width=True,
         )
 
     with c2:
@@ -106,7 +106,7 @@ def render() -> None:
             title="DV01 by Curve Bucket",
             labels={"curve_bucket": "Curve Bucket", "dv01": "DV01"},
         )
-        st.plotly_chart(fig_bucket, width="stretch")
+        st.plotly_chart(fig_bucket, use_container_width=True)
 
     st.subheader("Scenario P&L")
 
@@ -121,7 +121,7 @@ def render() -> None:
                     "estimated_pnl": "{:,.0f}",
                 }
             ),
-            width="stretch",
+            use_container_width=True,
         )
 
     with c2:
@@ -141,7 +141,7 @@ def render() -> None:
         title="Estimated P&L by Scenario",
         labels={"scenario_name": "Scenario", "estimated_pnl": "Estimated P&L"},
     )
-    st.plotly_chart(fig_scenarios, width="stretch")
+    st.plotly_chart(fig_scenarios, use_container_width=True)
 
     st.subheader("Simple Hedge Approximation")
 
@@ -216,7 +216,7 @@ def render() -> None:
                 "dv01": "{:,.0f}",
             }
         ),
-        width="stretch",
+        use_container_width=True,
     )
 
     st.subheader("DV01 by Bond")
@@ -229,7 +229,7 @@ def render() -> None:
         title="DV01 by Bond",
         labels={"dv01": "DV01", "bond_id": "Bond"},
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Custom Parallel Yield Move P&L")
 
