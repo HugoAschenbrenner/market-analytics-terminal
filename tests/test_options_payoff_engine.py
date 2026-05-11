@@ -144,3 +144,55 @@ def test_scenario_table_is_included():
 
     assert list(scenario_df.columns) == ["scenario", "underlying_price", "payoff", "pnl"]
     assert "+0%" in list(scenario_df["scenario"])
+
+
+def test_strategy_risk_profile_scales_with_quantity_for_long_call():
+    snapshot = build_options_strategy_snapshot(
+        strategy_name="Long Call",
+        spot=100,
+        strike=100,
+        premium=5,
+        quantity=10,
+        lower_pct=0.8,
+        upper_pct=1.2,
+        points=41,
+    )
+
+    assert snapshot["risk_profile"]["max_loss"] == 50
+    assert snapshot["risk_profile"]["max_gain"] == "Unlimited"
+    assert 105.0 in snapshot["breakevens"]
+
+
+def test_strategy_risk_profile_scales_with_quantity_for_bull_call_spread():
+    snapshot = build_options_strategy_snapshot(
+        strategy_name="Bull Call Spread",
+        spot=100,
+        strike=100,
+        premium=6,
+        strike_2=110,
+        premium_2=2,
+        quantity=10,
+        lower_pct=0.8,
+        upper_pct=1.2,
+        points=41,
+    )
+
+    assert snapshot["risk_profile"]["max_gain"] == 60
+    assert snapshot["risk_profile"]["max_loss"] == 40
+    assert 104.0 in snapshot["breakevens"]
+
+
+def test_strategy_risk_profile_scales_with_quantity_for_covered_call():
+    snapshot = build_options_strategy_snapshot(
+        strategy_name="Covered Call",
+        spot=100,
+        strike=110,
+        premium=3,
+        quantity=5,
+        lower_pct=0.8,
+        upper_pct=1.3,
+        points=51,
+    )
+
+    assert snapshot["risk_profile"]["max_gain"] == 65
+    assert snapshot["risk_profile"]["max_loss"] == 485

@@ -309,64 +309,66 @@ def strategy_risk_profile(
     premium: float,
     strike_2: Optional[float] = None,
     premium_2: Optional[float] = None,
+    quantity: float = 1.0,
 ) -> Dict[str, Any]:
-    """Return transparent analytical risk profile where simple formulas apply."""
+    """Return transparent total risk profile where simple formulas apply."""
     strategy = normalize_strategy_name(strategy_name)
     spot = float(spot)
     strike = float(strike)
     premium = float(premium)
+    quantity = validate_positive(quantity, "quantity")
     strike_2_value = float(strike_2) if strike_2 is not None else None
     premium_2_value = float(premium_2) if premium_2 is not None else None
 
     if strategy == "Long Call":
-        return {"max_gain": "Unlimited", "max_loss": round(premium, 6), "primary_view": "bullish / long convexity"}
+        return {"max_gain": "Unlimited", "max_loss": round(premium * quantity, 6), "primary_view": "bullish / long convexity"}
 
     if strategy == "Long Put":
-        return {"max_gain": round(max(strike - premium, 0), 6), "max_loss": round(premium, 6), "primary_view": "bearish / downside hedge"}
+        return {"max_gain": round(max(strike - premium, 0) * quantity, 6), "max_loss": round(premium * quantity, 6), "primary_view": "bearish / downside hedge"}
 
     if strategy == "Short Call":
-        return {"max_gain": round(premium, 6), "max_loss": "Unlimited", "primary_view": "neutral-to-bearish / short upside convexity"}
+        return {"max_gain": round(premium * quantity, 6), "max_loss": "Unlimited", "primary_view": "neutral-to-bearish / short upside convexity"}
 
     if strategy == "Short Put":
-        return {"max_gain": round(premium, 6), "max_loss": round(max(strike - premium, 0), 6), "primary_view": "neutral-to-bullish / short downside convexity"}
+        return {"max_gain": round(premium * quantity, 6), "max_loss": round(max(strike - premium, 0) * quantity, 6), "primary_view": "neutral-to-bullish / short downside convexity"}
 
     if strategy == "Bull Call Spread" and strike_2_value is not None and premium_2_value is not None:
         net_premium = premium - premium_2_value
         width = strike_2_value - strike
-        return {"max_gain": round(width - net_premium, 6), "max_loss": round(net_premium, 6), "primary_view": "moderately bullish / capped upside"}
+        return {"max_gain": round((width - net_premium) * quantity, 6), "max_loss": round(net_premium * quantity, 6), "primary_view": "moderately bullish / capped upside"}
 
     if strategy == "Bear Put Spread" and strike_2_value is not None and premium_2_value is not None:
         net_premium = premium - premium_2_value
         width = strike - strike_2_value
-        return {"max_gain": round(width - net_premium, 6), "max_loss": round(net_premium, 6), "primary_view": "moderately bearish / capped downside hedge"}
+        return {"max_gain": round((width - net_premium) * quantity, 6), "max_loss": round(net_premium * quantity, 6), "primary_view": "moderately bearish / capped downside hedge"}
 
     if strategy == "Long Straddle":
         total_premium = premium * 2
-        return {"max_gain": "Unlimited", "max_loss": round(total_premium, 6), "primary_view": "long volatility / large move expected"}
+        return {"max_gain": "Unlimited", "max_loss": round(total_premium * quantity, 6), "primary_view": "long volatility / large move expected"}
 
     if strategy == "Long Strangle" and premium_2_value is not None:
         total_premium = premium + premium_2_value
-        return {"max_gain": "Unlimited", "max_loss": round(total_premium, 6), "primary_view": "long volatility / cheaper convexity"}
+        return {"max_gain": "Unlimited", "max_loss": round(total_premium * quantity, 6), "primary_view": "long volatility / cheaper convexity"}
 
     if strategy == "Covered Call":
         return {
-            "max_gain": round(max(strike - spot + premium, 0), 6),
-            "max_loss": round(max(spot - premium, 0), 6),
+            "max_gain": round(max(strike - spot + premium, 0) * quantity, 6),
+            "max_loss": round(max(spot - premium, 0) * quantity, 6),
             "primary_view": "income / moderately bullish with capped upside",
         }
 
     if strategy == "Protective Put":
         return {
             "max_gain": "Unlimited",
-            "max_loss": round(max(spot + premium - strike, 0), 6),
+            "max_loss": round(max(spot + premium - strike, 0) * quantity, 6),
             "primary_view": "long underlying with downside protection",
         }
 
     if strategy == "Collar" and strike_2_value is not None and premium_2_value is not None:
         net_premium = premium - premium_2_value
         return {
-            "max_gain": round(strike_2_value - spot - net_premium, 6),
-            "max_loss": round(max(spot + net_premium - strike, 0), 6),
+            "max_gain": round((strike_2_value - spot - net_premium) * quantity, 6),
+            "max_loss": round(max(spot + net_premium - strike, 0) * quantity, 6),
             "primary_view": "protected equity exposure with capped upside",
         }
 
@@ -464,7 +466,15 @@ def build_options_strategy_snapshot(
     price_grid = build_price_grid(spot, lower_pct=lower_pct, upper_pct=upper_pct, points=points)
     payoff_table = calculate_strategy_payoff_table(legs, price_grid)
     breakevens = estimate_breakevens(payoff_table)
-    risk_profile = strategy_risk_profile(strategy, spot, strike, premium, strike_2, premium_2)
+    risk_profile = strategy_risk_profile(
+        strategy,
+        spot,
+        strike,
+        premium,
+        strike_2,
+        premium_2,
+        quantity=quantity,
+    )
     scenario_table = build_scenario_table(spot, payoff_table)
     desk_interpretation = generate_strategy_desk_interpretation(strategy, risk_profile)
 
