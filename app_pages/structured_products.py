@@ -34,6 +34,13 @@ from engines.options_pricing_engine import (
     generate_pricing_desk_interpretation,
 )
 
+from engines.structured_products_valuation_engine import (
+    build_autocallable_valuation_snapshot,
+    build_valuation_sensitivity_table,
+    validate_valuation_inputs,
+    valuation_summary_to_dataframe,
+)
+
 
 def _format_currency(value: float) -> str:
     return f"{value:,.0f}"
@@ -204,6 +211,335 @@ def _bsm_greeks_to_dataframe(snapshot: dict) -> pd.DataFrame:
 
     return pd.DataFrame(rows)
 
+
+
+
+def _parse_float_list(text: str, expected_count: int, field_name: str) -> list[float]:
+    """Parse comma-separated numeric values and enforce the expected length."""
+    values = [value.strip() for value in str(text).split(",") if value.strip()]
+
+    if len(values) != expected_count:
+        raise ValueError(f"{field_name} must contain exactly {expected_count} value(s).")
+
+    parsed = [float(value) for value in values]
+
+    if any(value <= 0 for value in parsed):
+        raise ValueError(f"All {field_name} values must be strictly positive.")
+
+    return parsed
+
+
+def _format_probability(value: float | None) -> str:
+    """Format decimal probabilities for Streamlit metrics."""
+    if value is None or pd.isna(value):
+        return "N/A"
+
+    return f"{float(value):.1%}"
+
+
+def _format_money_value(value: float | None) -> str:
+    """Format notional/cash values for Streamlit metrics."""
+    if value is None or pd.isna(value):
+        return "N/A"
+
+    return f"{float(value):,.2f}"
+
+
+def _event_breakdown_to_dataframe(cashflows: pd.DataFrame) -> pd.DataFrame:
+    """Convert path-level event types into event probability breakdown."""
+    if cashflows.empty or "event_type" not in cashflows.columns:
+        return pd.DataFrame(columns=["event_type", "count", "probability"])
+
+    breakdown = (
+        cashflows["event_type"]
+        .value_counts(normalize=False)
+        .rename_axis("event_type")
+        .reset_index(name="count")
+    )
+
+    total = float(breakdown["count"].sum())
+
+    breakdown["probability"] = breakdown["count"] / total if total else 0.0
+
+    return breakdown[["event_type", "count", "probability"]]
+
+
+def _render_structured_products_valuation_proxy() -> None:
+    """Render simplified autocallable Monte Carlo valuation proxy."""
+    st.subheader("Autocallable Monte Carlo Valuation Proxy")
+
+    with st.container(border=True):
+        st.caption(
+            "Simplified valuation proxy for autocallable structures. It estimates expected discounted payoff, "
+            "autocall probability, barrier breach risk, and expected maturity under transparent Monte Carlo assumptions."
+        )
+
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+            notional = st.number_input(
+                "Valuation notional",
+                min_value=100.0,
+                value=1000.0,
+                step=100.0,
+                key="valuation_proxy_notional",
+            )
+            asset_count = st.selectbox(
+                "Underlying count",
+                [1, 2, 3],
+                index=1,
+                key="valuation_proxy_asset_count",
+                help="Use 1 for single underlying or 2/3 for simplified worst-of basket proxy.",
+            )
+            default_spots = ", ".join(["100"] * int(asset_count))
+            initial_spots_text = st.text_input(
+                "Initial spots",
+                value=default_spots,
+                key="valuation_proxy_initial_spots",
+                help="Comma-separated values, one per underlying.",
+            )
+            default_vols = ", ".join(["20"] * int(asset_count))
+            volatilities_text = st.text_input(
+                "Volatilities (%)",
+                value=default_vols,
+                key="valuation_proxy_volatilities",
+                help="Comma-separated volatility assumptions in percent, one per underlying.",
+            )
+
+        with c2:
+            maturity_years = st.number_input(
+                "Maturity in years",
+                min_value=0.25,
+                value=3.0,
+                step=0.25,
+                key="valuation_proxy_maturity",
+            )
+            observations_per_year = st.selectbox(
+                "Observations per year",
+                [1, 2, 4, 12],
+                index=0,
+                key="valuation_proxy_observations",
+            )
+            autocall_barrier_pct = st.number_input(
+                "Autocall barrier",
+                min_value=50.0,
+                max_value=200.0,
+                value=100.0,
+                step=5.0,
+                key="valuation_proxy_autocall_barrier_pct",
+            )
+            coupon_barrier_pct = st.number_input(
+                "Coupon barrier",
+                min_value=10.0,
+                max_value=150.0,
+                value=70.0,
+                step=5.0,
+                key="valuation_proxy_coupon_barrier_pct",
+            )
+
+        with c3:
+            protection_barrier_pct = st.number_input(
+                "Protection barrier",
+                min_value=10.0,
+                max_value=150.0,
+                value=60.0,
+                step=5.0,
+                key="valuation_proxy_protection_barrier_pct",
+            )
+            coupon_rate_pct = st.number_input(
+                "Annual coupon",
+                min_value=0.0,
+                max_value=50.0,
+                value=8.0,
+                step=0.5,
+                key="valuation_proxy_coupon_rate_pct",
+            )
+            risk_free_rate_pct = st.number_input(
+                "Risk-free rate",
+                min_value=-5.0,
+                max_value=25.0,
+                value=3.0,
+                step=0.25,
+                key="valuation_proxy_risk_free_rate_pct",
+            )
+            dividend_yield_pct = st.number_input(
+                "Dividend yield",
+                min_value=0.0,
+                max_value=25.0,
+                value=0.0,
+                step=0.25,
+                key="valuation_proxy_dividend_yield_pct",
+            )
+
+        c4, c5, c6 = st.columns(3)
+
+        with c4:
+            correlation = st.slider(
+                "Correlation",
+                min_value=-0.50,
+                max_value=0.95,
+                value=0.30,
+                step=0.05,
+                key="valuation_proxy_correlation",
+            )
+
+        with c5:
+            simulations = st.selectbox(
+                "Simulations",
+                [1000, 2500, 5000, 10000],
+                index=1,
+                key="valuation_proxy_simulations",
+            )
+
+        with c6:
+            run_sensitivity = st.checkbox(
+                "Run vol/correlation sensitivity",
+                value=False,
+                key="valuation_proxy_run_sensitivity",
+                help="Runs additional Monte Carlo scenarios. Keep off for faster demo.",
+            )
+
+        refresh = st.button(
+            "Run valuation proxy",
+            key="run_structured_products_valuation_proxy",
+        )
+
+        if refresh:
+            try:
+                initial_spots = _parse_float_list(
+                    initial_spots_text,
+                    expected_count=int(asset_count),
+                    field_name="initial_spots",
+                )
+                volatilities = [
+                    value / 100.0
+                    for value in _parse_float_list(
+                        volatilities_text,
+                        expected_count=int(asset_count),
+                        field_name="volatilities",
+                    )
+                ]
+
+                snapshot = build_autocallable_valuation_snapshot(
+                    notional=float(notional),
+                    initial_spots=initial_spots,
+                    volatilities=volatilities,
+                    correlation=float(correlation),
+                    maturity_years=float(maturity_years),
+                    observations_per_year=int(observations_per_year),
+                    autocall_barrier=float(autocall_barrier_pct) / 100.0,
+                    coupon_barrier=float(coupon_barrier_pct) / 100.0,
+                    protection_barrier=float(protection_barrier_pct) / 100.0,
+                    coupon_rate=float(coupon_rate_pct) / 100.0,
+                    risk_free_rate=float(risk_free_rate_pct) / 100.0,
+                    dividend_yield=float(dividend_yield_pct) / 100.0,
+                    simulations=int(simulations),
+                    seed=42,
+                )
+
+                sensitivity_df = None
+
+                if run_sensitivity:
+                    sensitivity_inputs = validate_valuation_inputs(
+                        notional=float(notional),
+                        initial_spots=initial_spots,
+                        volatilities=volatilities,
+                        correlation=float(correlation),
+                        maturity_years=float(maturity_years),
+                        observations_per_year=int(observations_per_year),
+                        autocall_barrier=float(autocall_barrier_pct) / 100.0,
+                        coupon_barrier=float(coupon_barrier_pct) / 100.0,
+                        protection_barrier=float(protection_barrier_pct) / 100.0,
+                        coupon_rate=float(coupon_rate_pct) / 100.0,
+                        risk_free_rate=float(risk_free_rate_pct) / 100.0,
+                        dividend_yield=float(dividend_yield_pct) / 100.0,
+                        simulations=min(int(simulations), 1000),
+                        seed=42,
+                    )
+                    sensitivity_df = build_valuation_sensitivity_table(sensitivity_inputs)
+
+                st.session_state["structured_products_valuation_proxy_snapshot"] = snapshot
+                st.session_state["structured_products_valuation_proxy_sensitivity"] = sensitivity_df
+
+            except ValueError as exc:
+                st.warning(str(exc))
+                return
+
+        snapshot = st.session_state.get("structured_products_valuation_proxy_snapshot")
+
+        if snapshot is None:
+            st.info("Click Run valuation proxy to calculate the simplified autocallable valuation metrics.")
+            return
+
+        summary = snapshot["summary"]
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Fair Value Proxy", _format_money_value(summary["fair_value_proxy"]))
+        m2.metric("PV % Notional", f"{summary['fair_value_pct_notional']:.2f}%")
+        m3.metric("Autocall Probability", _format_probability(summary["autocall_probability"]))
+        m4.metric("Barrier Breach Probability", _format_probability(summary["protection_barrier_breach_probability"]))
+
+        m5, m6, m7, m8 = st.columns(4)
+        m5.metric("Expected Maturity", f"{summary['expected_maturity_years']:.2f}y")
+        m6.metric("Average Coupon Paid", _format_money_value(summary["average_coupon_paid"]))
+        m7.metric("5th Percentile Payoff", _format_money_value(summary["p05_payoff"]))
+        m8.metric("Median Payoff", _format_money_value(summary["p50_payoff"]))
+
+        st.markdown("**Valuation Summary**")
+        summary_df = valuation_summary_to_dataframe(summary)
+        st.dataframe(
+            summary_df.style.format({"value": "{:,.6f}"}),
+            use_container_width=True,
+        )
+
+        st.markdown("**Event Breakdown**")
+        event_breakdown_df = _event_breakdown_to_dataframe(snapshot["cashflows"])
+
+        if event_breakdown_df.empty:
+            st.warning("No event breakdown available.")
+        else:
+            st.dataframe(
+                event_breakdown_df.style.format({"probability": "{:.1%}"}),
+                use_container_width=True,
+            )
+
+        st.markdown("**Payoff Distribution**")
+        payoff_distribution = snapshot["cashflows"][["event_type", "event_time_years", "worst_of_performance", "payoff", "discounted_payoff"]]
+        st.dataframe(
+            payoff_distribution.head(25).style.format(
+                {
+                    "event_time_years": "{:,.2f}",
+                    "worst_of_performance": "{:,.2%}",
+                    "payoff": "{:,.2f}",
+                    "discounted_payoff": "{:,.2f}",
+                }
+            ),
+            use_container_width=True,
+        )
+
+        sensitivity_df = st.session_state.get("structured_products_valuation_proxy_sensitivity")
+
+        if sensitivity_df is not None:
+            st.markdown("**Volatility / Correlation Sensitivity**")
+            st.dataframe(
+                sensitivity_df.style.format(
+                    {
+                        "avg_volatility": "{:.2%}",
+                        "correlation": "{:.2f}",
+                        "fair_value_pct_notional": "{:,.2f}",
+                        "autocall_probability": "{:.1%}",
+                        "barrier_breach_probability": "{:.1%}",
+                        "expected_maturity_years": "{:,.2f}",
+                    }
+                ),
+                use_container_width=True,
+            )
+
+        st.markdown("**Valuation Desk Interpretation**")
+        for line in snapshot["desk_interpretation"]:
+            st.markdown(f"- {line}")
+
+        st.caption(snapshot["disclaimer"])
 
 def _render_black_scholes_pricer_lab() -> None:
     """Render Black-Scholes-Merton option pricer and Greeks lab."""
@@ -514,6 +850,10 @@ def render() -> None:
     st.divider()
 
     _render_black_scholes_pricer_lab()
+
+    st.divider()
+
+    _render_structured_products_valuation_proxy()
 
     st.divider()
 
