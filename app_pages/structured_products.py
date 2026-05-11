@@ -845,6 +845,8 @@ def render() -> None:
         ),
     )
 
+    st.caption("Build check: main includes autocallable valuation proxy.")
+
     _render_options_payoff_lab()
 
     st.divider()
