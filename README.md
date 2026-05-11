@@ -3,14 +3,14 @@
 
 ## Live Demo
 
-[Open the Market Analytics Terminal](TON_LIEN_STREAMLIT)
+[Open the Market Analytics Terminal](https://market-analytics-terminal.streamlit.app/)
 
 A Python/R multi-asset analytics project built by Hugo Aschenbrenner, covering fixed income risk, repo and securities lending, structured products, portfolio risk, and cross-asset stress dashboards.
 
 
 A multi-asset desk utility platform built with Python, Streamlit, and R.
 
-The objective is not to build a generic student pricer. The objective is to build a practical analytics terminal that converts market, portfolio, trade, and product inputs into outputs a sales, trader, structurer, portfolio manager, or risk analyst can actually use:
+The objective is not to build a generic student calculator. The objective is to build a practical analytics terminal that converts market, portfolio, trade, and product inputs into outputs a sales, trader, structurer, portfolio manager, or risk analyst can actually discuss:
 
 - risk summaries
 - scenario analysis
@@ -21,7 +21,7 @@ The objective is not to build a generic student pricer. The objective is to buil
 - Excel reports
 - R-generated performance analytics
 
-This project is educational and proxy-based. It is not bank-grade pricing, not investment advice, and not a production risk system.
+This project uses simplified, proxy-based analytics for demonstration. Outputs should not be treated as investment advice, executable quotes, issuer pricing, or production risk measures.
 
 ---
 
@@ -88,23 +88,22 @@ Financing and collateral analytics:
 - specialness indicator
 - financing and margin Excel report
 
-### 3. Structured Products
+### 3. Structured Products and Options
 
-Autocallable analytics:
+Autocallable and options analytics:
 
-- Athena payoff logic
-- Phoenix payoff logic
-- memory coupon
-- autocall condition
-- coupon condition
-- protection barrier
-- capital loss logic
+- Options Payoff Lab for vanilla options and classic option strategies
+- Black-Scholes-Merton theoretical option pricer
+- Greeks: delta, gamma, vega, theta, and rho
+- Athena and Phoenix deterministic payoff logic
+- memory coupon and coupon barrier logic
+- autocall condition and protection barrier logic
 - worst-of basket analytics
-- Monte Carlo proxy
-- autocall probability
-- barrier breach probability
-- expected payoff / P&L
-- payoff distribution
+- path simulation payoff proxy
+- autocall probability and barrier breach probability
+- autocallable Monte Carlo valuation proxy
+- expected discounted payoff and PV as percentage of notional
+- volatility / correlation sensitivity
 - structured products Excel report
 
 ### 4. Portfolio Risk

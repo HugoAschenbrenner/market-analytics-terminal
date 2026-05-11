@@ -838,14 +838,13 @@ def _render_options_payoff_lab() -> None:
 def render() -> None:
     render_module_header(
         title="Structured Products",
-        caption="Autocallable note analytics: payoff logic, worst-of scenarios, Monte Carlo proxies, barrier risk, and desk explanations.",
+        caption="Options, autocallable payoff logic, valuation proxies, worst-of scenarios, barrier risk, and desk explanations.",
         objective=(
-            "Objective: convert Athena and Phoenix terms into transparent payoff outcomes, "
-            "scenario analysis, worst-of basket behavior, Monte Carlo proxies, and client/desk-ready explanations."
+            "Objective: connect vanilla option intuition, theoretical pricing, autocallable payoff logic, "
+            "scenario analysis, valuation proxies, and client/desk-ready explanations."
         ),
     )
 
-    st.caption("Build check: main includes autocallable valuation proxy.")
 
     _render_options_payoff_lab()
 
@@ -1049,10 +1048,10 @@ def render() -> None:
         for comment in basket_commentary:
             st.markdown(f"- {comment}")
 
-    st.subheader("Monte Carlo Proxy")
+    st.subheader("Path Simulation Payoff Proxy")
 
     st.caption(
-        "Simplified GBM simulation. This is a risk/payoff proxy, not calibrated issuer pricing."
+        "Simplified GBM simulation used to estimate payoff distribution under selected terms. This is not calibrated issuer valuation."
     )
 
     mc1, mc2, mc3 = st.columns(3)
@@ -1216,7 +1215,8 @@ def render() -> None:
         - Phoenix memory coupon allows missed coupons to be recovered later if the coupon condition is met.
         - Worst-of basket payoff is driven by the weakest underlying at each observation.
         - Worst-of structures are exposed to dispersion risk: one weak name can dominate the payoff.
-        - Monte Carlo uses simplified GBM paths and should be treated as a proxy layer only.
-        - This module is not bank-grade pricing, not fair value, and not investment advice.
+        - Path simulation uses simplified GBM paths and should be treated as a payoff-distribution proxy only.
+        - The valuation proxy estimates discounted expected payoff under simplified assumptions; it is not issuer fair value or a tradable quote.
+        - This module is not investment advice or a production risk system.
         """
     )
