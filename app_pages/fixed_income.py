@@ -17,6 +17,15 @@ from engines.fixed_income_engine import (
     summarize_portfolio,
 )
 
+from engines.market_data_engine import normalize_symbols
+from engines.rates_market_data_engine import (
+    BOND_ETF_PROXY_WATCHLIST,
+    bond_proxy_quotes_to_dataframe,
+    build_rates_and_bond_market_snapshot,
+    curve_payload_to_dataframe,
+    spreads_payload_to_dataframe,
+)
+
 
 def _format_currency(value: float) -> str:
     return f"{value:,.0f}"
@@ -24,6 +33,141 @@ def _format_currency(value: float) -> str:
 
 def _format_percent(value: float) -> str:
     return f"{value:.2%}"
+
+
+def _format_optional_number(value: float | None, decimals: int = 2, suffix: str = "") -> str:
+    """Format optional numbers safely for public market data tables."""
+    if value is None or pd.isna(value):
+        return "N/A"
+
+    return f"{float(value):,.{decimals}f}{suffix}"
+
+
+def _parse_bond_proxy_watchlist_text(watchlist_text: str) -> list[str]:
+    """Parse comma-separated bond ETF proxy tickers into normalized symbols."""
+    return normalize_symbols(watchlist_text.split(","))
+
+
+def _render_rates_bond_market_snapshot() -> None:
+    """Render optional official rates and bond ETF proxy snapshot."""
+    st.subheader("Free Rates & Bond Market Snapshot")
+
+    with st.container(border=True):
+        st.caption(
+            "Optional public-market rates layer. Treasury curve data is official daily public data. "
+            "ETF proxies are used for market context only and are not individual bond prices."
+        )
+
+        default_symbols = ", ".join(BOND_ETF_PROXY_WATCHLIST)
+
+        watchlist_text = st.text_input(
+            "Bond ETF proxies",
+            value=default_symbols,
+            help="ETF proxy examples: SHY short Treasury, IEF intermediate Treasury, TLT long Treasury, LQD investment grade credit, HYG high yield credit.",
+        )
+
+        refresh = st.button(
+            "Refresh rates and bond proxies",
+            key="refresh_rates_bond_market_snapshot",
+        )
+
+        if refresh:
+            symbols = _parse_bond_proxy_watchlist_text(watchlist_text)
+
+            if not symbols:
+                st.warning("Enter at least one valid bond ETF proxy ticker.")
+                return
+
+            with st.spinner("Fetching public rates and bond proxy data..."):
+                st.session_state["rates_bond_market_snapshot_payload"] = (
+                    build_rates_and_bond_market_snapshot(bond_etf_symbols=symbols)
+                )
+
+        payload = st.session_state.get("rates_bond_market_snapshot_payload")
+
+        if payload is None:
+            st.info("Click Refresh rates and bond proxies to load the optional rates snapshot.")
+            return
+
+        treasury_payload = payload.get("treasury_curve", {})
+        curve = treasury_payload.get("curve", {})
+        spreads = treasury_payload.get("spreads_bps", {})
+
+        c1, c2, c3, c4 = st.columns(4)
+
+        c1.metric("Curve Regime", str(treasury_payload.get("curve_regime", "N/A")).title())
+        c2.metric(
+            "2s10s",
+            _format_optional_number(spreads.get("2s10s_bps"), decimals=1, suffix=" bps"),
+        )
+        c3.metric(
+            "5s30s",
+            _format_optional_number(spreads.get("5s30s_bps"), decimals=1, suffix=" bps"),
+        )
+        c4.metric(
+            "10Y Treasury",
+            _format_optional_number(curve.get("10Y"), decimals=2, suffix="%"),
+        )
+
+        st.markdown("**Treasury Curve**")
+
+        curve_df = curve_payload_to_dataframe(treasury_payload)
+
+        if curve_df.empty:
+            st.warning("No Treasury curve data returned.")
+        else:
+            st.dataframe(
+                curve_df.style.format(
+                    {"yield_pct": lambda value: _format_optional_number(value, decimals=2, suffix="%")}
+                ),
+                use_container_width=True,
+            )
+
+        st.markdown("**Curve Spreads**")
+
+        spreads_df = spreads_payload_to_dataframe(treasury_payload)
+
+        if spreads_df.empty:
+            st.warning("No curve spread data returned.")
+        else:
+            st.dataframe(
+                spreads_df.style.format(
+                    {"value_bps": lambda value: _format_optional_number(value, decimals=1, suffix=" bps")}
+                ),
+                use_container_width=True,
+            )
+
+        st.markdown("**Desk Read**")
+
+        for line in treasury_payload.get("desk_read", []):
+            st.markdown(f"- {line}")
+
+        bond_proxy_payload = payload.get("bond_etf_proxies", {})
+
+        if bond_proxy_payload:
+            st.markdown("**Bond ETF Proxy Snapshot**")
+            bond_proxy_df = bond_proxy_quotes_to_dataframe(bond_proxy_payload)
+
+            if bond_proxy_df.empty:
+                st.warning("No ETF proxy data returned.")
+            else:
+                st.dataframe(
+                    bond_proxy_df.style.format(
+                        {
+                            "price": lambda value: _format_optional_number(value, decimals=4),
+                            "change_pct": lambda value: _format_optional_number(value, decimals=2, suffix="%"),
+                        }
+                    ),
+                    use_container_width=True,
+                )
+
+        st.caption(
+            f"Rates source: {treasury_payload.get('source')} | "
+            f"Rates mode: {treasury_payload.get('data_mode')} | "
+            f"As of: {treasury_payload.get('as_of_date')} | "
+            f"Updated: {treasury_payload.get('timestamp_utc')}"
+        )
+        st.caption(payload.get("disclaimer", ""))
 
 
 def render() -> None:
@@ -35,6 +179,10 @@ def render() -> None:
             "is concentrated and how the portfolio reacts to yield curve and spread shocks."
         ),
     )
+
+    _render_rates_bond_market_snapshot()
+
+    st.divider()
 
     st.subheader("Input Data")
 
