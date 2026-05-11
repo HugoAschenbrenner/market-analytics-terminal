@@ -6,3 +6,4 @@ scipy
 openpyxl
 xlsxwriter
 pytest
+yfinance>=0.2.40
