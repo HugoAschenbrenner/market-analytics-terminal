@@ -27,6 +27,13 @@ from engines.options_payoff_engine import (
     build_options_strategy_snapshot,
 )
 
+from engines.options_pricing_engine import (
+    SUPPORTED_OPTION_TYPES,
+    build_black_scholes_snapshot,
+    build_pricing_sensitivity_table,
+    generate_pricing_desk_interpretation,
+)
+
 
 def _format_currency(value: float) -> str:
     return f"{value:,.0f}"
@@ -150,6 +157,202 @@ def _build_options_payoff_figure(snapshot: dict) -> go.Figure:
 
     return fig
 
+
+
+
+def _format_pricer_number(value: object, decimals: int = 4, suffix: str = "") -> str:
+    """Format BSM pricing and Greeks values for UI metrics."""
+    if value is None:
+        return "N/A"
+
+    if isinstance(value, str):
+        return value
+
+    try:
+        return f"{float(value):,.{decimals}f}{suffix}"
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _bsm_outputs_to_dataframe(snapshot: dict) -> pd.DataFrame:
+    """Convert Black-Scholes outputs into a compact pricing table."""
+    outputs = snapshot["outputs"]
+
+    rows = [
+        {"metric": "Theoretical Value", "value": outputs["price"]},
+        {"metric": "Intrinsic Value", "value": outputs["intrinsic_value"]},
+        {"metric": "Time Value", "value": outputs["time_value"]},
+        {"metric": "Moneyness", "value": outputs["moneyness_pct"]},
+        {"metric": "d1", "value": outputs["d1"]},
+        {"metric": "d2", "value": outputs["d2"]},
+    ]
+
+    return pd.DataFrame(rows)
+
+
+def _bsm_greeks_to_dataframe(snapshot: dict) -> pd.DataFrame:
+    """Convert Black-Scholes Greeks into a compact risk table."""
+    outputs = snapshot["outputs"]
+
+    rows = [
+        {"greek": "Delta", "value": outputs["delta"], "interpretation": "First-order sensitivity to spot"},
+        {"greek": "Gamma", "value": outputs["gamma"], "interpretation": "Convexity / change in delta"},
+        {"greek": "Vega", "value": outputs["vega_1pct"], "interpretation": "Value change per +1 vol point"},
+        {"greek": "Theta Daily", "value": outputs["theta_daily"], "interpretation": "Daily time decay"},
+        {"greek": "Rho", "value": outputs["rho_1pct"], "interpretation": "Value change per +1 rate point"},
+    ]
+
+    return pd.DataFrame(rows)
+
+
+def _render_black_scholes_pricer_lab() -> None:
+    """Render Black-Scholes-Merton option pricer and Greeks lab."""
+    st.subheader("Black-Scholes-Merton Pricer & Greeks")
+
+    with st.container(border=True):
+        st.caption(
+            "European vanilla option pricing under Black-Scholes-Merton assumptions. "
+            "This separates payoff at maturity from theoretical value today and risk sensitivities."
+        )
+
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+            option_type = st.selectbox(
+                "Option type",
+                SUPPORTED_OPTION_TYPES,
+                index=0,
+                key="bsm_option_type",
+            )
+            spot = st.number_input(
+                "BSM spot",
+                min_value=1.0,
+                value=100.0,
+                step=1.0,
+                key="bsm_spot",
+            )
+            strike = st.number_input(
+                "BSM strike",
+                min_value=1.0,
+                value=100.0,
+                step=1.0,
+                key="bsm_strike",
+            )
+
+        with c2:
+            maturity_years = st.number_input(
+                "Maturity in years",
+                min_value=0.01,
+                value=1.0,
+                step=0.05,
+                key="bsm_maturity",
+            )
+            volatility_pct = st.slider(
+                "Implied volatility",
+                min_value=1.0,
+                max_value=100.0,
+                value=20.0,
+                step=1.0,
+                key="bsm_volatility_pct",
+            )
+            dividend_yield_pct = st.number_input(
+                "Dividend yield",
+                min_value=0.0,
+                value=0.0,
+                step=0.25,
+                key="bsm_dividend_yield_pct",
+            )
+
+        with c3:
+            risk_free_rate_pct = st.number_input(
+                "Risk-free rate",
+                min_value=-5.0,
+                max_value=25.0,
+                value=5.0,
+                step=0.25,
+                key="bsm_risk_free_rate_pct",
+            )
+            st.caption("Rates, dividends and volatility are entered as percentages and converted to decimals.")
+            st.caption("Vega and rho are shown per 1 percentage point move.")
+
+        try:
+            snapshot = build_black_scholes_snapshot(
+                option_type=option_type,
+                spot=float(spot),
+                strike=float(strike),
+                maturity_years=float(maturity_years),
+                risk_free_rate=float(risk_free_rate_pct) / 100.0,
+                volatility=float(volatility_pct) / 100.0,
+                dividend_yield=float(dividend_yield_pct) / 100.0,
+            )
+
+            sensitivity_df = build_pricing_sensitivity_table(
+                option_type=option_type,
+                spot=float(spot),
+                strike=float(strike),
+                maturity_years=float(maturity_years),
+                risk_free_rate=float(risk_free_rate_pct) / 100.0,
+                volatility=float(volatility_pct) / 100.0,
+                dividend_yield=float(dividend_yield_pct) / 100.0,
+            )
+
+        except ValueError as exc:
+            st.warning(str(exc))
+            return
+
+        outputs = snapshot["outputs"]
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Theoretical Value", _format_pricer_number(outputs["price"], decimals=4))
+        m2.metric("Intrinsic Value", _format_pricer_number(outputs["intrinsic_value"], decimals=4))
+        m3.metric("Time Value", _format_pricer_number(outputs["time_value"], decimals=4))
+        m4.metric("Moneyness", _format_pricer_number(outputs["moneyness_pct"], decimals=2, suffix="%"))
+
+        g1, g2, g3, g4, g5 = st.columns(5)
+        g1.metric("Delta", _format_pricer_number(outputs["delta"], decimals=4))
+        g2.metric("Gamma", _format_pricer_number(outputs["gamma"], decimals=5))
+        g3.metric("Vega", _format_pricer_number(outputs["vega_1pct"], decimals=4))
+        g4.metric("Theta/day", _format_pricer_number(outputs["theta_daily"], decimals=5))
+        g5.metric("Rho", _format_pricer_number(outputs["rho_1pct"], decimals=4))
+
+        left, right = st.columns(2)
+
+        with left:
+            st.markdown("**Pricing Decomposition**")
+            pricing_df = _bsm_outputs_to_dataframe(snapshot)
+            st.dataframe(
+                pricing_df.style.format({"value": "{:,.6f}"}),
+                use_container_width=True,
+            )
+
+        with right:
+            st.markdown("**Greeks Summary**")
+            greeks_df = _bsm_greeks_to_dataframe(snapshot)
+            st.dataframe(
+                greeks_df.style.format({"value": "{:,.6f}"}),
+                use_container_width=True,
+            )
+
+        st.markdown("**Spot / Volatility Sensitivity**")
+        st.dataframe(
+            sensitivity_df.style.format(
+                {
+                    "spot": "{:,.2f}",
+                    "volatility": "{:,.2%}",
+                    "price": "{:,.4f}",
+                    "delta": "{:,.4f}",
+                    "vega_1pct": "{:,.4f}",
+                    "theta_daily": "{:,.5f}",
+                }
+            ),
+            use_container_width=True,
+        )
+
+        st.markdown("**Pricing Desk Interpretation**")
+        for line in generate_pricing_desk_interpretation(snapshot):
+            st.markdown(f"- {line}")
+
+        st.caption(outputs["disclaimer"])
 
 def _render_options_payoff_lab() -> None:
     """Render dynamic option payoff and strategy lab."""
@@ -307,6 +510,10 @@ def render() -> None:
     )
 
     _render_options_payoff_lab()
+
+    st.divider()
+
+    _render_black_scholes_pricer_lab()
 
     st.divider()
 
