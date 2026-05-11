@@ -6,12 +6,14 @@ The design principle is simple:
 
 Build tools that are useful to a desk, not just technically impressive demos.
 
-The project covers four main market/risk areas:
+The project covers six main market/risk areas:
 
 1. Fixed Income Risk
 2. Repo & Securities Lending
-3. Structured Products
-4. Portfolio Risk
+3. Options payoff and Black-Scholes pricing
+4. Structured Products and autocallable valuation proxies
+5. Portfolio Risk
+6. Cross-Asset Dashboard synthesis
 
 It also includes an R analytics companion for portfolio reporting.
 
@@ -59,3 +61,18 @@ R is used as a companion layer for:
 - correlation diagnostics
 
 This avoids duplicating every Python module in R and keeps R where it is most credible.
+
+
+---
+
+## Professional Demo Angle
+
+The strongest demo path is not to present the app as a single calculator. It should be presented as a workflow:
+
+1. Market/risk input
+2. Analytics engine
+3. Scenario or sensitivity analysis
+4. Desk interpretation
+5. Export or dashboard synthesis
+
+This is closer to how a sales, structuring, trading, portfolio or risk team would discuss a problem than a static academic model.

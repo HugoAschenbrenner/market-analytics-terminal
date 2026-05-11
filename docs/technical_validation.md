@@ -4,6 +4,15 @@ The project includes automated tests for the core analytics engines and report g
 
 ## Main Tested Areas
 
+### Market Data and Rates
+
+- public quote adapter normalization
+- fallback handling
+- Treasury curve snapshot logic
+- curve spread calculations
+- rates/bond proxy display helpers
+
+
 ### Fixed Income
 
 - duration
@@ -21,14 +30,19 @@ The project includes automated tests for the core analytics engines and report g
 - specialness classification
 - financing Excel report
 
-### Structured Products
+### Structured Products and Options
 
+- vanilla option payoff logic
+- option strategy payoff and P&L profiles
+- Black-Scholes-Merton pricing
+- Greeks and sensitivity outputs
 - Athena payoff logic
 - Phoenix payoff logic
 - memory coupon logic
 - protection barrier logic
 - worst-of basket logic
-- Monte Carlo simulation outputs
+- path simulation payoff proxy
+- autocallable valuation proxy
 - structured products Excel report
 
 ### Portfolio Risk

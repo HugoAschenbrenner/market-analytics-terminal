@@ -34,25 +34,38 @@ This project uses simplified, proxy-based analytics for demonstration. Outputs s
 
 ![Home](docs/screenshots/01_home.png)
 
-### Fixed Income Risk
+### Fixed Income Risk — Duration, DV01, Curve Shocks and Rates Snapshot
 
 ![Fixed Income Risk](docs/screenshots/02_fixed_income_risk.png)
 
-### Repo & Securities Lending
+### Repo & Securities Lending — Financing, Haircuts and Margin Stress
 
 ![Repo and Securities Lending](docs/screenshots/03_repo_sec_lending.png)
 
-### Structured Products
+### Structured Products — Options Payoff, Black-Scholes Greeks and Autocallable Valuation Proxy
 
 ![Structured Products](docs/screenshots/04_structured_products.png)
 
-### Portfolio Risk
+### Portfolio Risk — VaR, CVaR, Drawdown and Risk Contribution
 
 ![Portfolio Risk](docs/screenshots/05_portfolio_risk.png)
 
-### Cross-Asset Dashboard
+### Cross-Asset Dashboard — Rates, Financing, Structured Products and Portfolio Risk Synthesis
 
 ![Cross-Asset Dashboard](docs/screenshots/06_cross_asset_dashboard.png)
+
+---
+
+## How to Demo the Project in 90 Seconds
+
+1. Start on the Home page to show the project scope and ownership layer.
+2. Open Fixed Income Risk to show DV01, duration/convexity and curve-shock interpretation.
+3. Open Repo & Securities Lending to show collateral, haircut and margin-call mechanics.
+4. Open Structured Products to show the full chain: options payoff, Black-Scholes pricing/Greeks, autocallable valuation proxy and payoff simulation.
+5. Open Portfolio Risk to show VaR, CVaR, drawdown and risk contribution.
+6. Finish on Cross-Asset Dashboard to show how the modules connect into a manager-style risk synthesis.
+
+The intended message is simple: the terminal does not claim to replace bank systems; it demonstrates market logic, scenario thinking, risk decomposition, reporting discipline and desk-style interpretation.
 
 
 ## Core Modules
@@ -176,6 +189,12 @@ market-analytics-terminal/
 │   ├── fixed_income_engine.py
 │   ├── repo_engine.py
 │   ├── sec_lending_engine.py
+│   ├── market_data_engine.py
+│   ├── rates_market_data_engine.py
+│   ├── options_payoff_engine.py
+│   ├── options_pricing_engine.py
+│   ├── structured_products_valuation_engine.py
+│   ├── cross_asset_dashboard_engine.py
 │   ├── structured_products_engine.py
 │   ├── portfolio_risk_engine.py
 │   └── scenario_engine.py
@@ -228,7 +247,7 @@ python -m pytest -q
 
 ## Current Test Coverage
 
-The project contains more than 130 passing tests covering:
+The project contains more than 240 passing tests covering:
 
 - fixed income analytics
 - repo and securities lending
