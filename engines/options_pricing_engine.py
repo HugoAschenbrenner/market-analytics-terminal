@@ -485,3 +485,353 @@ def generate_pricing_desk_interpretation(snapshot: Dict[str, Any]) -> List[str]:
     bullets.append("This is theoretical European pricing, not an executable market quote.")
 
     return bullets
+
+
+SUPPORTED_BSM_CURVE_VARIABLES = ["Spot", "Strike", "Maturity", "Volatility", "Rate"]
+
+
+def normalize_bsm_curve_variable(variable: str) -> str:
+    """Normalize BSM curve variable labels for sensitivity charts."""
+    cleaned = str(variable).strip().lower().replace("_", " ").replace("-", " ")
+
+    mapping = {
+        "spot": "Spot",
+        "stock": "Spot",
+        "stock price": "Spot",
+        "strike": "Strike",
+        "strike price": "Strike",
+        "maturity": "Maturity",
+        "time": "Maturity",
+        "time to maturity": "Maturity",
+        "expiry": "Maturity",
+        "vol": "Volatility",
+        "volatility": "Volatility",
+        "implied volatility": "Volatility",
+        "rate": "Rate",
+        "risk free rate": "Rate",
+        "risk-free rate": "Rate",
+        "r": "Rate",
+    }
+
+    if cleaned not in mapping:
+        raise ValueError(
+            "variable must be one of: Spot, Strike, Maturity, Volatility, Rate."
+        )
+
+    return mapping[cleaned]
+
+
+def _linear_space(start: float, stop: float, points: int) -> list[float]:
+    """Small dependency-free linspace helper."""
+    points = int(points)
+
+    if points < 3:
+        raise ValueError("points must be at least 3.")
+
+    if stop <= start:
+        raise ValueError("stop must be greater than start.")
+
+    step = (stop - start) / float(points - 1)
+    return [start + idx * step for idx in range(points)]
+
+
+def _build_bsm_curve_axis(
+    variable: str,
+    spot: float,
+    strike: float,
+    maturity_years: float,
+    risk_free_rate: float,
+    volatility: float,
+    points: int = 81,
+) -> list[float]:
+    """Build a sensible axis range for an interactive BSM sensitivity chart."""
+    normalized_variable = normalize_bsm_curve_variable(variable)
+
+    if normalized_variable == "Spot":
+        return _linear_space(max(spot * 0.50, 0.01), spot * 1.50, points)
+
+    if normalized_variable == "Strike":
+        return _linear_space(max(strike * 0.50, 0.01), strike * 1.50, points)
+
+    if normalized_variable == "Maturity":
+        upper = max(maturity_years * 2.0, maturity_years + 1.0, 0.25)
+        return _linear_space(0.01, upper, points)
+
+    if normalized_variable == "Volatility":
+        lower = max(volatility * 0.25, 0.01)
+        upper = max(volatility * 2.0, volatility + 0.30, 0.10)
+        return _linear_space(lower, upper, points)
+
+    if normalized_variable == "Rate":
+        lower = max(risk_free_rate - 0.05, -0.05)
+        upper = min(risk_free_rate + 0.05, 0.25)
+
+        if upper <= lower:
+            upper = lower + 0.05
+
+        return _linear_space(lower, upper, points)
+
+    raise ValueError("Unsupported BSM curve variable.")
+
+
+def build_bsm_sensitivity_curve(
+    option_type: str,
+    spot: float,
+    strike: float,
+    maturity_years: float,
+    risk_free_rate: float,
+    volatility: float,
+    dividend_yield: float = 0.0,
+    variable: str = "Spot",
+    points: int = 81,
+) -> pd.DataFrame:
+    """
+    Build an interactive Black-Scholes-Merton sensitivity curve.
+
+    The output is designed for Streamlit charts:
+    - price curve
+    - first-order Greeks across the selected axis
+    - tangent-line / slope visualizations
+    """
+    inputs = validate_black_scholes_inputs(
+        option_type=option_type,
+        spot=spot,
+        strike=strike,
+        maturity_years=maturity_years,
+        risk_free_rate=risk_free_rate,
+        volatility=volatility,
+        dividend_yield=dividend_yield,
+    )
+
+    normalized_variable = normalize_bsm_curve_variable(variable)
+
+    axis_values = _build_bsm_curve_axis(
+        normalized_variable,
+        inputs.spot,
+        inputs.strike,
+        inputs.maturity_years,
+        inputs.risk_free_rate,
+        inputs.volatility,
+        points=points,
+    )
+
+    rows: list[dict[str, Any]] = []
+
+    for axis_value in axis_values:
+        shocked_spot = inputs.spot
+        shocked_strike = inputs.strike
+        shocked_maturity = inputs.maturity_years
+        shocked_rate = inputs.risk_free_rate
+        shocked_volatility = inputs.volatility
+
+        if normalized_variable == "Spot":
+            shocked_spot = axis_value
+        elif normalized_variable == "Strike":
+            shocked_strike = axis_value
+        elif normalized_variable == "Maturity":
+            shocked_maturity = axis_value
+        elif normalized_variable == "Volatility":
+            shocked_volatility = axis_value
+        elif normalized_variable == "Rate":
+            shocked_rate = axis_value
+
+        price = black_scholes_price(
+            option_type=inputs.option_type,
+            spot=shocked_spot,
+            strike=shocked_strike,
+            maturity_years=shocked_maturity,
+            risk_free_rate=shocked_rate,
+            volatility=shocked_volatility,
+            dividend_yield=inputs.dividend_yield,
+        )
+
+        greeks = black_scholes_greeks(
+            option_type=inputs.option_type,
+            spot=shocked_spot,
+            strike=shocked_strike,
+            maturity_years=shocked_maturity,
+            risk_free_rate=shocked_rate,
+            volatility=shocked_volatility,
+            dividend_yield=inputs.dividend_yield,
+        )
+
+        rows.append(
+            {
+                "axis": normalized_variable,
+                "axis_value": round(float(axis_value), 8),
+                "price": round(float(price), 8),
+                "delta": greeks["delta"],
+                "gamma": greeks["gamma"],
+                "vega_1pct": greeks["vega_1pct"],
+                "theta_daily": greeks["theta_daily"],
+                "rho_1pct": greeks["rho_1pct"],
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def estimate_local_curve_slope(
+    curve_df: pd.DataFrame,
+    x_col: str = "axis_value",
+    y_col: str = "price",
+    selected_x: Optional[float] = None,
+) -> Dict[str, float]:
+    """
+    Estimate local slope around the selected x-value using neighboring points.
+
+    This is used to explain Greeks visually as local sensitivities.
+    """
+    required_cols = {x_col, y_col}
+
+    if not required_cols.issubset(curve_df.columns):
+        raise ValueError(f"curve_df must contain columns: {sorted(required_cols)}")
+
+    if len(curve_df) < 3:
+        raise ValueError("curve_df must contain at least three rows.")
+
+    df = curve_df[[x_col, y_col]].dropna().sort_values(x_col).reset_index(drop=True)
+
+    if df.empty or len(df) < 3:
+        raise ValueError("curve_df must contain at least three valid numeric rows.")
+
+    target_x = float(selected_x) if selected_x is not None else float(df[x_col].median())
+
+    nearest_idx = int((df[x_col] - target_x).abs().idxmin())
+
+    if nearest_idx == 0:
+        left_idx, right_idx = 0, 1
+    elif nearest_idx == len(df) - 1:
+        left_idx, right_idx = len(df) - 2, len(df) - 1
+    else:
+        left_idx, right_idx = nearest_idx - 1, nearest_idx + 1
+
+    x_left = float(df.loc[left_idx, x_col])
+    x_right = float(df.loc[right_idx, x_col])
+    y_left = float(df.loc[left_idx, y_col])
+    y_right = float(df.loc[right_idx, y_col])
+
+    if x_right == x_left:
+        raise ValueError("Cannot estimate slope with duplicate x values.")
+
+    slope = (y_right - y_left) / (x_right - x_left)
+
+    anchor_x = float(df.loc[nearest_idx, x_col])
+    anchor_y = float(df.loc[nearest_idx, y_col])
+
+    return {
+        "anchor_x": round(anchor_x, 8),
+        "anchor_y": round(anchor_y, 8),
+        "slope": round(float(slope), 8),
+    }
+
+
+def build_local_tangent_line(
+    curve_df: pd.DataFrame,
+    x_col: str = "axis_value",
+    y_col: str = "price",
+    selected_x: Optional[float] = None,
+    width_fraction: float = 0.18,
+) -> pd.DataFrame:
+    """
+    Build tangent-line data around a selected point on a curve.
+
+    Returns a small dataframe with the same x-axis and a tangent value.
+    """
+    slope_payload = estimate_local_curve_slope(
+        curve_df=curve_df,
+        x_col=x_col,
+        y_col=y_col,
+        selected_x=selected_x,
+    )
+
+    df = curve_df[[x_col, y_col]].dropna().sort_values(x_col).reset_index(drop=True)
+
+    x_min = float(df[x_col].min())
+    x_max = float(df[x_col].max())
+    span = x_max - x_min
+    half_width = max(span * float(width_fraction), span / max(len(df), 1))
+
+    anchor_x = slope_payload["anchor_x"]
+    anchor_y = slope_payload["anchor_y"]
+    slope = slope_payload["slope"]
+
+    tangent_x_values = [
+        max(x_min, anchor_x - half_width),
+        anchor_x,
+        min(x_max, anchor_x + half_width),
+    ]
+
+    rows = []
+
+    for x_value in tangent_x_values:
+        tangent_value = anchor_y + slope * (x_value - anchor_x)
+        rows.append(
+            {
+                x_col: round(float(x_value), 8),
+                "tangent_value": round(float(tangent_value), 8),
+                "anchor_x": anchor_x,
+                "anchor_y": anchor_y,
+                "local_slope": slope,
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def build_bsm_interactive_explorer_payload(
+    option_type: str,
+    spot: float,
+    strike: float,
+    maturity_years: float,
+    risk_free_rate: float,
+    volatility: float,
+    dividend_yield: float = 0.0,
+    points: int = 81,
+) -> Dict[str, Any]:
+    """
+    Build all data needed for an interactive BSM / Greeks explorer.
+
+    This powers charts replacing static pricing tables:
+    - price vs spot / strike / maturity / volatility / rate
+    - Greeks curves
+    - local tangent line for price vs spot
+    """
+    snapshot = build_black_scholes_snapshot(
+        option_type=option_type,
+        spot=spot,
+        strike=strike,
+        maturity_years=maturity_years,
+        risk_free_rate=risk_free_rate,
+        volatility=volatility,
+        dividend_yield=dividend_yield,
+    )
+
+    curves = {
+        variable: build_bsm_sensitivity_curve(
+            option_type=option_type,
+            spot=spot,
+            strike=strike,
+            maturity_years=maturity_years,
+            risk_free_rate=risk_free_rate,
+            volatility=volatility,
+            dividend_yield=dividend_yield,
+            variable=variable,
+            points=points,
+        )
+        for variable in SUPPORTED_BSM_CURVE_VARIABLES
+    }
+
+    spot_tangent = build_local_tangent_line(
+        curves["Spot"],
+        x_col="axis_value",
+        y_col="price",
+        selected_x=spot,
+    )
+
+    return {
+        "snapshot": snapshot,
+        "curves": curves,
+        "spot_price_tangent": spot_tangent,
+        "disclaimer": DISCLAIMER,
+    }
