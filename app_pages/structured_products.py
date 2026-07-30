@@ -690,6 +690,290 @@ def _render_black_scholes_pricer_lab() -> None:
 
         st.caption(outputs["disclaimer"])
 
+
+def _render_interactive_options_greeks_lab() -> None:
+    """Render interactive Black-Scholes sensitivity charts and Greeks curves."""
+    import altair as alt
+    import pandas as pd
+
+    from engines.options_pricing_engine import (
+        SUPPORTED_BSM_CURVE_VARIABLES,
+        build_bsm_interactive_explorer_payload,
+        build_local_tangent_line,
+    )
+
+    st.subheader("Interactive Greeks & Sensitivity Explorer")
+
+    with st.container(border=True):
+        st.caption(
+            "Interactive Black-Scholes-Merton visualizer. The charts show how theoretical value and Greeks move when one input changes, "
+            "holding the other assumptions constant. This is a sensitivity and intuition layer, not an executable market quote."
+        )
+
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+            interactive_option_type = st.selectbox(
+                "Explorer option type",
+                ["Call", "Put"],
+                index=0,
+                key="interactive_bsm_option_type",
+            )
+            interactive_spot = st.number_input(
+                "Explorer spot",
+                min_value=0.01,
+                value=100.0,
+                step=1.0,
+                key="interactive_bsm_spot",
+            )
+            interactive_strike = st.number_input(
+                "Explorer strike",
+                min_value=0.01,
+                value=100.0,
+                step=1.0,
+                key="interactive_bsm_strike",
+            )
+
+        with c2:
+            interactive_maturity = st.number_input(
+                "Explorer maturity in years",
+                min_value=0.01,
+                value=1.0,
+                step=0.25,
+                key="interactive_bsm_maturity",
+            )
+            interactive_volatility_pct = st.slider(
+                "Explorer implied volatility (%)",
+                min_value=1.0,
+                max_value=100.0,
+                value=20.0,
+                step=1.0,
+                key="interactive_bsm_volatility_pct",
+            )
+            interactive_rate_pct = st.number_input(
+                "Explorer risk-free rate (%)",
+                value=5.0,
+                step=0.25,
+                key="interactive_bsm_rate_pct",
+            )
+
+        with c3:
+            interactive_dividend_pct = st.number_input(
+                "Explorer dividend yield (%)",
+                value=0.0,
+                step=0.25,
+                key="interactive_bsm_dividend_pct",
+            )
+            selected_axis = st.selectbox(
+                "Main sensitivity axis",
+                SUPPORTED_BSM_CURVE_VARIABLES,
+                index=0,
+                help="The selected input is shocked across a range while the other assumptions are held constant.",
+                key="interactive_bsm_selected_axis",
+            )
+            st.caption(
+                "The tangent line is a local-slope approximation. For price vs spot, it links directly to delta intuition."
+            )
+
+        payload = build_bsm_interactive_explorer_payload(
+            option_type=interactive_option_type,
+            spot=interactive_spot,
+            strike=interactive_strike,
+            maturity_years=interactive_maturity,
+            risk_free_rate=interactive_rate_pct / 100.0,
+            volatility=interactive_volatility_pct / 100.0,
+            dividend_yield=interactive_dividend_pct / 100.0,
+            points=81,
+        )
+
+        snapshot = payload["snapshot"]
+
+        greeks_payload = snapshot.get("greeks", snapshot)
+        interactive_theoretical_value = float(
+            snapshot.get(
+                "price",
+                snapshot.get("theoretical_value", snapshot.get("value", 0.0)),
+            )
+        )
+        interactive_intrinsic_value = float(
+            snapshot.get("intrinsic_value", snapshot.get("intrinsic", 0.0))
+        )
+        interactive_time_value = float(
+            snapshot.get(
+                "time_value",
+                max(interactive_theoretical_value - interactive_intrinsic_value, 0.0),
+            )
+        )
+
+        interactive_delta = float(greeks_payload.get("delta", 0.0))
+        interactive_gamma = float(greeks_payload.get("gamma", 0.0))
+        interactive_vega_1pct = float(greeks_payload.get("vega_1pct", 0.0))
+        interactive_theta_daily = float(
+            greeks_payload.get("theta_daily", greeks_payload.get("theta_day", 0.0))
+        )
+        interactive_rho_1pct = float(greeks_payload.get("rho_1pct", 0.0))
+        selected_curve = payload["curves"][selected_axis]
+
+        selected_axis_value = {
+            "Spot": interactive_spot,
+            "Strike": interactive_strike,
+            "Maturity": interactive_maturity,
+            "Volatility": interactive_volatility_pct / 100.0,
+            "Rate": interactive_rate_pct / 100.0,
+        }[selected_axis]
+
+        anchor_idx = int((selected_curve["axis_value"] - selected_axis_value).abs().idxmin())
+        anchor_row = selected_curve.loc[anchor_idx]
+
+        interactive_theoretical_value = float(anchor_row["price"])
+        interactive_delta = float(anchor_row["delta"])
+        interactive_gamma = float(anchor_row["gamma"])
+        interactive_vega_1pct = float(anchor_row["vega_1pct"])
+        interactive_theta_daily = float(anchor_row["theta_daily"])
+        interactive_rho_1pct = float(anchor_row["rho_1pct"])
+
+        if interactive_option_type == "Call":
+            interactive_intrinsic_value = max(interactive_spot - interactive_strike, 0.0)
+        else:
+            interactive_intrinsic_value = max(interactive_strike - interactive_spot, 0.0)
+
+        interactive_time_value = max(
+            interactive_theoretical_value - interactive_intrinsic_value,
+            0.0,
+        )
+
+        tangent = build_local_tangent_line(
+            selected_curve,
+            x_col="axis_value",
+            y_col="price",
+            selected_x=selected_axis_value,
+        )
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Theoretical value", f"{interactive_theoretical_value:.4f}")
+        m2.metric("Delta", f"{interactive_delta:.4f}")
+        m3.metric("Gamma", f"{interactive_gamma:.5f}")
+        m4.metric("Vega / 1 vol pt", f"{interactive_vega_1pct:.4f}")
+
+        m5, m6, m7, m8 = st.columns(4)
+        m5.metric("Theta / day", f"{interactive_theta_daily:.5f}")
+        m6.metric("Rho / 1 rate pt", f"{interactive_rho_1pct:.4f}")
+        m7.metric("Intrinsic value", f"{interactive_intrinsic_value:.4f}")
+        m8.metric("Time value", f"{interactive_time_value:.4f}")
+
+        chart_df = selected_curve[["axis_value", "price"]].copy()
+        tangent_df = tangent[["axis_value", "tangent_value"]].copy()
+
+        price_curve = (
+            alt.Chart(chart_df)
+            .mark_line()
+            .encode(
+                x=alt.X("axis_value:Q", title=selected_axis),
+                y=alt.Y("price:Q", title="Theoretical value"),
+                tooltip=[
+                    alt.Tooltip("axis_value:Q", title=selected_axis, format=".4f"),
+                    alt.Tooltip("price:Q", title="Value", format=".4f"),
+                ],
+            )
+        )
+
+        tangent_line = (
+            alt.Chart(tangent_df)
+            .mark_line(strokeDash=[6, 4])
+            .encode(
+                x=alt.X("axis_value:Q", title=selected_axis),
+                y=alt.Y("tangent_value:Q", title="Local tangent"),
+                tooltip=[
+                    alt.Tooltip("axis_value:Q", title=selected_axis, format=".4f"),
+                    alt.Tooltip("tangent_value:Q", title="Tangent", format=".4f"),
+                ],
+            )
+        )
+
+        anchor_df = pd.DataFrame(
+            [
+                {
+                    "axis_value": float(tangent["anchor_x"].iloc[0]),
+                    "price": float(tangent["anchor_y"].iloc[0]),
+                }
+            ]
+        )
+
+        anchor_point = (
+            alt.Chart(anchor_df)
+            .mark_circle(size=70)
+            .encode(
+                x=alt.X("axis_value:Q", title=selected_axis),
+                y=alt.Y("price:Q", title="Theoretical value"),
+                tooltip=[
+                    alt.Tooltip("axis_value:Q", title=selected_axis, format=".4f"),
+                    alt.Tooltip("price:Q", title="Anchor value", format=".4f"),
+                ],
+            )
+        )
+
+        st.markdown("**Theoretical Value Curve and Local Tangent**")
+        st.altair_chart(
+            (price_curve + tangent_line + anchor_point).interactive(),
+            use_container_width=True,
+        )
+
+        st.caption(
+            f"Estimated local slope on selected axis: {float(tangent['local_slope'].iloc[0]):.4f}. "
+            "For spot sensitivity, this is close to delta; for volatility and rates, interpret units carefully."
+        )
+
+        greeks_df = selected_curve[
+            ["axis_value", "delta", "gamma", "vega_1pct", "theta_daily", "rho_1pct"]
+        ].melt(
+            id_vars="axis_value",
+            var_name="greek",
+            value_name="value",
+        )
+
+        greek_selector = st.multiselect(
+            "Greeks to display",
+            ["delta", "gamma", "vega_1pct", "theta_daily", "rho_1pct"],
+            default=["delta", "gamma", "vega_1pct"],
+            key="interactive_bsm_greek_selector",
+        )
+
+        filtered_greeks = greeks_df[greeks_df["greek"].isin(greek_selector)]
+
+        if filtered_greeks.empty:
+            st.info("Select at least one Greek to display.")
+        else:
+            greek_chart = (
+                alt.Chart(filtered_greeks)
+                .mark_line()
+                .encode(
+                    x=alt.X("axis_value:Q", title=selected_axis),
+                    y=alt.Y("value:Q", title="Greek value"),
+                    color=alt.Color("greek:N", title="Greek"),
+                    tooltip=[
+                        alt.Tooltip("axis_value:Q", title=selected_axis, format=".4f"),
+                        alt.Tooltip("greek:N", title="Greek"),
+                        alt.Tooltip("value:Q", title="Value", format=".6f"),
+                    ],
+                )
+                .interactive()
+            )
+
+            st.markdown("**Greeks Across Selected Shock Axis**")
+            st.altair_chart(greek_chart, use_container_width=True)
+
+        with st.expander("Desk interpretation"):
+            st.markdown(
+                """
+- Delta is the first-order spot sensitivity; its behaviour across spot highlights how moneyness changes directional exposure.
+- Gamma shows convexity: high gamma means delta changes quickly as the underlying moves.
+- Vega shows sensitivity to implied volatility; long optionality generally benefits from higher volatility.
+- Theta captures time decay; for long vanilla options it is usually negative under standard assumptions.
+- Rho captures sensitivity to interest rates and is usually more visible for longer maturities.
+"""
+            )
+            st.caption(payload["disclaimer"])
+
 def _render_options_payoff_lab() -> None:
     """Render dynamic option payoff and strategy lab."""
     st.subheader("Options Payoff Lab")
@@ -851,6 +1135,10 @@ def render() -> None:
     st.divider()
 
     _render_black_scholes_pricer_lab()
+
+    st.divider()
+
+    _render_interactive_options_greeks_lab()
 
     st.divider()
 
