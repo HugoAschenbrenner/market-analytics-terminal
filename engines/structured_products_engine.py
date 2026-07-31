@@ -76,23 +76,38 @@ class PayoffResult:
     explanation: str
 
 
-def validate_terms(terms: AutocallableTerms) -> None:
-    """Validate product terms."""
-
-    if terms.product_type not in ["Athena", "Phoenix"]:
-        raise ValueError("Product type must be 'Athena' or 'Phoenix'.")
+def validate_terms(
+    terms: AutocallableTerms,
+) -> None:
+    """Validate simplified autocallable terms."""
+    if terms.product_type not in [
+        "Athena",
+        "Phoenix",
+    ]:
+        raise ValueError(
+            "Product type must be 'Athena' or 'Phoenix'."
+        )
 
     if terms.nominal <= 0:
-        raise ValueError("Nominal must be positive.")
+        raise ValueError(
+            "Nominal must be positive."
+        )
 
     if terms.coupon_rate_per_period < 0:
-        raise ValueError("Coupon rate cannot be negative.")
+        raise ValueError(
+            "Coupon rate cannot be negative."
+        )
 
-    if terms.autocall_barrier < terms.protection_barrier:
-        raise ValueError("Autocall barrier should be above protection barrier.")
-
-    if terms.coupon_barrier < terms.protection_barrier:
-        raise ValueError("Coupon barrier should be above protection barrier.")
+    if not (
+        terms.autocall_barrier
+        >= terms.coupon_barrier
+        >= terms.protection_barrier
+    ):
+        raise ValueError(
+            "Barrier ordering must satisfy "
+            "autocall_barrier >= coupon_barrier "
+            ">= protection_barrier."
+        )
 
 
 def validate_performance_path(performance_path: list[float]) -> None:
@@ -102,8 +117,8 @@ def validate_performance_path(performance_path: list[float]) -> None:
         raise ValueError("Performance path cannot be empty.")
 
     for performance in performance_path:
-        if performance <= -1.0:
-            raise ValueError("Performance cannot be less than or equal to -100%.")
+        if performance < -1.0:
+            raise ValueError("Performance cannot be less than -100%.")
 
 
 def calculate_worst_of_performance(underlying_performances: list[float]) -> float:
@@ -441,8 +456,8 @@ def validate_basket_paths(underlying_paths: dict[str, list[float]]) -> int:
             raise ValueError(f"Performance path for {underlying} cannot be empty.")
 
         for performance in path:
-            if performance <= -1.0:
-                raise ValueError("Performance cannot be less than or equal to -100%.")
+            if performance < -1.0:
+                raise ValueError("Performance cannot be less than -100%.")
 
         lengths.add(len(path))
 
@@ -912,7 +927,9 @@ def generate_monte_carlo_commentary(summary: dict, is_worst_of: bool) -> list[st
         ),
         (
             f"Estimated autocall probability is {summary['autocall_probability']:.2%}; "
-            f"estimated barrier breach probability is {summary['barrier_breach_probability']:.2%}."
+            f"estimated final protection loss probability "
+            f"(European barrier) is "
+            f"{summary['barrier_breach_probability']:.2%}."
         ),
         (
             f"Expected payoff is {summary['expected_payoff']:,.0f}, implying expected P&L "

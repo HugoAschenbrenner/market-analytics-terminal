@@ -11,7 +11,7 @@ forecasts, credit adjustments, or official term sheets.
 Core purpose:
 - estimate expected discounted payoff
 - estimate autocall probability
-- estimate protection barrier breach probability
+- estimate final protection loss probability at maturity
 - estimate expected maturity
 - generate desk-style valuation interpretation
 """
@@ -124,6 +124,17 @@ def validate_valuation_inputs(
         if value <= 0:
             raise ValueError(f"{name} must be strictly positive.")
 
+    if not (
+        autocall_barrier
+        >= coupon_barrier
+        >= protection_barrier
+    ):
+        raise ValueError(
+            "Barrier ordering must satisfy "
+            "autocall_barrier >= coupon_barrier "
+            ">= protection_barrier."
+        )
+
     if coupon_rate < 0:
         raise ValueError("coupon_rate cannot be negative.")
 
@@ -155,10 +166,42 @@ def validate_valuation_inputs(
     )
 
 
-def build_observation_times(inputs: AutocallableValuationInputs) -> np.ndarray:
-    """Build contractual observation times in years."""
-    observation_count = max(1, int(round(inputs.maturity_years * inputs.observations_per_year)))
-    return np.arange(1, observation_count + 1, dtype=float) / inputs.observations_per_year
+def build_observation_times(
+    inputs: AutocallableValuationInputs,
+) -> np.ndarray:
+    """
+    Build contractual observation times in years.
+
+    Regular dates occur every 1 / observations_per_year.
+    A final stub observation is added when contractual maturity
+    does not lie exactly on the regular grid.
+    """
+    maturity = float(inputs.maturity_years)
+    frequency = int(inputs.observations_per_year)
+
+    regular_count = int(
+        np.floor(maturity * frequency + 1e-12)
+    )
+
+    regular_times = (
+        np.arange(
+            1,
+            regular_count + 1,
+            dtype=float,
+        )
+        / frequency
+    )
+
+    regular_times = regular_times[
+        regular_times < maturity - 1e-12
+    ]
+
+    observation_times = np.append(
+        regular_times,
+        maturity,
+    )
+
+    return np.round(observation_times, 12)
 
 
 def build_constant_correlation_matrix(asset_count: int, correlation: float) -> np.ndarray:
@@ -187,40 +230,84 @@ def simulate_correlated_gbm_performance_paths(
     inputs: AutocallableValuationInputs,
 ) -> np.ndarray:
     """
-    Simulate correlated GBM performance paths.
+    Simulate correlated GBM performance ratios S_t / S_0.
 
-    Returns an array of shape:
-    simulations x observations x assets
-
-    Values are performance ratios S_t / S_0.
+    Actual contractual time increments are used, including any
+    final stub period.
     """
     asset_count = len(inputs.initial_spots)
     observation_times = build_observation_times(inputs)
     observation_count = len(observation_times)
 
-    dt = 1.0 / inputs.observations_per_year
+    time_steps = np.diff(
+        np.concatenate(
+            ([0.0], observation_times)
+        )
+    )
+
     rng = np.random.default_rng(inputs.seed)
 
-    correlation_matrix = build_constant_correlation_matrix(asset_count, inputs.correlation)
-    cholesky = np.linalg.cholesky(correlation_matrix)
+    correlation_matrix = (
+        build_constant_correlation_matrix(
+            asset_count,
+            inputs.correlation,
+        )
+    )
+    cholesky = np.linalg.cholesky(
+        correlation_matrix
+    )
 
-    performances = np.ones((inputs.simulations, observation_count, asset_count), dtype=float)
-    current_log_performance = np.zeros((inputs.simulations, asset_count), dtype=float)
+    performances = np.ones(
+        (
+            inputs.simulations,
+            observation_count,
+            asset_count,
+        ),
+        dtype=float,
+    )
 
-    vol = np.asarray(inputs.volatilities, dtype=float)
-    drift = inputs.risk_free_rate - inputs.dividend_yield - 0.5 * vol * vol
+    current_log_performance = np.zeros(
+        (inputs.simulations, asset_count),
+        dtype=float,
+    )
 
-    for obs_idx in range(observation_count):
-        independent_normals = rng.standard_normal((inputs.simulations, asset_count))
-        correlated_normals = independent_normals @ cholesky.T
+    vol = np.asarray(
+        inputs.volatilities,
+        dtype=float,
+    )
+
+    drift = (
+        inputs.risk_free_rate
+        - inputs.dividend_yield
+        - 0.5 * vol * vol
+    )
+
+    for obs_idx, dt in enumerate(time_steps):
+        dt = float(dt)
+
+        independent_normals = rng.standard_normal(
+            (
+                inputs.simulations,
+                asset_count,
+            )
+        )
+
+        correlated_normals = (
+            independent_normals
+            @ cholesky.T
+        )
 
         current_log_performance = (
             current_log_performance
             + drift * dt
-            + vol * np.sqrt(dt) * correlated_normals
+            + vol
+            * np.sqrt(dt)
+            * correlated_normals
         )
 
-        performances[:, obs_idx, :] = np.exp(current_log_performance)
+        performances[:, obs_idx, :] = np.exp(
+            current_log_performance
+        )
 
     return performances
 
@@ -308,7 +395,9 @@ def evaluate_autocallable_cashflows(
                 "coupon_paid": round(coupon_paid, 8),
                 "payoff": round(payoff, 8),
                 "discounted_payoff": round(discounted_payoff, 8),
-                "protection_barrier_breached": event_worst_performance < inputs.protection_barrier,
+                "protection_barrier_breached": (
+                    event_type == "maturity_capital_loss"
+                ),
             }
         )
 
@@ -359,8 +448,10 @@ def generate_valuation_desk_interpretation(summary: Dict[str, Any], inputs: Auto
             f"expected maturity is {summary['expected_maturity_years']:.2f} years."
         ),
         (
-            f"Protection barrier breach probability is "
-            f"{summary['protection_barrier_breach_probability']:.1%}, driven by the worst-of path."
+            f"Final protection loss probability "
+            f"(European barrier) is "
+            f"{summary['protection_barrier_breach_probability']:.1%}, "
+            f"based on the final worst-of fixing."
         ),
     ]
 
@@ -442,7 +533,10 @@ def valuation_summary_to_dataframe(summary: Dict[str, Any]) -> pd.DataFrame:
         {"metric": "Fair Value (% Notional)", "value": summary["fair_value_pct_notional"]},
         {"metric": "Expected Payoff", "value": summary["expected_payoff"]},
         {"metric": "Autocall Probability", "value": summary["autocall_probability"]},
-        {"metric": "Barrier Breach Probability", "value": summary["protection_barrier_breach_probability"]},
+        {
+            "metric": "Final Protection Loss Probability (European)",
+            "value": summary["protection_barrier_breach_probability"],
+        },
         {"metric": "Expected Maturity", "value": summary["expected_maturity_years"]},
         {"metric": "Average Coupon Paid", "value": summary["average_coupon_paid"]},
         {"metric": "5th Percentile Payoff", "value": summary["p05_payoff"]},

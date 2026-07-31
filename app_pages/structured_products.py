@@ -285,7 +285,7 @@ def _render_structured_products_valuation_proxy() -> None:
     with st.container(border=True):
         st.caption(
             "Simplified valuation proxy for autocallable structures. It estimates expected discounted payoff, "
-            "autocall probability, barrier breach risk, and expected maturity under transparent Monte Carlo assumptions."
+            "autocall probability, final protection loss risk at maturity, and expected maturity under transparent Monte Carlo assumptions."
         )
 
         c1, c2, c3 = st.columns(3)
@@ -384,6 +384,11 @@ def _render_structured_products_valuation_proxy() -> None:
                 step=0.25,
                 key="valuation_proxy_dividend_yield_pct",
             )
+
+        st.caption(
+            "Generic product convention: autocall barrier ≥ "
+            "coupon barrier ≥ protection barrier."
+        )
 
         c4, c5, c6 = st.columns(3)
 
@@ -491,7 +496,19 @@ def _render_structured_products_valuation_proxy() -> None:
         m1.metric("Fair Value Proxy", _format_money_value(summary["fair_value_proxy"]))
         m2.metric("PV % Notional", f"{summary['fair_value_pct_notional']:.2f}%")
         m3.metric("Autocall Probability", _format_probability(summary["autocall_probability"]))
-        m4.metric("Barrier Breach Probability", _format_probability(summary["protection_barrier_breach_probability"]))
+        m4.metric(
+            "Final Protection Loss Probability",
+            _format_probability(
+                summary[
+                    "protection_barrier_breach_probability"
+                ]
+            ),
+            help=(
+                "Probability that the final worst-of fixing "
+                "is below the European protection barrier. "
+                "This is not a continuous-touch probability."
+            ),
+        )
 
         m5, m6, m7, m8 = st.columns(4)
         m5.metric("Expected Maturity", f"{summary['expected_maturity_years']:.2f}y")
@@ -535,6 +552,14 @@ def _render_structured_products_valuation_proxy() -> None:
 
         if sensitivity_df is not None:
             st.markdown("**Volatility / Correlation Sensitivity**")
+
+            sensitivity_df = sensitivity_df.rename(
+                columns={
+                    "barrier_breach_probability": (
+                        "final_protection_loss_probability"
+                    )
+                }
+            )
             st.dataframe(
                 sensitivity_df.style.format(
                     {
@@ -542,7 +567,7 @@ def _render_structured_products_valuation_proxy() -> None:
                         "correlation": "{:.2f}",
                         "fair_value_pct_notional": "{:,.2f}",
                         "autocall_probability": "{:.1%}",
-                        "barrier_breach_probability": "{:.1%}",
+                        "final_protection_loss_probability": "{:.1%}",
                         "expected_maturity_years": "{:,.2f}",
                     }
                 ),
@@ -1219,6 +1244,23 @@ def render() -> None:
             help="Memory coupon applies to Phoenix in this simplified model.",
         )
 
+    st.caption(
+        "Generic product convention: autocall barrier ≥ "
+        "coupon barrier ≥ protection barrier."
+    )
+
+    if not (
+        autocall_barrier_pct
+        >= coupon_barrier_pct
+        >= protection_barrier_pct
+    ):
+        st.warning(
+            "Invalid barrier ordering. Required: "
+            "autocall barrier ≥ coupon barrier "
+            "≥ protection barrier."
+        )
+        return
+
     terms = AutocallableTerms(
         product_type=product_type,
         nominal=float(nominal),
@@ -1242,7 +1284,7 @@ def render() -> None:
         with col:
             perf_pct = st.number_input(
                 f"Obs {idx} perf (%)",
-                min_value=-99.0,
+                min_value=-100.0,
                 max_value=200.0,
                 value=-10.0 if idx < int(number_of_observations) else -20.0,
                 step=5.0,
@@ -1447,7 +1489,18 @@ def render() -> None:
     m1, m2, m3, m4, m5 = st.columns(5)
 
     m1.metric("Autocall Prob.", _format_percent(mc_summary["autocall_probability"]))
-    m2.metric("Barrier Breach Prob.", _format_percent(mc_summary["barrier_breach_probability"]))
+    m2.metric(
+        "Final Protection Loss Prob.",
+        _format_percent(
+            mc_summary[
+                "barrier_breach_probability"
+            ]
+        ),
+        help=(
+            "Probability that the final fixing is below "
+            "the European protection barrier."
+        ),
+    )
     m3.metric("Expected Payoff", _format_currency(mc_summary["expected_payoff"]))
     m4.metric("Expected P&L", _format_currency(mc_summary["expected_pnl"]))
     m5.metric("Expected Return", _format_percent(mc_summary["expected_return"]))
@@ -1456,8 +1509,20 @@ def render() -> None:
         for comment in mc_commentary:
             st.markdown(f"- {comment}")
 
+    display_mc_summary = {
+        (
+            "final_protection_loss_probability"
+            if key == "barrier_breach_probability"
+            else key
+        ): value
+        for key, value in mc_summary.items()
+    }
+
     summary_table = pd.DataFrame(
-        [{"Metric": key, "Value": value} for key, value in mc_summary.items()]
+        [
+            {"Metric": key, "Value": value}
+            for key, value in display_mc_summary.items()
+        ]
     )
 
     st.dataframe(summary_table, use_container_width=True)
