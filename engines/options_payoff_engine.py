@@ -8,7 +8,7 @@ execution system, or bank-grade risk engine.
 Scope:
 - payoff and P&L at maturity
 - simple vanilla strategies
-- breakeven detection on a price grid
+- exact piecewise-linear breakeven detection
 - scenario table
 - desk-style interpretation for sales/structuring discussion
 """
@@ -207,9 +207,11 @@ def build_strategy_legs(
         ]
 
     if strategy == "Long Straddle":
+        put_premium = premium if second_premium is None else second_premium
+
         return [
             OptionLeg("call", "long", strike, premium, quantity),
-            OptionLeg("put", "long", strike, premium, quantity),
+            OptionLeg("put", "long", strike, put_premium, quantity),
         ]
 
     if strategy == "Long Strangle":
@@ -302,6 +304,112 @@ def estimate_breakevens(payoff_table: pd.DataFrame) -> List[float]:
     return deduplicated
 
 
+
+def calculate_exact_breakevens(
+    legs: List[OptionLeg],
+    tolerance: float = 1e-10,
+) -> List[float]:
+    """
+    Calculate exact maturity breakevens independently of the display grid.
+
+    Vanilla option-strategy P&L is continuous and piecewise linear in the
+    underlying price. Its slope can change only at option strikes. We therefore
+    solve for roots on each strike interval and on the final linear tail.
+
+    Underlying prices are constrained to be non-negative.
+    """
+    if not legs:
+        raise ValueError("At least one strategy leg is required.")
+
+    breakpoints = {0.0}
+
+    for leg in legs:
+        if leg.strike is not None:
+            strike = float(leg.strike)
+
+            if strike < 0:
+                raise ValueError("Option strikes cannot be negative.")
+
+            breakpoints.add(strike)
+
+    ordered_points = sorted(breakpoints)
+
+    def pnl_at(price: float) -> float:
+        values = calculate_strategy_payoff_table(legs, [price])
+        return float(values["pnl"].iloc[0])
+
+    roots: List[float] = []
+
+    def append_root(value: float) -> None:
+        if value < -tolerance:
+            return
+
+        normalized = max(float(value), 0.0)
+
+        if not any(abs(existing - normalized) <= 1e-6 for existing in roots):
+            roots.append(round(normalized, 6))
+
+    # Exact zeros at kinks.
+    for point in ordered_points:
+        if abs(pnl_at(point)) <= tolerance:
+            append_root(point)
+
+    # Roots on bounded linear intervals.
+    for left, right in zip(ordered_points[:-1], ordered_points[1:]):
+        left_pnl = pnl_at(left)
+        right_pnl = pnl_at(right)
+
+        if left_pnl * right_pnl < 0:
+            slope = (right_pnl - left_pnl) / (right - left)
+
+            if abs(slope) > tolerance:
+                root = left - left_pnl / slope
+                append_root(root)
+
+    # Root on the final linear tail above the largest strike.
+    tail_start = ordered_points[-1]
+
+    scale_candidates = [1.0, tail_start]
+
+    for leg in legs:
+        if leg.initial_spot is not None:
+            scale_candidates.append(float(leg.initial_spot))
+
+    tail_step = max(scale_candidates)
+    tail_end = tail_start + tail_step
+
+    tail_start_pnl = pnl_at(tail_start)
+    tail_end_pnl = pnl_at(tail_end)
+    tail_slope = (tail_end_pnl - tail_start_pnl) / tail_step
+
+    if abs(tail_slope) > tolerance:
+        tail_root = tail_start - tail_start_pnl / tail_slope
+
+        if tail_root > tail_start + tolerance:
+            append_root(tail_root)
+
+    return sorted(roots)
+
+
+def _strategy_primary_view(strategy: str) -> str:
+    """Return concise desk-style positioning for a standard strategy."""
+    mapping = {
+        "Long Call": "bullish / long convexity",
+        "Long Put": "bearish / downside hedge",
+        "Short Call": "neutral-to-bearish / short upside convexity",
+        "Short Put": "neutral-to-bullish / short downside convexity",
+        "Bull Call Spread": "moderately bullish / capped upside",
+        "Bear Put Spread": "moderately bearish / capped downside hedge",
+        "Long Straddle": "long volatility / large move expected",
+        "Long Strangle": "long volatility / cheaper convexity",
+        "Covered Call": "income / moderately bullish with capped upside",
+        "Protective Put": "long underlying with downside protection",
+        "Collar": "protected equity exposure with capped upside",
+    }
+
+    return mapping.get(strategy, "strategy-dependent")
+
+
 def strategy_risk_profile(
     strategy_name: str,
     spot: float,
@@ -311,68 +419,99 @@ def strategy_risk_profile(
     premium_2: Optional[float] = None,
     quantity: float = 1.0,
 ) -> Dict[str, Any]:
-    """Return transparent total risk profile where simple formulas apply."""
+    """
+    Calculate max gain/loss from the actual piecewise-linear maturity P&L.
+
+    This avoids negative 'max loss' outputs when user-entered premiums imply
+    a net-credit or theoretical arbitrage configuration.
+    """
     strategy = normalize_strategy_name(strategy_name)
-    spot = float(spot)
-    strike = float(strike)
-    premium = float(premium)
+    spot = validate_positive(spot, "spot")
     quantity = validate_positive(quantity, "quantity")
-    strike_2_value = float(strike_2) if strike_2 is not None else None
-    premium_2_value = float(premium_2) if premium_2 is not None else None
 
-    if strategy == "Long Call":
-        return {"max_gain": "Unlimited", "max_loss": round(premium * quantity, 6), "primary_view": "bullish / long convexity"}
+    legs = build_strategy_legs(
+        strategy_name=strategy,
+        spot=spot,
+        strike=strike,
+        premium=premium,
+        strike_2=strike_2,
+        premium_2=premium_2,
+        quantity=quantity,
+    )
 
-    if strategy == "Long Put":
-        return {"max_gain": round(max(strike - premium, 0) * quantity, 6), "max_loss": round(premium * quantity, 6), "primary_view": "bearish / downside hedge"}
+    breakpoints = {0.0}
 
-    if strategy == "Short Call":
-        return {"max_gain": round(premium * quantity, 6), "max_loss": "Unlimited", "primary_view": "neutral-to-bearish / short upside convexity"}
+    for leg in legs:
+        if leg.strike is not None:
+            breakpoints.add(float(leg.strike))
 
-    if strategy == "Short Put":
-        return {"max_gain": round(premium * quantity, 6), "max_loss": round(max(strike - premium, 0) * quantity, 6), "primary_view": "neutral-to-bullish / short downside convexity"}
+    ordered_points = sorted(breakpoints)
 
-    if strategy == "Bull Call Spread" and strike_2_value is not None and premium_2_value is not None:
-        net_premium = premium - premium_2_value
-        width = strike_2_value - strike
-        return {"max_gain": round((width - net_premium) * quantity, 6), "max_loss": round(net_premium * quantity, 6), "primary_view": "moderately bullish / capped upside"}
+    scale_candidates = [1.0, spot, ordered_points[-1]]
 
-    if strategy == "Bear Put Spread" and strike_2_value is not None and premium_2_value is not None:
-        net_premium = premium - premium_2_value
-        width = strike - strike_2_value
-        return {"max_gain": round((width - net_premium) * quantity, 6), "max_loss": round(net_premium * quantity, 6), "primary_view": "moderately bearish / capped downside hedge"}
+    for leg in legs:
+        if leg.initial_spot is not None:
+            scale_candidates.append(float(leg.initial_spot))
 
-    if strategy == "Long Straddle":
-        total_premium = premium * 2
-        return {"max_gain": "Unlimited", "max_loss": round(total_premium * quantity, 6), "primary_view": "long volatility / large move expected"}
+    tail_step = max(scale_candidates)
+    tail_start = ordered_points[-1]
+    tail_end = tail_start + tail_step
 
-    if strategy == "Long Strangle" and premium_2_value is not None:
-        total_premium = premium + premium_2_value
-        return {"max_gain": "Unlimited", "max_loss": round(total_premium * quantity, 6), "primary_view": "long volatility / cheaper convexity"}
+    evaluation_prices = ordered_points + [tail_end]
+    profile_table = calculate_strategy_payoff_table(legs, evaluation_prices)
+    pnl_values = profile_table["pnl"].to_numpy(dtype=float)
 
-    if strategy == "Covered Call":
-        return {
-            "max_gain": round(max(strike - spot + premium, 0) * quantity, 6),
-            "max_loss": round(max(spot - premium, 0) * quantity, 6),
-            "primary_view": "income / moderately bullish with capped upside",
-        }
+    finite_max_pnl = float(np.max(pnl_values))
+    finite_min_pnl = float(np.min(pnl_values))
 
-    if strategy == "Protective Put":
-        return {
-            "max_gain": "Unlimited",
-            "max_loss": round(max(spot + premium - strike, 0) * quantity, 6),
-            "primary_view": "long underlying with downside protection",
-        }
+    tail_start_pnl = float(
+        calculate_strategy_payoff_table(legs, [tail_start])["pnl"].iloc[0]
+    )
+    tail_end_pnl = float(
+        calculate_strategy_payoff_table(legs, [tail_end])["pnl"].iloc[0]
+    )
+    tail_slope = (tail_end_pnl - tail_start_pnl) / tail_step
 
-    if strategy == "Collar" and strike_2_value is not None and premium_2_value is not None:
-        net_premium = premium - premium_2_value
-        return {
-            "max_gain": round((strike_2_value - spot - net_premium) * quantity, 6),
-            "max_loss": round(max(spot + net_premium - strike, 0) * quantity, 6),
-            "primary_view": "protected equity exposure with capped upside",
-        }
+    tolerance = 1e-10
 
-    return {"max_gain": "Grid-dependent", "max_loss": "Grid-dependent", "primary_view": "strategy-dependent"}
+    if tail_slope > tolerance:
+        max_pnl: Any = "Unlimited"
+        max_gain: Any = "Unlimited"
+    else:
+        max_pnl = round(finite_max_pnl, 6)
+        max_gain = round(max(finite_max_pnl, 0.0), 6)
+
+    if tail_slope < -tolerance:
+        min_pnl: Any = "Unbounded below"
+        max_loss: Any = "Unlimited"
+    else:
+        min_pnl = round(finite_min_pnl, 6)
+        max_loss = round(max(-finite_min_pnl, 0.0), 6)
+
+    input_warning: Optional[str] = None
+
+    if tail_slope >= -tolerance and finite_min_pnl > tolerance:
+        input_warning = (
+            "Entered premiums imply a strictly positive maturity P&L across "
+            "the full non-negative price domain. Check leg premiums and "
+            "no-arbitrage consistency."
+        )
+    elif tail_slope <= tolerance and finite_max_pnl < -tolerance:
+        input_warning = (
+            "Entered premiums imply a strictly negative maturity P&L across "
+            "the full non-negative price domain. Check leg premiums and "
+            "no-arbitrage consistency."
+        )
+
+    return {
+        "max_gain": max_gain,
+        "max_loss": max_loss,
+        "max_pnl": max_pnl,
+        "min_pnl": min_pnl,
+        "tail_slope": round(float(tail_slope), 8),
+        "primary_view": _strategy_primary_view(strategy),
+        "input_warning": input_warning,
+    }
 
 
 def generate_strategy_desk_interpretation(strategy_name: str, risk_profile: Dict[str, Any]) -> List[str]:
@@ -405,35 +544,105 @@ def generate_strategy_desk_interpretation(strategy_name: str, risk_profile: Dict
         bullets.append("Investor rationale: reduce downside risk while financing protection through capped upside.")
         bullets.append("Key risk: upside is limited above the short call strike.")
 
+    input_warning = risk_profile.get("input_warning")
+
+    if input_warning:
+        bullets.append(f"Input consistency warning: {input_warning}")
+
     return bullets
 
 
 def build_scenario_table(
     spot: float,
-    payoff_table: pd.DataFrame,
+    payoff_table: Optional[pd.DataFrame] = None,
     scenario_moves: Optional[List[float]] = None,
+    legs: Optional[List[OptionLeg]] = None,
 ) -> pd.DataFrame:
-    """Build simple scenario table by interpolating strategy P&L."""
-    spot = float(spot)
-    moves = scenario_moves or [-0.2, -0.1, 0.0, 0.1, 0.2]
+    """
+    Build maturity scenarios for a strategy.
 
-    prices = payoff_table["underlying_price"].to_numpy(dtype=float)
-    pnl = payoff_table["pnl"].to_numpy(dtype=float)
-    payoff = payoff_table["payoff"].to_numpy(dtype=float)
+    Preferred usage passes ``legs`` so each scenario is calculated directly
+    from the contractual option legs and remains independent of the chart
+    range. ``payoff_table`` is retained only for backward compatibility with
+    older internal callers.
+    """
+    spot = validate_positive(spot, "spot")
+    moves = (
+        list(scenario_moves)
+        if scenario_moves is not None
+        else [-0.2, -0.1, 0.0, 0.1, 0.2]
+    )
 
-    rows = []
+    scenario_prices: List[float] = []
 
     for move in moves:
-        scenario_price = spot * (1 + move)
-        interpolated_pnl = float(np.interp(scenario_price, prices, pnl))
-        interpolated_payoff = float(np.interp(scenario_price, prices, payoff))
+        numeric_move = float(move)
+        scenario_price = spot * (1.0 + numeric_move)
 
+        if scenario_price < 0:
+            raise ValueError(
+                "Scenario moves cannot imply a negative underlying price."
+            )
+
+        scenario_prices.append(scenario_price)
+
+    rows: List[Dict[str, Any]] = []
+
+    if legs is not None:
+        scenario_values = calculate_strategy_payoff_table(
+            legs=legs,
+            price_grid=scenario_prices,
+        )
+
+        for idx, move in enumerate(moves):
+            rows.append(
+                {
+                    "scenario": f"{float(move):+.0%}",
+                    "underlying_price": round(
+                        float(scenario_values.loc[idx, "underlying_price"]),
+                        6,
+                    ),
+                    "payoff": round(
+                        float(scenario_values.loc[idx, "payoff"]),
+                        6,
+                    ),
+                    "pnl": round(
+                        float(scenario_values.loc[idx, "pnl"]),
+                        6,
+                    ),
+                }
+            )
+
+        return pd.DataFrame(rows)
+
+    if payoff_table is None:
+        raise ValueError("Either legs or payoff_table must be supplied.")
+
+    required_columns = {"underlying_price", "payoff", "pnl"}
+
+    if not required_columns.issubset(payoff_table.columns):
+        raise ValueError(
+            "payoff_table must contain underlying_price, payoff and pnl."
+        )
+
+    # Legacy compatibility only. New financial calculations must pass legs.
+    grid_prices = payoff_table["underlying_price"].to_numpy(dtype=float)
+    grid_payoff = payoff_table["payoff"].to_numpy(dtype=float)
+    grid_pnl = payoff_table["pnl"].to_numpy(dtype=float)
+
+    for move, scenario_price in zip(moves, scenario_prices):
         rows.append(
             {
-                "scenario": f"{move:+.0%}",
-                "underlying_price": round(scenario_price, 6),
-                "payoff": round(interpolated_payoff, 6),
-                "pnl": round(interpolated_pnl, 6),
+                "scenario": f"{float(move):+.0%}",
+                "underlying_price": round(float(scenario_price), 6),
+                "payoff": round(
+                    float(np.interp(scenario_price, grid_prices, grid_payoff)),
+                    6,
+                ),
+                "pnl": round(
+                    float(np.interp(scenario_price, grid_prices, grid_pnl)),
+                    6,
+                ),
             }
         )
 
@@ -465,7 +674,7 @@ def build_options_strategy_snapshot(
     )
     price_grid = build_price_grid(spot, lower_pct=lower_pct, upper_pct=upper_pct, points=points)
     payoff_table = calculate_strategy_payoff_table(legs, price_grid)
-    breakevens = estimate_breakevens(payoff_table)
+    breakevens = calculate_exact_breakevens(legs)
     risk_profile = strategy_risk_profile(
         strategy,
         spot,
@@ -475,7 +684,7 @@ def build_options_strategy_snapshot(
         premium_2,
         quantity=quantity,
     )
-    scenario_table = build_scenario_table(spot, payoff_table)
+    scenario_table = build_scenario_table(spot=spot, legs=legs)
     desk_interpretation = generate_strategy_desk_interpretation(strategy, risk_profile)
 
     return {

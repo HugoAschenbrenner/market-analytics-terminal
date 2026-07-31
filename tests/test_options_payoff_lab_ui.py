@@ -22,7 +22,7 @@ def test_strategy_requires_second_leg():
 def test_first_leg_labels_are_contextual():
     assert _first_leg_labels("Long Strangle") == ("Put strike", "Put premium")
     assert _first_leg_labels("Collar") == ("Protective put strike", "Put premium")
-    assert _first_leg_labels("Long Straddle") == ("ATM strike", "Premium per option leg")
+    assert _first_leg_labels("Long Straddle") == ("ATM strike", "Call premium")
     assert _first_leg_labels("Long Call") == ("Strike", "Premium")
 
 

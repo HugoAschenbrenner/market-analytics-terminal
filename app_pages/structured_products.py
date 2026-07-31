@@ -82,8 +82,22 @@ def _strategy_requires_second_leg(strategy: str) -> bool:
     }
 
 
+
+def _strategy_requires_second_premium(strategy: str) -> bool:
+    """Return whether a separately entered premium is required."""
+    return strategy in {
+        "Bull Call Spread",
+        "Bear Put Spread",
+        "Long Straddle",
+        "Long Strangle",
+        "Collar",
+    }
+
 def _second_leg_labels(strategy: str) -> tuple[str, str]:
     """Return contextual labels for the second strike/premium inputs."""
+    if strategy == "Long Straddle":
+        return "ATM strike (same as first leg)", "Put premium"
+
     if strategy == "Bull Call Spread":
         return "Upper call strike", "Short call premium"
 
@@ -108,7 +122,7 @@ def _first_leg_labels(strategy: str) -> tuple[str, str]:
         return "Protective put strike", "Put premium"
 
     if strategy == "Long Straddle":
-        return "ATM strike", "Premium per option leg"
+        return "ATM strike", "Call premium"
 
     return "Strike", "Premium"
 
@@ -1036,6 +1050,7 @@ def _render_options_payoff_lab() -> None:
             )
 
         requires_second_leg = _strategy_requires_second_leg(strategy)
+        requires_second_premium = _strategy_requires_second_premium(strategy)
         second_strike_label, second_premium_label = _second_leg_labels(strategy)
 
         with c3:
@@ -1054,7 +1069,7 @@ def _render_options_payoff_lab() -> None:
                 min_value=0.0,
                 value=2.0,
                 step=0.5,
-                disabled=not requires_second_leg,
+                disabled=not requires_second_premium,
                 key="options_lab_premium_2",
             )
 
@@ -1074,7 +1089,7 @@ def _render_options_payoff_lab() -> None:
                 strike=float(strike),
                 premium=float(premium),
                 strike_2=float(strike_2) if requires_second_leg else None,
-                premium_2=float(premium_2) if requires_second_leg else None,
+                premium_2=float(premium_2) if requires_second_premium else None,
                 quantity=float(quantity),
                 lower_pct=lower_pct / 100.0,
                 upper_pct=upper_pct / 100.0,
