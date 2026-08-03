@@ -3,6 +3,7 @@ from datetime import date
 import pandas as pd
 
 from engines.fixed_income_engine import (
+    apply_fx_conversion,
     calculate_bond_risk_metrics,
     calculate_dv01,
     calculate_dv01_by_bucket,
@@ -23,7 +24,15 @@ VALUATION_DATE = date(2026, 5, 6)
 
 def _risk_df():
     bonds = load_bond_data("data/sample_bonds.csv")
-    return calculate_bond_risk_metrics(bonds, valuation_date=VALUATION_DATE)
+    local_risk_df = calculate_bond_risk_metrics(
+        bonds,
+        valuation_date=VALUATION_DATE,
+    )
+    return apply_fx_conversion(
+        local_risk_df,
+        base_currency="EUR",
+        fx_rates={"EUR": 1.0, "USD": 0.92},
+    )
 
 
 def test_sample_bond_data_loads_successfully():
@@ -86,7 +95,7 @@ def test_portfolio_dv01_equals_sum_of_bond_dv01s():
     risk_df = _risk_df()
     summary = summarize_portfolio(risk_df)
 
-    assert abs(summary.total_dv01 - risk_df["dv01"].sum()) < 1e-6
+    assert abs(summary.total_dv01 - risk_df["dv01_base"].sum()) < 1e-6
 
 
 def test_weighted_average_duration_is_between_min_and_max_duration():
@@ -116,7 +125,7 @@ def test_bucket_dv01_sums_to_total_dv01():
     risk_df = _risk_df()
     bucket_df = calculate_dv01_by_bucket(risk_df)
 
-    assert abs(bucket_df["dv01"].sum() - risk_df["dv01"].sum()) < 1e-6
+    assert abs(bucket_df["dv01_base"].sum() - risk_df["dv01_base"].sum()) < 1e-6
 
 
 def test_bucket_percentages_sum_to_one():

@@ -5,6 +5,8 @@ import streamlit as st
 from app_pages.common import render_module_header
 from reports.excel_exporter import generate_fixed_income_risk_report
 from engines.fixed_income_engine import (
+    apply_fx_conversion,
+    build_currency_exposure_table,
     calculate_bond_risk_metrics,
     calculate_dv01_by_bucket,
     calculate_hedge_units,
@@ -33,6 +35,17 @@ def _format_currency(value: float) -> str:
 
 def _format_percent(value: float) -> str:
     return f"{value:.2%}"
+
+
+def _default_demo_fx_to_base(local_currency: str, base_currency: str) -> float:
+    """Return transparent demo assumptions, not live FX quotes."""
+    if local_currency == base_currency:
+        return 1.0
+    demo_rates = {
+        ("USD", "EUR"): 0.92,
+        ("EUR", "USD"): 1.087,
+    }
+    return float(demo_rates.get((local_currency, base_currency), 1.0))
 
 
 def _format_optional_number(value: float | None, decimals: int = 2, suffix: str = "") -> str:
@@ -202,26 +215,89 @@ def render() -> None:
     with st.expander("Raw bond data", expanded=False):
         st.dataframe(bonds, use_container_width=True)
 
-    risk_df = calculate_bond_risk_metrics(bonds)
-    summary = summarize_portfolio(risk_df)
-    summary_dict = portfolio_summary_to_dict(summary)
+    local_risk_df = calculate_bond_risk_metrics(bonds)
+    currencies = sorted(
+        local_risk_df["currency"].astype(str).str.upper().unique().tolist()
+    )
 
+    st.subheader("Currency Translation Contract")
+    with st.container(border=True):
+        default_base_index = currencies.index("EUR") if "EUR" in currencies else 0
+        base_currency = st.selectbox(
+            "Portfolio base currency",
+            currencies,
+            index=default_base_index,
+            help=(
+                "All portfolio market value, DV01, scenario P&L, and hedge sizing outputs "
+                "are translated into this currency before aggregation."
+            ),
+        )
+        st.caption(
+            "FX convention: one unit of local currency equals the entered number of base-currency units. "
+            "Rates are manual demo assumptions, not live FX quotes."
+        )
+
+        fx_rates: dict[str, float] = {}
+        fx_columns = st.columns(min(max(len(currencies), 1), 4))
+        for index, currency in enumerate(currencies):
+            with fx_columns[index % len(fx_columns)]:
+                fx_rates[currency] = st.number_input(
+                    f"{currency} to {base_currency}",
+                    min_value=0.000001,
+                    value=_default_demo_fx_to_base(currency, base_currency),
+                    step=0.01,
+                    format="%.6f",
+                    disabled=(currency == base_currency),
+                    key=f"fixed_income_fx_{currency}_to_{base_currency}",
+                )
+
+    try:
+        risk_df = apply_fx_conversion(
+            local_risk_df,
+            base_currency=base_currency,
+            fx_rates=fx_rates,
+        )
+        summary = summarize_portfolio(
+            risk_df,
+            base_currency=base_currency,
+        )
+    except ValueError as exc:
+        st.error(f"Currency translation failed: {exc}")
+        return
+
+    summary_dict = portfolio_summary_to_dict(summary)
+    currency_df = build_currency_exposure_table(risk_df)
     bucket_df = calculate_dv01_by_bucket(risk_df)
     scenario_df = calculate_scenario_pnl(risk_df)
     worst_scenario = identify_worst_scenario(scenario_df)
     commentary = generate_fixed_income_commentary(risk_df, bucket_df, scenario_df)
 
+    st.markdown("**Currency Exposure & Translation**")
+    st.dataframe(
+        currency_df.style.format(
+            {
+                "fx_to_base": "{:.6f}",
+                "local_market_value": "{:,.0f}",
+                "market_value_base": "{:,.0f}",
+                "local_dv01": "{:,.0f}",
+                "dv01_base": "{:,.0f}",
+                "pct_base_market_value": "{:.1%}",
+            }
+        ),
+        use_container_width=True,
+    )
+
     st.subheader("Portfolio Summary")
 
     c1, c2, c3, c4, c5 = st.columns(5)
 
-    c1.metric("Market Value", _format_currency(summary_dict["total_market_value"]))
+    c1.metric(f"Market Value ({base_currency})", _format_currency(summary_dict["total_market_value"]))
     c2.metric("WA Yield", _format_percent(summary_dict["weighted_average_yield"]))
     c3.metric(
         "WA Mod Duration",
         f"{summary_dict['weighted_average_modified_duration']:.2f}",
     )
-    c4.metric("Total DV01", _format_currency(summary_dict["total_dv01"]))
+    c4.metric(f"Total DV01 ({base_currency}/bp)", _format_currency(summary_dict["total_dv01"]))
     c5.metric("Bonds", f"{summary_dict['number_of_bonds']}")
 
     st.subheader("Desk Commentary")
@@ -238,8 +314,8 @@ def render() -> None:
         st.dataframe(
             bucket_df.style.format(
                 {
-                    "market_value": "{:,.0f}",
-                    "dv01": "{:,.0f}",
+                    "market_value_base": "{:,.0f}",
+                    "dv01_base": "{:,.0f}",
                     "pct_total_dv01": "{:.1%}",
                 }
             ),
@@ -250,9 +326,9 @@ def render() -> None:
         fig_bucket = px.bar(
             bucket_df,
             x="curve_bucket",
-            y="dv01",
-            title="DV01 by Curve Bucket",
-            labels={"curve_bucket": "Curve Bucket", "dv01": "DV01"},
+            y="dv01_base",
+            title=f"DV01 by Curve Bucket ({base_currency})",
+            labels={"curve_bucket": "Curve Bucket", "dv01_base": f"DV01 ({base_currency}/bp)"},
         )
         st.plotly_chart(fig_bucket, use_container_width=True)
 
@@ -276,7 +352,7 @@ def render() -> None:
         st.metric(
             "Worst Scenario",
             worst_scenario["scenario_name"],
-            delta=_format_currency(worst_scenario["estimated_pnl"]),
+            delta=f"{_format_currency(worst_scenario['estimated_pnl'])} {base_currency}",
             delta_color="inverse",
         )
         st.caption(worst_scenario["shock_description"])
@@ -298,11 +374,11 @@ def render() -> None:
     )
 
     hedge_dv01 = st.number_input(
-        "Hedge instrument DV01 per unit",
+        f"Hedge instrument DV01 per unit ({base_currency}/bp)",
         min_value=1.0,
         value=75.0,
         step=5.0,
-        help="Example: approximate DV01 of one futures contract or hedge instrument unit.",
+        help="The hedge-instrument DV01 must be expressed in the same base currency as the portfolio DV01.",
     )
 
     hedge_units = calculate_hedge_units(
@@ -321,6 +397,7 @@ def render() -> None:
         bucket_df=bucket_df,
         scenario_df=scenario_df,
         commentary=commentary,
+        currency_df=currency_df,
     )
 
     st.download_button(
@@ -344,7 +421,11 @@ def render() -> None:
         "modified_duration",
         "convexity",
         "market_value",
+        "fx_to_base",
+        "market_value_base",
         "dv01",
+        "dv01_base",
+        "base_currency",
         "curve_bucket",
         "rating",
         "sector",
@@ -361,7 +442,10 @@ def render() -> None:
                 "modified_duration": "{:.2f}",
                 "convexity": "{:.2f}",
                 "market_value": "{:,.0f}",
+                "fx_to_base": "{:.6f}",
+                "market_value_base": "{:,.0f}",
                 "dv01": "{:,.0f}",
+                "dv01_base": "{:,.0f}",
             }
         ),
         use_container_width=True,
@@ -370,12 +454,12 @@ def render() -> None:
     st.subheader("DV01 by Bond")
 
     fig = px.bar(
-        risk_df.sort_values("dv01", ascending=False),
+        risk_df.sort_values("dv01_base", ascending=False),
         x="bond_id",
-        y="dv01",
+        y="dv01_base",
         color="curve_bucket",
-        title="DV01 by Bond",
-        labels={"dv01": "DV01", "bond_id": "Bond"},
+        title=f"DV01 by Bond ({base_currency})",
+        labels={"dv01_base": f"DV01 ({base_currency}/bp)", "bond_id": "Bond"},
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -396,7 +480,7 @@ def render() -> None:
 
     st.metric(
         f"Estimated P&L for {yield_move_bps:+} bps move",
-        _format_currency(pnl),
+        f"{_format_currency(pnl)} {base_currency}",
     )
 
     st.caption(
@@ -410,7 +494,9 @@ def render() -> None:
         """
         - Clean price is quoted per 100 notional.
         - Dirty price = clean price + accrued interest per 100.
-        - Market value = clean price / 100 × notional.
+        - Local market value = clean price / 100 × notional in each bond currency.
+        - FX-to-base = base-currency units per one unit of local currency.
+        - Portfolio market value, DV01, scenario P&L, and hedge sizing are aggregated only after FX translation.
         - Duration and convexity are approximate and based on yield-implied cashflows.
         - DV01 = modified duration × market value × 0.0001.
         - Scenario P&L uses duration/convexity approximation.

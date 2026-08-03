@@ -7,7 +7,8 @@ bond portfolio.
 Financial conventions:
 - clean_price is quoted per 100 notional.
 - coupon_rate and yield_to_maturity are decimals, e.g. 5% = 0.05.
-- market_value = clean_price / 100 * notional.
+- market_value = clean_price / 100 * notional in the bond's local currency.
+- portfolio aggregation requires an explicit base currency and FX-to-base rates.
 - dirty_price = clean_price + accrued_interest_per_100.
 - DV01 is positive and represents the approximate gain for a 1 bp fall in yield.
 - P&L for a positive yield move is negative:
@@ -49,8 +50,10 @@ REQUIRED_BOND_COLUMNS = [
 
 @dataclass(frozen=True)
 class PortfolioSummary:
-    """Aggregated fixed income portfolio metrics."""
+    """Fixed-income portfolio metrics expressed in one base currency."""
 
+    base_currency: str
+    currencies: tuple[str, ...]
     total_market_value: float
     weighted_average_yield: float
     weighted_average_modified_duration: float
@@ -362,22 +365,210 @@ def calculate_bond_risk_metrics(
     return df
 
 
-def summarize_portfolio(risk_df: pd.DataFrame) -> PortfolioSummary:
-    """Calculate portfolio-level summary metrics."""
+def _normalize_currency_code(value: str) -> str:
+    """Normalize and validate a three-letter currency code."""
+    code = str(value).strip().upper()
+    if len(code) != 3 or not code.isalpha():
+        raise ValueError(
+            f"Invalid currency code '{value}'. Use a three-letter code such as EUR or USD."
+        )
+    return code
 
-    total_market_value = float(risk_df["market_value"].sum())
 
+def validate_fx_rates(
+    currencies: list[str] | tuple[str, ...] | set[str],
+    base_currency: str,
+    fx_rates: dict[str, float],
+) -> dict[str, float]:
+    """
+    Validate FX rates expressed as base-currency units per one local-currency unit.
+
+    Example with EUR base: USD -> 0.92 means USD 1 = EUR 0.92.
+    """
+    base = _normalize_currency_code(base_currency)
+    normalized_currencies = sorted(
+        {_normalize_currency_code(currency) for currency in currencies}
+    )
+    normalized_rates = {
+        _normalize_currency_code(currency): float(rate)
+        for currency, rate in fx_rates.items()
+    }
+
+    missing = [
+        currency
+        for currency in normalized_currencies
+        if currency not in normalized_rates
+    ]
+    if missing:
+        raise ValueError(
+            "Missing FX-to-base rate(s) for: " + ", ".join(missing)
+        )
+
+    for currency in normalized_currencies:
+        rate = normalized_rates[currency]
+        if not np.isfinite(rate) or rate <= 0:
+            raise ValueError(
+                f"FX-to-base rate for {currency} must be finite and strictly positive."
+            )
+
+    if base not in normalized_rates:
+        raise ValueError(
+            f"The base currency {base} must have an explicit FX-to-base rate of 1.0."
+        )
+
+    if not np.isclose(normalized_rates[base], 1.0, atol=1e-12):
+        raise ValueError(
+            f"FX-to-base rate for base currency {base} must equal 1.0."
+        )
+
+    return {
+        currency: normalized_rates[currency]
+        for currency in normalized_currencies
+    }
+
+
+def apply_fx_conversion(
+    risk_df: pd.DataFrame,
+    base_currency: str,
+    fx_rates: dict[str, float],
+) -> pd.DataFrame:
+    """
+    Add explicit base-currency market value and DV01 columns.
+
+    Local market_value and dv01 are preserved. Converted columns use the
+    convention: fx_to_base = base-currency units per one local-currency unit.
+    """
+    required = {"currency", "market_value", "dv01"}
+    missing_columns = required - set(risk_df.columns)
+    if missing_columns:
+        raise ValueError(
+            f"Missing columns for FX conversion: {sorted(missing_columns)}"
+        )
+
+    converted = risk_df.copy()
+    converted["currency"] = (
+        converted["currency"].astype(str).str.strip().str.upper()
+    )
+    base = _normalize_currency_code(base_currency)
+    currencies = sorted(converted["currency"].unique().tolist())
+    validated_rates = validate_fx_rates(
+        currencies=currencies,
+        base_currency=base,
+        fx_rates=fx_rates,
+    )
+
+    converted["base_currency"] = base
+    converted["fx_to_base"] = converted["currency"].map(validated_rates)
+    converted["market_value_base"] = (
+        converted["market_value"].astype(float)
+        * converted["fx_to_base"].astype(float)
+    )
+    converted["dv01_base"] = (
+        converted["dv01"].astype(float)
+        * converted["fx_to_base"].astype(float)
+    )
+
+    return converted
+
+
+def build_currency_exposure_table(
+    risk_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """Aggregate local and translated market value and DV01 by currency."""
+    required = {
+        "currency",
+        "base_currency",
+        "fx_to_base",
+        "market_value",
+        "market_value_base",
+        "dv01",
+        "dv01_base",
+    }
+    missing = required - set(risk_df.columns)
+    if missing:
+        raise ValueError(
+            f"Missing converted columns for currency exposure: {sorted(missing)}"
+        )
+
+    base_values = risk_df["base_currency"].dropna().astype(str).unique()
+    if len(base_values) != 1:
+        raise ValueError("Risk data must contain exactly one base currency.")
+
+    currency_df = (
+        risk_df.groupby("currency", as_index=False)
+        .agg(
+            fx_to_base=("fx_to_base", "first"),
+            local_market_value=("market_value", "sum"),
+            market_value_base=("market_value_base", "sum"),
+            local_dv01=("dv01", "sum"),
+            dv01_base=("dv01_base", "sum"),
+            bond_count=("bond_id", "count"),
+        )
+        .sort_values("currency")
+        .reset_index(drop=True)
+    )
+    total_base_market_value = float(currency_df["market_value_base"].sum())
+    currency_df["pct_base_market_value"] = (
+        currency_df["market_value_base"] / total_base_market_value
+        if total_base_market_value > 0
+        else 0.0
+    )
+    currency_df["base_currency"] = str(base_values[0])
+    return currency_df
+
+
+def summarize_portfolio(
+    risk_df: pd.DataFrame,
+    base_currency: str | None = None,
+) -> PortfolioSummary:
+    """Calculate portfolio metrics only after explicit FX translation."""
+    required = {
+        "currency",
+        "base_currency",
+        "market_value_base",
+        "dv01_base",
+        "yield_to_maturity",
+        "modified_duration",
+        "convexity",
+    }
+    missing = required - set(risk_df.columns)
+    if missing:
+        raise ValueError(
+            "Portfolio aggregation requires explicit FX conversion. "
+            f"Missing columns: {sorted(missing)}"
+        )
+
+    base_values = risk_df["base_currency"].dropna().astype(str).unique()
+    if len(base_values) != 1:
+        raise ValueError("Risk data must contain exactly one base currency.")
+
+    resolved_base = _normalize_currency_code(
+        base_currency if base_currency is not None else str(base_values[0])
+    )
+    if resolved_base != str(base_values[0]).upper():
+        raise ValueError(
+            "Requested base currency does not match the converted risk data."
+        )
+
+    total_market_value = float(risk_df["market_value_base"].sum())
     if total_market_value <= 0:
-        raise ValueError("Total market value must be positive.")
+        raise ValueError("Total base-currency market value must be positive.")
 
-    weights = risk_df["market_value"] / total_market_value
-
-    weighted_average_yield = float(np.sum(weights * risk_df["yield_to_maturity"]))
-    weighted_average_modified_duration = float(np.sum(weights * risk_df["modified_duration"]))
-    weighted_average_convexity = float(np.sum(weights * risk_df["convexity"]))
-    total_dv01 = float(risk_df["dv01"].sum())
+    weights = risk_df["market_value_base"] / total_market_value
+    weighted_average_yield = float(
+        np.sum(weights * risk_df["yield_to_maturity"])
+    )
+    weighted_average_modified_duration = float(
+        np.sum(weights * risk_df["modified_duration"])
+    )
+    weighted_average_convexity = float(
+        np.sum(weights * risk_df["convexity"])
+    )
+    total_dv01 = float(risk_df["dv01_base"].sum())
 
     return PortfolioSummary(
+        base_currency=resolved_base,
+        currencies=tuple(sorted(risk_df["currency"].astype(str).unique())),
         total_market_value=total_market_value,
         weighted_average_yield=weighted_average_yield,
         weighted_average_modified_duration=weighted_average_modified_duration,
@@ -388,9 +579,10 @@ def summarize_portfolio(risk_df: pd.DataFrame) -> PortfolioSummary:
 
 
 def portfolio_summary_to_dict(summary: PortfolioSummary) -> dict:
-    """Convert PortfolioSummary dataclass to dictionary."""
-
+    """Convert PortfolioSummary dataclass to a report-friendly dictionary."""
     return {
+        "base_currency": summary.base_currency,
+        "currencies": ", ".join(summary.currencies),
         "total_market_value": summary.total_market_value,
         "weighted_average_yield": summary.weighted_average_yield,
         "weighted_average_modified_duration": summary.weighted_average_modified_duration,
@@ -400,44 +592,40 @@ def portfolio_summary_to_dict(summary: PortfolioSummary) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# Step 6: DV01 buckets, scenario P&L, commentary, and hedge approximation
-# ---------------------------------------------------------------------------
-
 def calculate_dv01_by_bucket(risk_df: pd.DataFrame) -> pd.DataFrame:
-    """Aggregate DV01 and market value by curve bucket.
-
-    Returns a table with:
-    - curve_bucket
-    - market_value
-    - dv01
-    - pct_total_dv01
-
-    Financial convention:
-    DV01 is positive and represents the approximate gain for a 1 bp fall in yield.
-    """
-
-    required_columns = {"curve_bucket", "market_value", "dv01"}
-    missing = required_columns - set(risk_df.columns)
+    """Aggregate market value and DV01 by curve bucket in base currency."""
+    required = {
+        "curve_bucket",
+        "base_currency",
+        "market_value_base",
+        "dv01_base",
+    }
+    missing = required - set(risk_df.columns)
     if missing:
-        raise ValueError(f"Missing required columns for DV01 bucket calculation: {missing}")
+        raise ValueError(
+            "DV01 bucket aggregation requires FX-converted data. "
+            f"Missing columns: {sorted(missing)}"
+        )
+
+    base_values = risk_df["base_currency"].dropna().astype(str).unique()
+    if len(base_values) != 1:
+        raise ValueError("Risk data must contain exactly one base currency.")
 
     bucket_df = (
         risk_df.groupby("curve_bucket", as_index=False)
         .agg(
-            market_value=("market_value", "sum"),
-            dv01=("dv01", "sum"),
+            market_value_base=("market_value_base", "sum"),
+            dv01_base=("dv01_base", "sum"),
         )
         .sort_values("curve_bucket")
     )
-
-    total_dv01 = float(bucket_df["dv01"].sum())
-
-    if total_dv01 <= 0:
-        bucket_df["pct_total_dv01"] = 0.0
-    else:
-        bucket_df["pct_total_dv01"] = bucket_df["dv01"] / total_dv01
-
+    total_dv01 = float(bucket_df["dv01_base"].sum())
+    bucket_df["pct_total_dv01"] = (
+        bucket_df["dv01_base"] / total_dv01
+        if total_dv01 > 0
+        else 0.0
+    )
+    bucket_df["base_currency"] = str(base_values[0])
     return bucket_df
 
 
@@ -507,34 +695,27 @@ def _bucket_shock_bps_for_scenario(curve_bucket: str, scenario_name: str) -> flo
 
 
 def calculate_scenario_pnl(risk_df: pd.DataFrame) -> pd.DataFrame:
-    """Calculate desk-style scenario P&L for the fixed income portfolio.
-
-    Scenarios:
-    - +25 bps parallel rates shock
-    - +50 bps parallel rates shock
-    - -25 bps parallel rates shock
-    - 2s10s steepener proxy
-    - 2s10s flattener proxy
-    - credit spread +50 bps proxy
-
-    Spread shock note:
-    The spread shock uses modified duration as a proxy for spread duration.
-    This is transparent and useful for demonstration, but not a substitute for
-    issuer-specific spread duration or full curve analytics.
-    """
-
-    required_columns = {
+    """Calculate fixed-income scenario P&L in the selected base currency."""
+    required = {
         "bond_id",
         "curve_bucket",
-        "market_value",
+        "base_currency",
+        "market_value_base",
         "modified_duration",
         "convexity",
-        "dv01",
+        "dv01_base",
     }
-
-    missing = required_columns - set(risk_df.columns)
+    missing = required - set(risk_df.columns)
     if missing:
-        raise ValueError(f"Missing required columns for scenario P&L: {missing}")
+        raise ValueError(
+            "Scenario P&L requires FX-converted data. "
+            f"Missing columns: {sorted(missing)}"
+        )
+
+    base_values = risk_df["base_currency"].dropna().astype(str).unique()
+    if len(base_values) != 1:
+        raise ValueError("Risk data must contain exactly one base currency.")
+    base_currency = str(base_values[0])
 
     scenario_names = [
         "+25 bps parallel",
@@ -543,7 +724,6 @@ def calculate_scenario_pnl(risk_df: pd.DataFrame) -> pd.DataFrame:
         "2s10s steepener",
         "2s10s flattener",
     ]
-
     scenario_rows = []
 
     for scenario_name in scenario_names:
@@ -556,14 +736,12 @@ def calculate_scenario_pnl(risk_df: pd.DataFrame) -> pd.DataFrame:
                 curve_bucket=row["curve_bucket"],
                 scenario_name=scenario_name,
             )
-
             pnl_components = estimate_pnl_with_duration_convexity(
                 modified_duration=float(row["modified_duration"]),
                 convexity=float(row["convexity"]),
-                market_value=float(row["market_value"]),
+                market_value=float(row["market_value_base"]),
                 yield_move_bps=shock_bps,
             )
-
             total_duration_pnl += pnl_components["duration_pnl"]
             total_convexity_pnl += pnl_components["convexity_pnl"]
             total_estimated_pnl += pnl_components["estimated_pnl"]
@@ -576,25 +754,28 @@ def calculate_scenario_pnl(risk_df: pd.DataFrame) -> pd.DataFrame:
                 "duration_pnl": total_duration_pnl,
                 "convexity_pnl": total_convexity_pnl,
                 "estimated_pnl": total_estimated_pnl,
+                "currency": base_currency,
                 "main_driver": "Rates duration / curve exposure",
             }
         )
 
     spread_shock_bps = 50.0
-    spread_pnl = float(-(risk_df["dv01"] * spread_shock_bps).sum())
-
+    spread_pnl = float(-(risk_df["dv01_base"] * spread_shock_bps).sum())
     scenario_rows.append(
         {
             "scenario_name": "Credit spread +50 bps",
             "risk_factor": "credit",
-            "shock_description": "All credit spreads widen by 50 bps. Uses modified duration as spread-duration proxy.",
+            "shock_description": (
+                "All credit spreads widen by 50 bps. Uses modified duration "
+                "as a spread-duration proxy."
+            ),
             "duration_pnl": spread_pnl,
             "convexity_pnl": 0.0,
             "estimated_pnl": spread_pnl,
+            "currency": base_currency,
             "main_driver": "Credit spread duration proxy",
         }
     )
-
     return pd.DataFrame(scenario_rows)
 
 
@@ -627,14 +808,21 @@ def generate_fixed_income_commentary(
     bucket_df: pd.DataFrame,
     scenario_df: pd.DataFrame,
 ) -> list[str]:
-    """Generate concise desk-style commentary for the fixed income module."""
-
-    comments = []
-
+    """Generate desk commentary with explicit currency and FX conventions."""
     if bucket_df.empty:
         return ["No DV01 bucket data available."]
 
-    largest_bucket = bucket_df.loc[bucket_df["dv01"].idxmax()]
+    required = {"currency", "base_currency", "fx_to_base"}
+    missing = required - set(risk_df.columns)
+    if missing:
+        raise ValueError(
+            "Commentary requires FX-converted risk data. "
+            f"Missing columns: {sorted(missing)}"
+        )
+
+    base_currency = str(risk_df["base_currency"].iloc[0])
+    currencies = sorted(risk_df["currency"].astype(str).unique())
+    largest_bucket = bucket_df.loc[bucket_df["dv01_base"].idxmax()]
     largest_bucket_name = largest_bucket["curve_bucket"]
     largest_bucket_pct = float(largest_bucket["pct_total_dv01"])
 
@@ -645,30 +833,39 @@ def generate_fixed_income_commentary(
     else:
         concentration_label = "belly"
 
-    comments.append(
-        f"DV01 is concentrated in the {largest_bucket_name} bucket "
-        f"({largest_bucket_pct:.1%} of total DV01), indicating mainly {concentration_label} rate exposure."
-    )
+    comments = [
+        (
+            f"Portfolio aggregation is expressed in {base_currency}. Local market values and DV01 "
+            f"for {', '.join(currencies)} are translated using the displayed manual FX-to-base assumptions."
+        ),
+        (
+            f"DV01 is concentrated in the {largest_bucket_name} bucket "
+            f"({largest_bucket_pct:.1%} of total {base_currency} DV01), indicating mainly "
+            f"{concentration_label} rate exposure."
+        ),
+    ]
 
     worst_scenario = identify_worst_scenario(scenario_df)
     comments.append(
         f"The largest estimated loss comes from '{worst_scenario['scenario_name']}' "
-        f"with estimated P&L of {worst_scenario['estimated_pnl']:,.0f}."
+        f"with estimated P&L of {worst_scenario['estimated_pnl']:,.0f} {base_currency}."
     )
 
     if largest_bucket_pct >= 0.50:
         comments.append(
-            "Risk is materially concentrated in one maturity bucket. A hedge or risk reduction should focus first on that bucket."
+            "Risk is materially concentrated in one maturity bucket. Hedge analysis should focus first on that bucket."
         )
     else:
         comments.append(
-            "DV01 is relatively diversified across curve buckets, but scenario P&L should still be monitored under non-parallel curve moves."
+            "DV01 is relatively diversified across curve buckets, but non-parallel curve moves remain relevant."
         )
 
     comments.append(
-        "Scenario P&L uses duration/convexity approximations and should be treated as a desk analytics proxy, not a full revaluation engine."
+        "FX translation makes aggregation dimensionally valid but does not model FX risk, cross-currency basis, or hedge execution."
     )
-
+    comments.append(
+        "Scenario P&L uses duration/convexity approximations and is not a full revaluation engine."
+    )
     return comments
 
 

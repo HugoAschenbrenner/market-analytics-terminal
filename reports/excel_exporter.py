@@ -59,15 +59,17 @@ def generate_fixed_income_risk_report(
     bucket_df: pd.DataFrame,
     scenario_df: pd.DataFrame,
     commentary: list[str],
+    currency_df: pd.DataFrame | None = None,
 ) -> bytes:
     """Generate a desk-style Fixed Income Risk Report as Excel bytes.
 
     Sheets:
     1. Summary
     2. Bond_Level_Risk
-    3. DV01_Buckets
-    4. Scenario_PnL
-    5. Methodology
+    3. Currency_Exposure
+    4. DV01_Buckets
+    5. Scenario_PnL
+    6. Methodology
 
     The report uses simplified analytics and synthetic/sample data. It is not
     investment advice and not a bank-grade risk system.
@@ -96,14 +98,16 @@ def generate_fixed_income_risk_report(
         # Summary sheet
         # ------------------------------------------------------------------
         summary_rows = [
-            ("Total Market Value", summary.get("total_market_value")),
+            ("Base Currency", summary.get("base_currency")),
+            ("Portfolio Currencies", summary.get("currencies")),
+            ("Total Market Value in Base Currency", summary.get("total_market_value")),
             ("Weighted Average Yield", summary.get("weighted_average_yield")),
             (
                 "Weighted Average Modified Duration",
                 summary.get("weighted_average_modified_duration"),
             ),
             ("Weighted Average Convexity", summary.get("weighted_average_convexity")),
-            ("Total DV01", summary.get("total_dv01")),
+            ("Total DV01 in Base Currency per bp", summary.get("total_dv01")),
             ("Number of Bonds", summary.get("number_of_bonds")),
         ]
 
@@ -151,7 +155,11 @@ def generate_fixed_income_risk_report(
             "modified_duration",
             "convexity",
             "market_value",
+            "fx_to_base",
+            "market_value_base",
             "dv01",
+            "dv01_base",
+            "base_currency",
             "rating",
             "sector",
             "spread_bps",
@@ -164,6 +172,18 @@ def generate_fixed_income_risk_report(
         bond_ws = writer.sheets["Bond_Level_Risk"]
         bond_ws.set_row(0, None, header_format)
         _auto_adjust_columns(writer, "Bond_Level_Risk", bond_report)
+
+        # ------------------------------------------------------------------
+        # Currency exposure and translation
+        # ------------------------------------------------------------------
+        if currency_df is not None:
+            currency_df.to_excel(
+                writer,
+                sheet_name="Currency_Exposure",
+                index=False,
+            )
+            writer.sheets["Currency_Exposure"].set_row(0, None, header_format)
+            _auto_adjust_columns(writer, "Currency_Exposure", currency_df)
 
         # ------------------------------------------------------------------
         # DV01 buckets
@@ -189,7 +209,10 @@ def generate_fixed_income_risk_report(
         methodology_items = [
             "Clean price is quoted per 100 notional.",
             "Dirty price equals clean price plus accrued interest per 100.",
-            "Market value equals clean price / 100 multiplied by notional.",
+            "Local market value equals clean price / 100 multiplied by notional in each bond currency.",
+            "FX-to-base is defined as base-currency units per one unit of local currency.",
+            "Portfolio market value, DV01 and scenario P&L are aggregated only after explicit FX translation.",
+            "Manual FX assumptions are recorded in the Currency_Exposure and Bond_Level_Risk sheets.",
             "Coupon rate and yield to maturity are stored as decimals, e.g. 5% = 0.05.",
             "Duration and convexity are calculated using transparent yield-implied cashflow approximations.",
             "DV01 is positive and represents the approximate gain for a 1 bp fall in yield.",
