@@ -1,3 +1,4 @@
+from datetime import date
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -215,7 +216,142 @@ def render() -> None:
     with st.expander("Raw bond data", expanded=False):
         st.dataframe(bonds, use_container_width=True)
 
-    local_risk_df = calculate_bond_risk_metrics(bonds)
+    st.subheader("Bond Pricing & Schedule Contract")
+
+    with st.container(border=True):
+        p1, p2, p3 = st.columns(3)
+
+        with p1:
+            valuation_date = st.date_input(
+                "Valuation / settlement date",
+                value=date.today(),
+                help=(
+                    "Coupon schedule, accrued interest and pricing "
+                    "are all evaluated from this date."
+                ),
+            )
+            pricing_mode = st.selectbox(
+                "Price / YTM reconciliation mode",
+                [
+                    "Solve YTM from clean price",
+                    "Audit supplied YTM against quote",
+                ],
+                index=0,
+                help=(
+                    "Default mode solves a yield that exactly reprices "
+                    "the quoted clean price plus accrued interest. "
+                    "Audit mode preserves the uploaded YTM and displays "
+                    "the resulting quote/model gap."
+                ),
+            )
+
+        with p2:
+            default_day_count_convention = st.selectbox(
+                "Default day-count convention",
+                ["ACT/ACT", "ACT/365F", "30/360"],
+                index=0,
+                help=(
+                    "An optional day_count_convention column in the CSV "
+                    "overrides this portfolio-level default."
+                ),
+            )
+            when_issued_policy = st.selectbox(
+                "When-issued position policy",
+                ["Flag", "Reject"],
+                index=0,
+                help=(
+                    "Flag keeps positions whose issue date is after the "
+                    "valuation date and labels them explicitly. Reject "
+                    "blocks the portfolio."
+                ),
+            )
+
+        with p3:
+            reconciliation_tolerance = st.number_input(
+                "Price reconciliation tolerance (points per 100)",
+                min_value=0.0,
+                value=0.01,
+                step=0.01,
+                format="%.4f",
+            )
+
+        st.caption(
+            "Coupon dates are generated backwards from contractual maturity. "
+            "Duration and convexity reprice the same dated cashflows used for "
+            "the clean-price/YTM reconciliation."
+        )
+
+    try:
+        local_risk_df = calculate_bond_risk_metrics(
+            bonds,
+            valuation_date=valuation_date,
+            pricing_mode=pricing_mode,
+            default_day_count_convention=(
+                default_day_count_convention
+            ),
+            when_issued_policy=when_issued_policy,
+            reconciliation_tolerance_per_100=(
+                reconciliation_tolerance
+            ),
+        )
+    except ValueError as exc:
+        st.error(
+            f"Bond pricing contract validation failed: {exc}"
+        )
+        return
+
+    reconciliation_count = int(
+        local_risk_df["price_reconciled"].sum()
+    )
+    total_bonds = int(len(local_risk_df))
+    max_price_gap = float(
+        local_risk_df[
+            "dirty_price_reconciliation_error"
+        ].abs().max()
+    )
+    when_issued_count = int(
+        local_risk_df["schedule_status"]
+        .astype(str)
+        .str.contains("When-issued")
+        .sum()
+    )
+
+    r1, r2, r3, r4 = st.columns(4)
+    r1.metric(
+        "Reconciled Bonds",
+        f"{reconciliation_count}/{total_bonds}",
+    )
+    r2.metric(
+        "Max |Dirty Price Gap|",
+        f"{max_price_gap:.4f}",
+    )
+    r3.metric(
+        "When-issued Positions",
+        str(when_issued_count),
+    )
+    r4.metric(
+        "Pricing Mode",
+        (
+            "Price-implied YTM"
+            if pricing_mode == "Solve YTM from clean price"
+            else "Supplied-YTM audit"
+        ),
+    )
+
+    if reconciliation_count < total_bonds:
+        st.warning(
+            "One or more supplied YTMs do not reprice the quoted "
+            "clean price within the selected tolerance. Review the "
+            "bond-level reconciliation fields before using risk outputs."
+        )
+
+    if when_issued_count:
+        st.warning(
+            f"{when_issued_count} when-issued position(s) are included "
+            "and explicitly flagged. Their accrued interest is zero "
+            "before issue."
+        )
+
     currencies = sorted(
         local_risk_df["currency"].astype(str).str.upper().unique().tolist()
     )
@@ -442,10 +578,29 @@ def render() -> None:
         "bond_id",
         "issuer",
         "currency",
+        "frequency",
+        "valuation_date",
+        "issue_date",
+        "maturity_date",
+        "previous_coupon_date",
+        "next_coupon_date",
+        "final_cashflow_date",
+        "cashflow_count",
+        "schedule_status",
+        "day_count_convention",
+        "pricing_mode",
         "clean_price",
         "accrued_interest_per_100",
         "dirty_price",
+        "provided_yield_to_maturity",
+        "pricing_yield_used",
         "yield_to_maturity",
+        "model_clean_price",
+        "model_dirty_price",
+        "clean_price_reconciliation_error",
+        "dirty_price_reconciliation_error",
+        "price_reconciled",
+        "pricing_status",
         "years_to_maturity",
         "modified_duration",
         "convexity",
@@ -471,7 +626,13 @@ def render() -> None:
                 "clean_price": "{:.2f}",
                 "accrued_interest_per_100": "{:.4f}",
                 "dirty_price": "{:.4f}",
-                "yield_to_maturity": "{:.2%}",
+                "provided_yield_to_maturity": "{:.4%}",
+                "pricing_yield_used": "{:.4%}",
+                "yield_to_maturity": "{:.4%}",
+                "model_clean_price": "{:.4f}",
+                "model_dirty_price": "{:.4f}",
+                "clean_price_reconciliation_error": "{:+.4f}",
+                "dirty_price_reconciliation_error": "{:+.4f}",
                 "years_to_maturity": "{:.2f}",
                 "modified_duration": "{:.2f}",
                 "convexity": "{:.2f}",
@@ -532,6 +693,10 @@ def render() -> None:
 
     st.markdown(
         """
+        - Coupon dates are generated backwards from contractual maturity rather than reconstructed from floating-point years-to-maturity.
+        - The default pricing mode solves YTM from quoted clean price plus contractual accrued interest.
+        - Audit mode preserves supplied YTM and exposes the clean/dirty quote reconciliation error.
+        - Day-count convention, valuation date, coupon dates, when-issued status, and pricing status are explicit at bond level.
         - Clean price is quoted per 100 notional.
         - Dirty price = clean price + accrued interest per 100.
         - Local clean market value = clean price / 100 × notional in each bond currency.
@@ -539,11 +704,11 @@ def render() -> None:
         - DV01, duration/convexity scenario P&L, portfolio weights, and hedge sizing use full market value.
         - FX-to-base = base-currency units per one unit of local currency.
         - Clean value, full value, accrued interest, DV01, and scenario P&L are aggregated only after FX translation.
-        - Duration and convexity are approximate and based on yield-implied cashflows.
+        - Duration and convexity are calculated by repricing the same contractual cashflow schedule used for price/YTM reconciliation.
         - DV01 = modified duration × market value × 0.0001.
         - Scenario P&L uses duration/convexity approximation.
         - Credit spread shock uses modified duration as a spread-duration proxy.
         - Hedge approximation uses portfolio DV01 / hedge instrument DV01.
-        - This MVP does not yet build a full discount curve or use bond-specific day-count conventions.
+        - This MVP does not yet build a full discount curve or model business-day adjustment, ex-coupon rules, tax, or every market-specific convention.
         """
     )

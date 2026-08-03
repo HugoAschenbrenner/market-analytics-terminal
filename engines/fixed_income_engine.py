@@ -51,6 +51,23 @@ REQUIRED_BOND_COLUMNS = [
 ]
 
 
+SUPPORTED_DAY_COUNT_CONVENTIONS = (
+    "ACT/ACT",
+    "ACT/365F",
+    "30/360",
+)
+
+SUPPORTED_BOND_PRICING_MODES = (
+    "Solve YTM from clean price",
+    "Audit supplied YTM against quote",
+)
+
+SUPPORTED_WHEN_ISSUED_POLICIES = (
+    "Flag",
+    "Reject",
+)
+
+
 @dataclass(frozen=True)
 class PortfolioSummary:
     """Fixed-income portfolio metrics expressed in one base currency."""
@@ -310,108 +327,804 @@ def estimate_pnl_from_yield_move(dv01: float, yield_move_bps: float) -> float:
     return float(-dv01 * yield_move_bps)
 
 
+def _normalize_day_count_convention(
+    convention: str,
+) -> str:
+    normalized = str(convention).strip().upper()
+    aliases = {
+        "ACTUAL/ACTUAL": "ACT/ACT",
+        "ACTUAL/365": "ACT/365F",
+        "ACT/365": "ACT/365F",
+        "30E/360": "30/360",
+    }
+    normalized = aliases.get(normalized, normalized)
+
+    if normalized not in SUPPORTED_DAY_COUNT_CONVENTIONS:
+        raise ValueError(
+            "Unsupported day-count convention. "
+            f"Choose one of {SUPPORTED_DAY_COUNT_CONVENTIONS}."
+        )
+    return normalized
+
+
+def _normalize_bond_pricing_mode(
+    pricing_mode: str,
+) -> str:
+    mode = str(pricing_mode).strip()
+    if mode not in SUPPORTED_BOND_PRICING_MODES:
+        raise ValueError(
+            "Unsupported bond pricing mode. "
+            f"Choose one of {SUPPORTED_BOND_PRICING_MODES}."
+        )
+    return mode
+
+
+def _normalize_when_issued_policy(
+    policy: str,
+) -> str:
+    normalized = str(policy).strip().title()
+    if normalized not in SUPPORTED_WHEN_ISSUED_POLICIES:
+        raise ValueError(
+            "Unsupported when-issued policy. "
+            f"Choose one of {SUPPORTED_WHEN_ISSUED_POLICIES}."
+        )
+    return normalized
+
+
+def _validate_coupon_frequency(
+    frequency: int,
+) -> int:
+    resolved = int(frequency)
+    if resolved <= 0 or 12 % resolved != 0:
+        raise ValueError(
+            "Coupon frequency must be a positive divisor of 12."
+        )
+    return resolved
+
+
+def _thirty_360_us_year_fraction(
+    start_date,
+    end_date,
+) -> float:
+    start = _to_timestamp(start_date).normalize()
+    end = _to_timestamp(end_date).normalize()
+
+    if end < start:
+        raise ValueError(
+            "Day-count end date cannot precede start date."
+        )
+
+    d1 = min(int(start.day), 30)
+    d2 = int(end.day)
+    if d1 == 30:
+        d2 = min(d2, 30)
+
+    numerator = (
+        (int(end.year) - int(start.year)) * 360
+        + (int(end.month) - int(start.month)) * 30
+        + (d2 - d1)
+    )
+    return float(numerator / 360.0)
+
+
+def calculate_day_count_year_fraction(
+    start_date,
+    end_date,
+    convention: str = "ACT/ACT",
+) -> float:
+    start = _to_timestamp(start_date).normalize()
+    end = _to_timestamp(end_date).normalize()
+
+    if end < start:
+        raise ValueError(
+            "Day-count end date cannot precede start date."
+        )
+
+    resolved = _normalize_day_count_convention(
+        convention
+    )
+
+    if resolved == "30/360":
+        return _thirty_360_us_year_fraction(start, end)
+
+    elapsed_days = float((end - start).days)
+
+    if resolved == "ACT/365F":
+        return elapsed_days / 365.0
+
+    return elapsed_days / 365.25
+
+
+def validate_bond_contract_dates(
+    issue_date,
+    maturity_date,
+    valuation_date,
+    when_issued_policy: str = "Flag",
+) -> str:
+    issue = _to_timestamp(issue_date).normalize()
+    maturity = _to_timestamp(maturity_date).normalize()
+    valuation = _to_timestamp(valuation_date).normalize()
+    policy = _normalize_when_issued_policy(
+        when_issued_policy
+    )
+
+    if issue >= maturity:
+        raise ValueError(
+            "Bond issue date must be strictly before maturity date."
+        )
+
+    if valuation >= maturity:
+        raise ValueError(
+            "Valuation date must be strictly before maturity date."
+        )
+
+    if valuation < issue:
+        if policy == "Reject":
+            raise ValueError(
+                "When-issued position rejected: valuation date "
+                "precedes issue date."
+            )
+        return "When-issued (flagged)"
+
+    return "Active"
+
+
+def build_contractual_coupon_schedule(
+    issue_date,
+    maturity_date,
+    frequency: int,
+) -> pd.DatetimeIndex:
+    issue = _to_timestamp(issue_date).normalize()
+    maturity = _to_timestamp(maturity_date).normalize()
+    resolved_frequency = _validate_coupon_frequency(
+        frequency
+    )
+
+    if issue >= maturity:
+        raise ValueError(
+            "Bond issue date must be strictly before maturity date."
+        )
+
+    months_per_coupon = int(12 / resolved_frequency)
+    payment_dates: list[pd.Timestamp] = []
+    current = maturity
+
+    while current > issue:
+        payment_dates.append(current)
+        current = (
+            current
+            - pd.DateOffset(months=months_per_coupon)
+        ).normalize()
+
+    schedule = pd.DatetimeIndex(
+        sorted(set(payment_dates))
+    )
+
+    if len(schedule) == 0 or schedule[-1] != maturity:
+        raise RuntimeError(
+            "Contractual coupon schedule must terminate at maturity."
+        )
+
+    return schedule
+
+
+def _coupon_period_bounds(
+    issue_date,
+    maturity_date,
+    valuation_date,
+    frequency: int,
+) -> tuple[pd.Timestamp, pd.Timestamp]:
+    issue = _to_timestamp(issue_date).normalize()
+    valuation = _to_timestamp(valuation_date).normalize()
+
+    schedule = build_contractual_coupon_schedule(
+        issue_date=issue_date,
+        maturity_date=maturity_date,
+        frequency=frequency,
+    )
+
+    previous_coupon = issue
+
+    for payment_date in schedule:
+        if payment_date <= valuation:
+            previous_coupon = payment_date
+            continue
+        return previous_coupon, payment_date
+
+    raise ValueError(
+        "No coupon payment remains after the valuation date."
+    )
+
+
+def calculate_contractual_accrued_interest_per_100(
+    coupon_rate: float,
+    frequency: int,
+    issue_date,
+    maturity_date,
+    valuation_date,
+    day_count_convention: str = "ACT/ACT",
+) -> float:
+    issue = _to_timestamp(issue_date).normalize()
+    valuation = _to_timestamp(valuation_date).normalize()
+    maturity = _to_timestamp(maturity_date).normalize()
+    resolved_frequency = _validate_coupon_frequency(
+        frequency
+    )
+    convention = _normalize_day_count_convention(
+        day_count_convention
+    )
+
+    if valuation <= issue:
+        return 0.0
+
+    if valuation >= maturity:
+        raise ValueError(
+            "Accrued interest is undefined at or after maturity."
+        )
+
+    previous_coupon, next_coupon = _coupon_period_bounds(
+        issue_date=issue,
+        maturity_date=maturity,
+        valuation_date=valuation,
+        frequency=resolved_frequency,
+    )
+
+    if valuation == previous_coupon:
+        return 0.0
+
+    if convention == "ACT/ACT":
+        period_days = float(
+            (next_coupon - previous_coupon).days
+        )
+        elapsed_days = float(
+            (valuation - previous_coupon).days
+        )
+
+        if period_days <= 0:
+            raise ValueError(
+                "Coupon period must contain a positive number of days."
+            )
+
+        coupon_per_regular_period = (
+            100.0
+            * float(coupon_rate)
+            / resolved_frequency
+        )
+        return float(
+            coupon_per_regular_period
+            * elapsed_days
+            / period_days
+        )
+
+    return float(
+        100.0
+        * float(coupon_rate)
+        * calculate_day_count_year_fraction(
+            previous_coupon,
+            valuation,
+            convention,
+        )
+    )
+
+
+def _coupon_cashflow_per_100(
+    coupon_rate: float,
+    frequency: int,
+    issue_date,
+    payment_date,
+    day_count_convention: str,
+) -> float:
+    issue = _to_timestamp(issue_date).normalize()
+    payment = _to_timestamp(payment_date).normalize()
+    resolved_frequency = _validate_coupon_frequency(
+        frequency
+    )
+    convention = _normalize_day_count_convention(
+        day_count_convention
+    )
+    months_per_coupon = int(12 / resolved_frequency)
+
+    regular_period_start = (
+        payment
+        - pd.DateOffset(months=months_per_coupon)
+    ).normalize()
+    accrual_start = max(issue, regular_period_start)
+
+    if convention == "ACT/ACT":
+        regular_days = float(
+            (payment - regular_period_start).days
+        )
+        actual_days = float(
+            (payment - accrual_start).days
+        )
+
+        if regular_days <= 0:
+            raise ValueError(
+                "Regular coupon period must be positive."
+            )
+
+        return float(
+            100.0
+            * float(coupon_rate)
+            / resolved_frequency
+            * actual_days
+            / regular_days
+        )
+
+    return float(
+        100.0
+        * float(coupon_rate)
+        * calculate_day_count_year_fraction(
+            accrual_start,
+            payment,
+            convention,
+        )
+    )
+
+
+def build_remaining_contractual_cashflows(
+    coupon_rate: float,
+    frequency: int,
+    issue_date,
+    maturity_date,
+    valuation_date,
+    day_count_convention: str = "ACT/ACT",
+) -> tuple[pd.DatetimeIndex, np.ndarray, np.ndarray]:
+    valuation = _to_timestamp(valuation_date).normalize()
+    maturity = _to_timestamp(maturity_date).normalize()
+    resolved_frequency = _validate_coupon_frequency(
+        frequency
+    )
+    convention = _normalize_day_count_convention(
+        day_count_convention
+    )
+
+    schedule = build_contractual_coupon_schedule(
+        issue_date=issue_date,
+        maturity_date=maturity_date,
+        frequency=resolved_frequency,
+    )
+    remaining_dates = schedule[
+        schedule > valuation
+    ]
+
+    if len(remaining_dates) == 0:
+        raise ValueError(
+            "No contractual cashflows remain after valuation date."
+        )
+
+    cashflows = np.array(
+        [
+            _coupon_cashflow_per_100(
+                coupon_rate=coupon_rate,
+                frequency=resolved_frequency,
+                issue_date=issue_date,
+                payment_date=payment_date,
+                day_count_convention=convention,
+            )
+            for payment_date in remaining_dates
+        ],
+        dtype=float,
+    )
+    cashflows[-1] += 100.0
+
+    discount_exponents = np.array(
+        [
+            calculate_day_count_year_fraction(
+                valuation,
+                payment_date,
+                convention,
+            )
+            * resolved_frequency
+            for payment_date in remaining_dates
+        ],
+        dtype=float,
+    )
+
+    if (
+        not np.all(np.diff(discount_exponents) > 0)
+        or discount_exponents[0] <= 0
+    ):
+        raise ValueError(
+            "Cashflow discount exponents must be strictly increasing."
+        )
+
+    if remaining_dates[-1] != maturity:
+        raise RuntimeError(
+            "Final contractual cashflow must occur at maturity."
+        )
+
+    return (
+        pd.DatetimeIndex(remaining_dates),
+        cashflows,
+        discount_exponents,
+    )
+
+
+def calculate_dirty_price_from_ytm(
+    cashflows_per_100: np.ndarray,
+    discount_exponents: np.ndarray,
+    yield_to_maturity: float,
+    frequency: int,
+) -> float:
+    resolved_frequency = _validate_coupon_frequency(
+        frequency
+    )
+    ytm = float(yield_to_maturity)
+    discount_base = 1.0 + ytm / resolved_frequency
+
+    if (
+        not np.isfinite(discount_base)
+        or discount_base <= 0
+    ):
+        raise ValueError(
+            "Yield produces a non-positive discount base."
+        )
+
+    return float(
+        np.sum(
+            np.asarray(cashflows_per_100, dtype=float)
+            / np.power(
+                discount_base,
+                np.asarray(discount_exponents, dtype=float),
+            )
+        )
+    )
+
+
+def solve_ytm_from_dirty_price(
+    target_dirty_price: float,
+    cashflows_per_100: np.ndarray,
+    discount_exponents: np.ndarray,
+    frequency: int,
+    tolerance: float = 1e-12,
+    max_iterations: int = 250,
+) -> float:
+    target = float(target_dirty_price)
+    resolved_frequency = _validate_coupon_frequency(
+        frequency
+    )
+
+    if not np.isfinite(target) or target <= 0:
+        raise ValueError(
+            "Target dirty price must be finite and strictly positive."
+        )
+
+    lower = -0.99 * resolved_frequency
+    upper = 1.0
+
+    def objective(yield_value: float) -> float:
+        return (
+            calculate_dirty_price_from_ytm(
+                cashflows_per_100=cashflows_per_100,
+                discount_exponents=discount_exponents,
+                yield_to_maturity=yield_value,
+                frequency=resolved_frequency,
+            )
+            - target
+        )
+
+    lower_value = objective(lower)
+    upper_value = objective(upper)
+
+    while upper_value > 0 and upper < 100.0:
+        upper *= 2.0
+        upper_value = objective(upper)
+
+    if lower_value < 0 or upper_value > 0:
+        raise ValueError(
+            "Could not bracket a YTM solution for the quoted dirty price."
+        )
+
+    for _ in range(int(max_iterations)):
+        midpoint = 0.5 * (lower + upper)
+        midpoint_value = objective(midpoint)
+
+        if abs(midpoint_value) <= tolerance:
+            return float(midpoint)
+
+        if midpoint_value > 0:
+            lower = midpoint
+        else:
+            upper = midpoint
+
+    return float(0.5 * (lower + upper))
+
+
+def calculate_schedule_consistent_risk_metrics(
+    cashflows_per_100: np.ndarray,
+    discount_exponents: np.ndarray,
+    yield_to_maturity: float,
+    frequency: int,
+    bump_size: float = 1e-4,
+) -> tuple[float, float, float]:
+    ytm = float(yield_to_maturity)
+    resolved_frequency = _validate_coupon_frequency(
+        frequency
+    )
+    bump = float(bump_size)
+
+    if bump <= 0:
+        raise ValueError(
+            "Yield bump size must be strictly positive."
+        )
+
+    base_price = calculate_dirty_price_from_ytm(
+        cashflows_per_100,
+        discount_exponents,
+        ytm,
+        resolved_frequency,
+    )
+    lower_yield = ytm - bump
+    upper_yield = ytm + bump
+
+    if 1.0 + lower_yield / resolved_frequency <= 0:
+        raise ValueError(
+            "Yield is too close to the periodic-compounding floor."
+        )
+
+    price_down = calculate_dirty_price_from_ytm(
+        cashflows_per_100,
+        discount_exponents,
+        lower_yield,
+        resolved_frequency,
+    )
+    price_up = calculate_dirty_price_from_ytm(
+        cashflows_per_100,
+        discount_exponents,
+        upper_yield,
+        resolved_frequency,
+    )
+
+    modified_duration = float(
+        (price_down - price_up)
+        / (2.0 * base_price * bump)
+    )
+    convexity = float(
+        (price_down + price_up - 2.0 * base_price)
+        / (base_price * bump**2)
+    )
+    macaulay_duration = float(
+        modified_duration
+        * (1.0 + ytm / resolved_frequency)
+    )
+
+    return (
+        macaulay_duration,
+        modified_duration,
+        convexity,
+    )
+
+
 def calculate_bond_risk_metrics(
     bonds: pd.DataFrame,
     valuation_date: Optional[date] = None,
+    pricing_mode: str = "Solve YTM from clean price",
+    default_day_count_convention: str = "ACT/ACT",
+    when_issued_policy: str = "Flag",
+    reconciliation_tolerance_per_100: float = 0.01,
 ) -> pd.DataFrame:
-    """
-    Calculate bond-level risk with separate clean and full economic values.
-
-    clean_market_value is a quoted-price reporting measure.
-    full_market_value includes accrued interest and is used for DV01 and
-    duration/convexity scenario P&L. market_value remains an explicit
-    backward-compatible alias for full_market_value.
-    """
     if valuation_date is None:
         valuation_date = date.today()
 
+    valuation = pd.Timestamp(
+        valuation_date
+    ).normalize()
+    mode = _normalize_bond_pricing_mode(
+        pricing_mode
+    )
+    default_day_count = _normalize_day_count_convention(
+        default_day_count_convention
+    )
+    when_issued = _normalize_when_issued_policy(
+        when_issued_policy
+    )
+    tolerance = float(
+        reconciliation_tolerance_per_100
+    )
+
+    if not np.isfinite(tolerance) or tolerance < 0:
+        raise ValueError(
+            "Price reconciliation tolerance must be finite "
+            "and non-negative."
+        )
+
     df = bonds.copy()
-    years: list[float] = []
-    accrued_interest: list[float] = []
-    dirty_prices: list[float] = []
-    clean_market_values: list[float] = []
-    full_market_values: list[float] = []
-    accrued_interest_amounts: list[float] = []
-    macaulay_durations: list[float] = []
-    modified_durations: list[float] = []
-    convexities: list[float] = []
-    dv01s: list[float] = []
+    output_rows: list[dict] = []
 
-    for _, row in df.iterrows():
-        notional_i = float(row["notional"])
-        clean_price_i = float(row["clean_price"])
-        years_i = years_to_maturity(
-            maturity_date=row["maturity_date"],
-            valuation_date=valuation_date,
-        )
-        accrued_i = calculate_accrued_interest_per_100(
-            coupon_rate=float(row["coupon_rate"]),
-            frequency=int(row["frequency"]),
-            issue_date=row["issue_date"],
-            maturity_date=row["maturity_date"],
-            valuation_date=valuation_date,
-        )
-        dirty_price_i = clean_price_i + accrued_i
+    for _, source_row in df.iterrows():
+        row = source_row.to_dict()
 
-        clean_market_value_i = calculate_value_from_price_per_100(
-            price_per_100=clean_price_i,
-            notional=notional_i,
+        issue = _to_timestamp(
+            row["issue_date"]
+        ).normalize()
+        maturity = _to_timestamp(
+            row["maturity_date"]
+        ).normalize()
+        frequency = _validate_coupon_frequency(
+            int(row["frequency"])
         )
-        full_market_value_i = calculate_value_from_price_per_100(
-            price_per_100=dirty_price_i,
-            notional=notional_i,
+        day_count = _normalize_day_count_convention(
+            row.get(
+                "day_count_convention",
+                default_day_count,
+            )
         )
-        accrued_interest_amount_i = (
-            full_market_value_i - clean_market_value_i
+        schedule_status = validate_bond_contract_dates(
+            issue_date=issue,
+            maturity_date=maturity,
+            valuation_date=valuation,
+            when_issued_policy=when_issued,
         )
 
-        mac_dur_i = calculate_macaulay_duration(
-            coupon_rate=float(row["coupon_rate"]),
-            yield_to_maturity=float(row["yield_to_maturity"]),
-            years=years_i,
-            frequency=int(row["frequency"]),
+        clean_price = float(row["clean_price"])
+        provided_ytm = float(row["yield_to_maturity"])
+        notional = float(row["notional"])
+        coupon_rate = float(row["coupon_rate"])
+
+        if not np.isfinite(clean_price) or clean_price <= 0:
+            raise ValueError(
+                "Clean price must be finite and strictly positive."
+            )
+
+        if (
+            not np.isfinite(provided_ytm)
+            or 1.0 + provided_ytm / frequency <= 0
+        ):
+            raise ValueError(
+                "Supplied YTM is invalid under periodic compounding."
+            )
+
+        if not np.isfinite(coupon_rate) or coupon_rate < 0:
+            raise ValueError(
+                "Coupon rate must be finite and non-negative."
+            )
+
+        if not np.isfinite(notional) or notional < 0:
+            raise ValueError(
+                "Notional must be finite and non-negative."
+            )
+
+        accrued_per_100 = (
+            calculate_contractual_accrued_interest_per_100(
+                coupon_rate=coupon_rate,
+                frequency=frequency,
+                issue_date=issue,
+                maturity_date=maturity,
+                valuation_date=valuation,
+                day_count_convention=day_count,
+            )
         )
-        mod_dur_i = calculate_modified_duration(
-            macaulay_duration=mac_dur_i,
-            yield_to_maturity=float(row["yield_to_maturity"]),
-            frequency=int(row["frequency"]),
-        )
-        convexity_i = calculate_convexity(
-            coupon_rate=float(row["coupon_rate"]),
-            yield_to_maturity=float(row["yield_to_maturity"]),
-            years=years_i,
-            frequency=int(row["frequency"]),
-        )
-        dv01_i = calculate_dv01(
-            modified_duration=mod_dur_i,
-            market_value=full_market_value_i,
+        dirty_price = clean_price + accrued_per_100
+
+        (
+            payment_dates,
+            cashflows_per_100,
+            discount_exponents,
+        ) = build_remaining_contractual_cashflows(
+            coupon_rate=coupon_rate,
+            frequency=frequency,
+            issue_date=issue,
+            maturity_date=maturity,
+            valuation_date=valuation,
+            day_count_convention=day_count,
         )
 
-        years.append(years_i)
-        accrued_interest.append(accrued_i)
-        dirty_prices.append(dirty_price_i)
-        clean_market_values.append(clean_market_value_i)
-        full_market_values.append(full_market_value_i)
-        accrued_interest_amounts.append(accrued_interest_amount_i)
-        macaulay_durations.append(mac_dur_i)
-        modified_durations.append(mod_dur_i)
-        convexities.append(convexity_i)
-        dv01s.append(dv01_i)
+        if mode == "Solve YTM from clean price":
+            pricing_yield = solve_ytm_from_dirty_price(
+                target_dirty_price=dirty_price,
+                cashflows_per_100=cashflows_per_100,
+                discount_exponents=discount_exponents,
+                frequency=frequency,
+            )
+        else:
+            pricing_yield = provided_ytm
 
-    df["years_to_maturity"] = years
-    df["accrued_interest_per_100"] = accrued_interest
-    df["dirty_price"] = dirty_prices
-    df["clean_market_value"] = clean_market_values
-    df["full_market_value"] = full_market_values
-    df["accrued_interest_amount"] = accrued_interest_amounts
-    df["market_value"] = df["full_market_value"]
-    df["macaulay_duration"] = macaulay_durations
-    df["modified_duration"] = modified_durations
-    df["convexity"] = convexities
-    df["dv01"] = dv01s
+        model_dirty_price = calculate_dirty_price_from_ytm(
+            cashflows_per_100=cashflows_per_100,
+            discount_exponents=discount_exponents,
+            yield_to_maturity=pricing_yield,
+            frequency=frequency,
+        )
+        model_clean_price = (
+            model_dirty_price - accrued_per_100
+        )
+        dirty_price_error = (
+            model_dirty_price - dirty_price
+        )
+        clean_price_error = (
+            model_clean_price - clean_price
+        )
+        price_reconciled = bool(
+            abs(dirty_price_error) <= tolerance
+        )
 
-    return df
+        (
+            macaulay_duration,
+            modified_duration,
+            convexity,
+        ) = calculate_schedule_consistent_risk_metrics(
+            cashflows_per_100=cashflows_per_100,
+            discount_exponents=discount_exponents,
+            yield_to_maturity=pricing_yield,
+            frequency=frequency,
+        )
 
+        clean_market_value = (
+            calculate_value_from_price_per_100(
+                price_per_100=clean_price,
+                notional=notional,
+            )
+        )
+        full_market_value = (
+            calculate_value_from_price_per_100(
+                price_per_100=dirty_price,
+                notional=notional,
+            )
+        )
+        accrued_interest_amount = (
+            full_market_value - clean_market_value
+        )
+        dv01 = calculate_dv01(
+            modified_duration=modified_duration,
+            market_value=full_market_value,
+        )
+
+        previous_coupon, next_coupon = _coupon_period_bounds(
+            issue_date=issue,
+            maturity_date=maturity,
+            valuation_date=valuation,
+            frequency=frequency,
+        )
+
+        years = calculate_day_count_year_fraction(
+            valuation,
+            maturity,
+            "ACT/365F",
+        )
+
+        row.update(
+            {
+                "valuation_date": valuation.date().isoformat(),
+                "issue_date": issue.date().isoformat(),
+                "maturity_date": maturity.date().isoformat(),
+                "schedule_status": schedule_status,
+                "pricing_mode": mode,
+                "day_count_convention": day_count,
+                "provided_yield_to_maturity": provided_ytm,
+                "pricing_yield_used": pricing_yield,
+                "yield_to_maturity": pricing_yield,
+                "previous_coupon_date": previous_coupon.date().isoformat(),
+                "next_coupon_date": next_coupon.date().isoformat(),
+                "final_cashflow_date": payment_dates[-1].date().isoformat(),
+                "cashflow_count": int(len(payment_dates)),
+                "years_to_maturity": years,
+                "accrued_interest_per_100": accrued_per_100,
+                "dirty_price": dirty_price,
+                "model_clean_price": model_clean_price,
+                "model_dirty_price": model_dirty_price,
+                "clean_price_reconciliation_error": clean_price_error,
+                "dirty_price_reconciliation_error": dirty_price_error,
+                "price_reconciled": price_reconciled,
+                "pricing_status": (
+                    "Reconciled"
+                    if price_reconciled
+                    else "Quote/YTM mismatch"
+                ),
+                "clean_market_value": clean_market_value,
+                "full_market_value": full_market_value,
+                "accrued_interest_amount": accrued_interest_amount,
+                "market_value": full_market_value,
+                "macaulay_duration": macaulay_duration,
+                "modified_duration": modified_duration,
+                "convexity": convexity,
+                "dv01": dv01,
+            }
+        )
+
+        output_rows.append(row)
+
+    return pd.DataFrame(output_rows)
 
 def _normalize_currency_code(value: str) -> str:
     """Normalize and validate a three-letter currency code."""
