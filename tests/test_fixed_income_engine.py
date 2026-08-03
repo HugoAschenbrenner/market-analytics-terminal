@@ -53,7 +53,7 @@ def test_dirty_price_equals_clean_price_plus_accrued_interest():
     assert abs(first_row["dirty_price"] - expected_dirty_price) < 1e-9
 
 
-def test_market_value_formula_uses_clean_price_per_100():
+def test_clean_quoted_market_value_helper_uses_price_per_100():
     market_value = calculate_market_value(clean_price=98.5, notional=1_000_000)
 
     assert market_value == 985_000

@@ -277,6 +277,12 @@ def render() -> None:
         currency_df.style.format(
             {
                 "fx_to_base": "{:.6f}",
+                "local_clean_market_value": "{:,.0f}",
+                "local_full_market_value": "{:,.0f}",
+                "local_accrued_interest_amount": "{:,.0f}",
+                "clean_market_value_base": "{:,.0f}",
+                "full_market_value_base": "{:,.0f}",
+                "accrued_interest_amount_base": "{:,.0f}",
                 "local_market_value": "{:,.0f}",
                 "market_value_base": "{:,.0f}",
                 "local_dv01": "{:,.0f}",
@@ -288,18 +294,39 @@ def render() -> None:
     )
 
     st.subheader("Portfolio Summary")
+    st.caption(
+        "Clean value is the quoted-price reporting value. Full value equals clean value plus accrued interest; DV01 and scenario P&L use full value."
+    )
 
-    c1, c2, c3, c4, c5 = st.columns(5)
-
-    c1.metric(f"Market Value ({base_currency})", _format_currency(summary_dict["total_market_value"]))
-    c2.metric("WA Yield", _format_percent(summary_dict["weighted_average_yield"]))
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    c1.metric(
+        f"Clean Market Value ({base_currency})",
+        _format_currency(summary_dict["total_clean_market_value"]),
+    )
+    c2.metric(
+        f"Full Market Value ({base_currency})",
+        _format_currency(summary_dict["total_full_market_value"]),
+    )
     c3.metric(
+        f"Accrued Interest ({base_currency})",
+        _format_currency(summary_dict["total_accrued_interest_amount"]),
+    )
+    c4.metric(
+        "WA Yield",
+        _format_percent(summary_dict["weighted_average_yield"]),
+    )
+    c5.metric(
         "WA Mod Duration",
         f"{summary_dict['weighted_average_modified_duration']:.2f}",
     )
-    c4.metric(f"Total DV01 ({base_currency}/bp)", _format_currency(summary_dict["total_dv01"]))
-    c5.metric("Bonds", f"{summary_dict['number_of_bonds']}")
+    c6.metric(
+        f"Total DV01 ({base_currency}/bp)",
+        _format_currency(summary_dict["total_dv01"]),
+    )
 
+    st.caption(
+        f"Bond count: {summary_dict['number_of_bonds']} | Full value is the economic aggregation and risk basis."
+    )
     st.subheader("Desk Commentary")
 
     with st.container(border=True):
@@ -314,6 +341,8 @@ def render() -> None:
         st.dataframe(
             bucket_df.style.format(
                 {
+                    "clean_market_value_base": "{:,.0f}",
+                    "full_market_value_base": "{:,.0f}",
                     "market_value_base": "{:,.0f}",
                     "dv01_base": "{:,.0f}",
                     "pct_total_dv01": "{:.1%}",
@@ -420,8 +449,14 @@ def render() -> None:
         "years_to_maturity",
         "modified_duration",
         "convexity",
-        "market_value",
+        "clean_market_value",
+        "full_market_value",
+        "accrued_interest_amount",
         "fx_to_base",
+        "clean_market_value_base",
+        "full_market_value_base",
+        "accrued_interest_amount_base",
+        "market_value",
         "market_value_base",
         "dv01",
         "dv01_base",
@@ -430,7 +465,6 @@ def render() -> None:
         "rating",
         "sector",
     ]
-
     st.dataframe(
         risk_df[display_columns].style.format(
             {
@@ -441,8 +475,14 @@ def render() -> None:
                 "years_to_maturity": "{:.2f}",
                 "modified_duration": "{:.2f}",
                 "convexity": "{:.2f}",
-                "market_value": "{:,.0f}",
+                "clean_market_value": "{:,.0f}",
+                "full_market_value": "{:,.0f}",
+                "accrued_interest_amount": "{:,.0f}",
                 "fx_to_base": "{:.6f}",
+                "clean_market_value_base": "{:,.0f}",
+                "full_market_value_base": "{:,.0f}",
+                "accrued_interest_amount_base": "{:,.0f}",
+                "market_value": "{:,.0f}",
                 "market_value_base": "{:,.0f}",
                 "dv01": "{:,.0f}",
                 "dv01_base": "{:,.0f}",
@@ -494,9 +534,11 @@ def render() -> None:
         """
         - Clean price is quoted per 100 notional.
         - Dirty price = clean price + accrued interest per 100.
-        - Local market value = clean price / 100 × notional in each bond currency.
+        - Local clean market value = clean price / 100 × notional in each bond currency.
+        - Local full market value = dirty price / 100 × notional and includes accrued interest.
+        - DV01, duration/convexity scenario P&L, portfolio weights, and hedge sizing use full market value.
         - FX-to-base = base-currency units per one unit of local currency.
-        - Portfolio market value, DV01, scenario P&L, and hedge sizing are aggregated only after FX translation.
+        - Clean value, full value, accrued interest, DV01, and scenario P&L are aggregated only after FX translation.
         - Duration and convexity are approximate and based on yield-implied cashflows.
         - DV01 = modified duration × market value × 0.0001.
         - Scenario P&L uses duration/convexity approximation.

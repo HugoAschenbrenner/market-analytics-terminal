@@ -7,10 +7,13 @@ bond portfolio.
 Financial conventions:
 - clean_price is quoted per 100 notional.
 - coupon_rate and yield_to_maturity are decimals, e.g. 5% = 0.05.
-- market_value = clean_price / 100 * notional in the bond's local currency.
+- clean_market_value = clean_price / 100 * notional in local currency.
+- full_market_value = dirty_price / 100 * notional in local currency.
+- market_value is a backward-compatible alias for full_market_value.
 - portfolio aggregation requires an explicit base currency and FX-to-base rates.
 - dirty_price = clean_price + accrued_interest_per_100.
-- DV01 is positive and represents the approximate gain for a 1 bp fall in yield.
+- DV01 uses full_market_value and is positive under the project convention.
+- DV01 represents the approximate gain for a 1 bp fall in yield.
 - P&L for a positive yield move is negative:
   estimated_pnl = -DV01 * yield_move_bps.
 
@@ -54,6 +57,9 @@ class PortfolioSummary:
 
     base_currency: str
     currencies: tuple[str, ...]
+    total_clean_market_value: float
+    total_full_market_value: float
+    total_accrued_interest_amount: float
     total_market_value: float
     weighted_average_yield: float
     weighted_average_modified_duration: float
@@ -251,10 +257,36 @@ def calculate_convexity(
     return float(convexity)
 
 
-def calculate_market_value(clean_price: float, notional: float) -> float:
-    """Calculate market value from clean price per 100 notional."""
+def calculate_value_from_price_per_100(
+    price_per_100: float,
+    notional: float,
+) -> float:
+    """Convert a quoted price per 100 into a monetary value."""
+    price = float(price_per_100)
+    face = float(notional)
 
-    return float(clean_price / 100.0 * notional)
+    if not np.isfinite(price):
+        raise ValueError("Price per 100 must be finite.")
+    if not np.isfinite(face) or face < 0:
+        raise ValueError("Notional must be finite and non-negative.")
+
+    return float(price / 100.0 * face)
+
+
+def calculate_market_value(
+    clean_price: float,
+    notional: float,
+) -> float:
+    """
+    Backward-compatible clean quoted market value helper.
+
+    Bond risk analytics separately calculate clean and full values. DV01 and
+    scenario P&L use full value, not this clean quoted value.
+    """
+    return calculate_value_from_price_per_100(
+        price_per_100=clean_price,
+        notional=notional,
+    )
 
 
 def calculate_dv01(modified_duration: float, market_value: float) -> float:
@@ -282,28 +314,36 @@ def calculate_bond_risk_metrics(
     bonds: pd.DataFrame,
     valuation_date: Optional[date] = None,
 ) -> pd.DataFrame:
-    """Calculate bond-level fixed income risk metrics."""
+    """
+    Calculate bond-level risk with separate clean and full economic values.
 
+    clean_market_value is a quoted-price reporting measure.
+    full_market_value includes accrued interest and is used for DV01 and
+    duration/convexity scenario P&L. market_value remains an explicit
+    backward-compatible alias for full_market_value.
+    """
     if valuation_date is None:
         valuation_date = date.today()
 
     df = bonds.copy()
-
-    years = []
-    accrued_interest = []
-    dirty_prices = []
-    market_values = []
-    macaulay_durations = []
-    modified_durations = []
-    convexities = []
-    dv01s = []
+    years: list[float] = []
+    accrued_interest: list[float] = []
+    dirty_prices: list[float] = []
+    clean_market_values: list[float] = []
+    full_market_values: list[float] = []
+    accrued_interest_amounts: list[float] = []
+    macaulay_durations: list[float] = []
+    modified_durations: list[float] = []
+    convexities: list[float] = []
+    dv01s: list[float] = []
 
     for _, row in df.iterrows():
+        notional_i = float(row["notional"])
+        clean_price_i = float(row["clean_price"])
         years_i = years_to_maturity(
             maturity_date=row["maturity_date"],
             valuation_date=valuation_date,
         )
-
         accrued_i = calculate_accrued_interest_per_100(
             coupon_rate=float(row["coupon_rate"]),
             frequency=int(row["frequency"]),
@@ -311,12 +351,18 @@ def calculate_bond_risk_metrics(
             maturity_date=row["maturity_date"],
             valuation_date=valuation_date,
         )
+        dirty_price_i = clean_price_i + accrued_i
 
-        dirty_price_i = float(row["clean_price"]) + accrued_i
-
-        market_value_i = calculate_market_value(
-            clean_price=float(row["clean_price"]),
-            notional=float(row["notional"]),
+        clean_market_value_i = calculate_value_from_price_per_100(
+            price_per_100=clean_price_i,
+            notional=notional_i,
+        )
+        full_market_value_i = calculate_value_from_price_per_100(
+            price_per_100=dirty_price_i,
+            notional=notional_i,
+        )
+        accrued_interest_amount_i = (
+            full_market_value_i - clean_market_value_i
         )
 
         mac_dur_i = calculate_macaulay_duration(
@@ -325,29 +371,28 @@ def calculate_bond_risk_metrics(
             years=years_i,
             frequency=int(row["frequency"]),
         )
-
         mod_dur_i = calculate_modified_duration(
             macaulay_duration=mac_dur_i,
             yield_to_maturity=float(row["yield_to_maturity"]),
             frequency=int(row["frequency"]),
         )
-
         convexity_i = calculate_convexity(
             coupon_rate=float(row["coupon_rate"]),
             yield_to_maturity=float(row["yield_to_maturity"]),
             years=years_i,
             frequency=int(row["frequency"]),
         )
-
         dv01_i = calculate_dv01(
             modified_duration=mod_dur_i,
-            market_value=market_value_i,
+            market_value=full_market_value_i,
         )
 
         years.append(years_i)
         accrued_interest.append(accrued_i)
         dirty_prices.append(dirty_price_i)
-        market_values.append(market_value_i)
+        clean_market_values.append(clean_market_value_i)
+        full_market_values.append(full_market_value_i)
+        accrued_interest_amounts.append(accrued_interest_amount_i)
         macaulay_durations.append(mac_dur_i)
         modified_durations.append(mod_dur_i)
         convexities.append(convexity_i)
@@ -356,7 +401,10 @@ def calculate_bond_risk_metrics(
     df["years_to_maturity"] = years
     df["accrued_interest_per_100"] = accrued_interest
     df["dirty_price"] = dirty_prices
-    df["market_value"] = market_values
+    df["clean_market_value"] = clean_market_values
+    df["full_market_value"] = full_market_values
+    df["accrued_interest_amount"] = accrued_interest_amounts
+    df["market_value"] = df["full_market_value"]
     df["macaulay_duration"] = macaulay_durations
     df["modified_duration"] = modified_durations
     df["convexity"] = convexities
@@ -433,10 +481,11 @@ def apply_fx_conversion(
     fx_rates: dict[str, float],
 ) -> pd.DataFrame:
     """
-    Add explicit base-currency market value and DV01 columns.
+    Translate clean value, full value, accrued interest and DV01 to base currency.
 
-    Local market_value and dv01 are preserved. Converted columns use the
-    convention: fx_to_base = base-currency units per one local-currency unit.
+    For backward compatibility, synthetic risk frames that only contain
+    market_value are interpreted as having zero accrued interest and therefore
+    equal clean and full values.
     """
     required = {"currency", "market_value", "dv01"}
     missing_columns = required - set(risk_df.columns)
@@ -449,6 +498,19 @@ def apply_fx_conversion(
     converted["currency"] = (
         converted["currency"].astype(str).str.strip().str.upper()
     )
+
+    if "full_market_value" not in converted.columns:
+        converted["full_market_value"] = converted["market_value"].astype(float)
+    if "clean_market_value" not in converted.columns:
+        converted["clean_market_value"] = converted["full_market_value"].astype(float)
+    if "accrued_interest_amount" not in converted.columns:
+        converted["accrued_interest_amount"] = (
+            converted["full_market_value"].astype(float)
+            - converted["clean_market_value"].astype(float)
+        )
+
+    converted["market_value"] = converted["full_market_value"].astype(float)
+
     base = _normalize_currency_code(base_currency)
     currencies = sorted(converted["currency"].unique().tolist())
     validated_rates = validate_fx_rates(
@@ -459,10 +521,19 @@ def apply_fx_conversion(
 
     converted["base_currency"] = base
     converted["fx_to_base"] = converted["currency"].map(validated_rates)
-    converted["market_value_base"] = (
-        converted["market_value"].astype(float)
+    converted["clean_market_value_base"] = (
+        converted["clean_market_value"].astype(float)
         * converted["fx_to_base"].astype(float)
     )
+    converted["full_market_value_base"] = (
+        converted["full_market_value"].astype(float)
+        * converted["fx_to_base"].astype(float)
+    )
+    converted["accrued_interest_amount_base"] = (
+        converted["accrued_interest_amount"].astype(float)
+        * converted["fx_to_base"].astype(float)
+    )
+    converted["market_value_base"] = converted["full_market_value_base"]
     converted["dv01_base"] = (
         converted["dv01"].astype(float)
         * converted["fx_to_base"].astype(float)
@@ -474,13 +545,18 @@ def apply_fx_conversion(
 def build_currency_exposure_table(
     risk_df: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Aggregate local and translated market value and DV01 by currency."""
+    """Aggregate clean value, full value and DV01 by local currency."""
     required = {
+        "bond_id",
         "currency",
         "base_currency",
         "fx_to_base",
-        "market_value",
-        "market_value_base",
+        "clean_market_value",
+        "full_market_value",
+        "accrued_interest_amount",
+        "clean_market_value_base",
+        "full_market_value_base",
+        "accrued_interest_amount_base",
         "dv01",
         "dv01_base",
     }
@@ -498,8 +574,12 @@ def build_currency_exposure_table(
         risk_df.groupby("currency", as_index=False)
         .agg(
             fx_to_base=("fx_to_base", "first"),
-            local_market_value=("market_value", "sum"),
-            market_value_base=("market_value_base", "sum"),
+            local_clean_market_value=("clean_market_value", "sum"),
+            local_full_market_value=("full_market_value", "sum"),
+            local_accrued_interest_amount=("accrued_interest_amount", "sum"),
+            clean_market_value_base=("clean_market_value_base", "sum"),
+            full_market_value_base=("full_market_value_base", "sum"),
+            accrued_interest_amount_base=("accrued_interest_amount_base", "sum"),
             local_dv01=("dv01", "sum"),
             dv01_base=("dv01_base", "sum"),
             bond_count=("bond_id", "count"),
@@ -507,10 +587,15 @@ def build_currency_exposure_table(
         .sort_values("currency")
         .reset_index(drop=True)
     )
-    total_base_market_value = float(currency_df["market_value_base"].sum())
+
+    # Backward-compatible aliases now explicitly refer to full value.
+    currency_df["local_market_value"] = currency_df["local_full_market_value"]
+    currency_df["market_value_base"] = currency_df["full_market_value_base"]
+
+    total_full_value = float(currency_df["full_market_value_base"].sum())
     currency_df["pct_base_market_value"] = (
-        currency_df["market_value_base"] / total_base_market_value
-        if total_base_market_value > 0
+        currency_df["full_market_value_base"] / total_full_value
+        if total_full_value > 0
         else 0.0
     )
     currency_df["base_currency"] = str(base_values[0])
@@ -521,11 +606,13 @@ def summarize_portfolio(
     risk_df: pd.DataFrame,
     base_currency: str | None = None,
 ) -> PortfolioSummary:
-    """Calculate portfolio metrics only after explicit FX translation."""
+    """Aggregate the portfolio using full economic value and full-value DV01."""
     required = {
         "currency",
         "base_currency",
-        "market_value_base",
+        "clean_market_value_base",
+        "full_market_value_base",
+        "accrued_interest_amount_base",
         "dv01_base",
         "yield_to_maturity",
         "modified_duration",
@@ -534,7 +621,7 @@ def summarize_portfolio(
     missing = required - set(risk_df.columns)
     if missing:
         raise ValueError(
-            "Portfolio aggregation requires explicit FX conversion. "
+            "Portfolio aggregation requires explicit FX conversion and full-value fields. "
             f"Missing columns: {sorted(missing)}"
         )
 
@@ -550,11 +637,30 @@ def summarize_portfolio(
             "Requested base currency does not match the converted risk data."
         )
 
-    total_market_value = float(risk_df["market_value_base"].sum())
-    if total_market_value <= 0:
-        raise ValueError("Total base-currency market value must be positive.")
+    total_clean_market_value = float(
+        risk_df["clean_market_value_base"].sum()
+    )
+    total_full_market_value = float(
+        risk_df["full_market_value_base"].sum()
+    )
+    total_accrued_interest_amount = float(
+        risk_df["accrued_interest_amount_base"].sum()
+    )
 
-    weights = risk_df["market_value_base"] / total_market_value
+    if total_full_market_value <= 0:
+        raise ValueError("Total base-currency full market value must be positive.")
+
+    if not np.isclose(
+        total_clean_market_value + total_accrued_interest_amount,
+        total_full_market_value,
+        rtol=1e-10,
+        atol=1e-6,
+    ):
+        raise ValueError(
+            "Clean value plus accrued interest does not reconcile to full value."
+        )
+
+    weights = risk_df["full_market_value_base"] / total_full_market_value
     weighted_average_yield = float(
         np.sum(weights * risk_df["yield_to_maturity"])
     )
@@ -569,7 +675,10 @@ def summarize_portfolio(
     return PortfolioSummary(
         base_currency=resolved_base,
         currencies=tuple(sorted(risk_df["currency"].astype(str).unique())),
-        total_market_value=total_market_value,
+        total_clean_market_value=total_clean_market_value,
+        total_full_market_value=total_full_market_value,
+        total_accrued_interest_amount=total_accrued_interest_amount,
+        total_market_value=total_full_market_value,
         weighted_average_yield=weighted_average_yield,
         weighted_average_modified_duration=weighted_average_modified_duration,
         weighted_average_convexity=weighted_average_convexity,
@@ -579,10 +688,13 @@ def summarize_portfolio(
 
 
 def portfolio_summary_to_dict(summary: PortfolioSummary) -> dict:
-    """Convert PortfolioSummary dataclass to a report-friendly dictionary."""
+    """Convert PortfolioSummary into explicit clean/full reporting fields."""
     return {
         "base_currency": summary.base_currency,
         "currencies": ", ".join(summary.currencies),
+        "total_clean_market_value": summary.total_clean_market_value,
+        "total_full_market_value": summary.total_full_market_value,
+        "total_accrued_interest_amount": summary.total_accrued_interest_amount,
         "total_market_value": summary.total_market_value,
         "weighted_average_yield": summary.weighted_average_yield,
         "weighted_average_modified_duration": summary.weighted_average_modified_duration,
@@ -593,17 +705,18 @@ def portfolio_summary_to_dict(summary: PortfolioSummary) -> dict:
 
 
 def calculate_dv01_by_bucket(risk_df: pd.DataFrame) -> pd.DataFrame:
-    """Aggregate market value and DV01 by curve bucket in base currency."""
+    """Aggregate clean value, full value and full-value DV01 by bucket."""
     required = {
         "curve_bucket",
         "base_currency",
-        "market_value_base",
+        "clean_market_value_base",
+        "full_market_value_base",
         "dv01_base",
     }
     missing = required - set(risk_df.columns)
     if missing:
         raise ValueError(
-            "DV01 bucket aggregation requires FX-converted data. "
+            "DV01 bucket aggregation requires FX-converted full-value data. "
             f"Missing columns: {sorted(missing)}"
         )
 
@@ -614,11 +727,14 @@ def calculate_dv01_by_bucket(risk_df: pd.DataFrame) -> pd.DataFrame:
     bucket_df = (
         risk_df.groupby("curve_bucket", as_index=False)
         .agg(
-            market_value_base=("market_value_base", "sum"),
+            clean_market_value_base=("clean_market_value_base", "sum"),
+            full_market_value_base=("full_market_value_base", "sum"),
             dv01_base=("dv01_base", "sum"),
         )
         .sort_values("curve_bucket")
     )
+    bucket_df["market_value_base"] = bucket_df["full_market_value_base"]
+
     total_dv01 = float(bucket_df["dv01_base"].sum())
     bucket_df["pct_total_dv01"] = (
         bucket_df["dv01_base"] / total_dv01
@@ -808,20 +924,30 @@ def generate_fixed_income_commentary(
     bucket_df: pd.DataFrame,
     scenario_df: pd.DataFrame,
 ) -> list[str]:
-    """Generate desk commentary with explicit currency and FX conventions."""
+    """Generate desk commentary with explicit currency and full-value conventions."""
     if bucket_df.empty:
         return ["No DV01 bucket data available."]
 
-    required = {"currency", "base_currency", "fx_to_base"}
+    required = {
+        "currency",
+        "base_currency",
+        "fx_to_base",
+        "clean_market_value_base",
+        "full_market_value_base",
+    }
     missing = required - set(risk_df.columns)
     if missing:
         raise ValueError(
-            "Commentary requires FX-converted risk data. "
+            "Commentary requires FX-converted full-value risk data. "
             f"Missing columns: {sorted(missing)}"
         )
 
     base_currency = str(risk_df["base_currency"].iloc[0])
     currencies = sorted(risk_df["currency"].astype(str).unique())
+    clean_value = float(risk_df["clean_market_value_base"].sum())
+    full_value = float(risk_df["full_market_value_base"].sum())
+    accrued_amount = full_value - clean_value
+
     largest_bucket = bucket_df.loc[bucket_df["dv01_base"].idxmax()]
     largest_bucket_name = largest_bucket["curve_bucket"]
     largest_bucket_pct = float(largest_bucket["pct_total_dv01"])
@@ -835,8 +961,13 @@ def generate_fixed_income_commentary(
 
     comments = [
         (
-            f"Portfolio aggregation is expressed in {base_currency}. Local market values and DV01 "
-            f"for {', '.join(currencies)} are translated using the displayed manual FX-to-base assumptions."
+            f"Portfolio aggregation is expressed in {base_currency}. Local values and DV01 "
+            f"for {', '.join(currencies)} are translated using the displayed FX-to-base assumptions."
+        ),
+        (
+            f"Clean quoted value is {clean_value:,.0f} {base_currency}; full economic value is "
+            f"{full_value:,.0f} {base_currency}, including {accrued_amount:,.0f} of accrued interest. "
+            "DV01 and scenario P&L use full value."
         ),
         (
             f"DV01 is concentrated in the {largest_bucket_name} bucket "
@@ -864,7 +995,7 @@ def generate_fixed_income_commentary(
         "FX translation makes aggregation dimensionally valid but does not model FX risk, cross-currency basis, or hedge execution."
     )
     comments.append(
-        "Scenario P&L uses duration/convexity approximations and is not a full revaluation engine."
+        "Scenario P&L uses full-value duration/convexity approximations and is not a full revaluation engine."
     )
     return comments
 
