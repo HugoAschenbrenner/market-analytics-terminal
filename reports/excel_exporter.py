@@ -334,15 +334,17 @@ def generate_financing_margin_report(
             "Eligible collateral equals adjusted collateral value multiplied by one minus stressed haircut.",
             "Margin deficit equals max(0, cash amount minus eligible collateral).",
             "Margin surplus equals max(0, eligible collateral minus cash amount).",
-            "Securities lending borrow fee is an annualized decimal rate.",
-            "Collateral required equals security market value multiplied by collateralization rate.",
-            "Borrow fee amount equals security market value multiplied by borrow fee rate multiplied by days divided by day-count basis.",
-            "Rebate amount equals collateral required multiplied by rebate rate multiplied by days divided by day-count basis.",
-            "Simplified net lending revenue equals borrow fee amount minus rebate amount.",
-            "Specialness classification is a heuristic based on borrow fee, utilization proxy, and manual special flag.",
-            "This report is a simplified analytics proxy and does not model legal close-out, settlement timing, counterparty default, dividend events, recall risk, or full securities finance economics.",
+            "Securities-lending cash and non-cash collateral paths are mutually exclusive.",
+            "Non-cash collateral uses only the securities loan fee; rebate and cash-reinvestment fields must be zero.",
+            "Non-cash gross lender revenue equals security market value multiplied by fee multiplied by days divided by day-count basis.",
+            "Cash collateral uses reinvestment income less the rebate; the securities loan fee must be zero.",
+            "Cash gross lender revenue equals collateral required multiplied by reinvestment yield less rebate rate multiplied by days divided by day-count basis.",
+            "Agent fee equals the selected share of positive gross lender revenue.",
+            "Beneficial-owner net revenue equals gross lender revenue less agent fee and perspective-specific costs.",
+            "Lending-agent net revenue equals agent fee less perspective-specific costs.",
+            "Specialness classification is an illustrative heuristic, not a live inventory or availability model.",
+            "This report does not model legal close-out, settlement timing, counterparty default, manufactured dividends, recall risk, tax, indemnification, or full reinvestment risk.",
         ]
-
         methodology_df = pd.DataFrame({"Methodology / Assumption": methodology_items})
         methodology_df.to_excel(
             writer,

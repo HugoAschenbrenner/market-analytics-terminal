@@ -60,21 +60,32 @@ def test_financing_margin_excel_report_generates_valid_workbook():
 
     sec_result = calculate_securities_lending_trade(
         security_market_value=5_000_000,
+        collateral_type="Non-cash",
+        perspective="Beneficial owner",
         borrow_fee_rate=0.0125,
-        rebate_rate=0.005,
+        rebate_rate=0.0,
+        reinvestment_yield=0.0,
         collateralization_rate=1.02,
         loan_days=30,
         day_count_basis=360,
         utilization_proxy=0.65,
         is_special=False,
+        agent_fee_share=0.0,
+        other_costs=0.0,
     )
 
     borrow_comparison_df = calculate_borrow_fee_comparison_table(
         security_market_value=5_000_000,
-        rebate_rate=0.005,
+        collateral_type="Non-cash",
+        perspective="Beneficial owner",
+        rebate_rate=0.0,
+        reinvestment_yield=0.0,
         collateralization_rate=1.02,
         loan_days=30,
         day_count_basis=360,
+        agent_fee_share=0.0,
+        other_costs=0.0,
+        utilization_proxy=0.65,
     )
 
     sec_commentary = generate_sec_lending_commentary(sec_result)

@@ -246,10 +246,44 @@ def render() -> None:
     with sec_lending_tab:
         st.subheader("Securities Lending Inputs")
 
+        st.info(
+            "Choose one collateral path. Non-cash economics use a securities "
+            "loan fee. Cash-collateral economics use reinvestment income less "
+            "the rebate. The two revenue conventions are mutually exclusive."
+        )
+
+        setup_1, setup_2 = st.columns(2)
+
+        with setup_1:
+            collateral_type = st.selectbox(
+                "Collateral type",
+                ["Non-cash", "Cash"],
+                index=0,
+                help=(
+                    "Non-cash collateral uses a securities loan fee. "
+                    "Cash collateral uses reinvestment yield less rebate."
+                ),
+            )
+
+        with setup_2:
+            perspective = st.selectbox(
+                "Revenue perspective",
+                ["Beneficial owner", "Lending agent"],
+                index=0,
+                help=(
+                    "Beneficial owner receives gross lending revenue less "
+                    "the lending-agent share and entered costs. The lending "
+                    "agent receives its fee share less entered costs."
+                ),
+            )
+
         c1, c2, c3 = st.columns(3)
 
         with c1:
-            sec_currency = st.selectbox("Securities lending currency", ["EUR", "USD", "GBP", "CHF"])
+            sec_currency = st.selectbox(
+                "Securities lending currency",
+                ["EUR", "USD", "GBP", "CHF"],
+            )
             security_market_value = st.number_input(
                 "Security market value",
                 min_value=1_000.0,
@@ -266,18 +300,40 @@ def render() -> None:
 
         with c2:
             borrow_fee_pct = st.number_input(
-                "Borrow fee rate (%)",
+                "Non-cash borrow fee rate (%)",
                 min_value=0.0,
                 max_value=50.0,
                 value=1.25,
                 step=0.10,
+                disabled=collateral_type == "Cash",
+                help=(
+                    "Used only for non-cash collateral. It is excluded "
+                    "from the cash-collateral revenue path."
+                ),
             )
             rebate_rate_pct = st.number_input(
-                "Rebate rate (%)",
+                "Cash rebate rate (%)",
                 min_value=-10.0,
                 max_value=20.0,
                 value=0.50,
                 step=0.10,
+                disabled=collateral_type == "Non-cash",
+                help=(
+                    "Used only for cash collateral. It is the annualized "
+                    "rate credited on cash collateral."
+                ),
+            )
+            reinvestment_yield_pct = st.number_input(
+                "Cash reinvestment yield (%)",
+                min_value=-10.0,
+                max_value=30.0,
+                value=4.00,
+                step=0.10,
+                disabled=collateral_type == "Non-cash",
+                help=(
+                    "Used only for cash collateral. Gross cash revenue is "
+                    "reinvestment income less the rebate."
+                ),
             )
 
         with c3:
@@ -288,7 +344,11 @@ def render() -> None:
                 value=30,
                 step=1,
             )
-            sec_day_count_basis = st.selectbox("Securities lending day-count basis", [360, 365], index=0)
+            sec_day_count_basis = st.selectbox(
+                "Securities lending day-count basis",
+                [360, 365],
+                index=0,
+            )
             utilization_pct = st.number_input(
                 "Utilization proxy (%)",
                 min_value=0.0,
@@ -296,61 +356,196 @@ def render() -> None:
                 value=65.0,
                 step=1.0,
             )
-            is_special = st.checkbox("Flag as special / hard-to-borrow", value=False)
+            is_special = st.checkbox(
+                "Flag as special / hard-to-borrow",
+                value=False,
+            )
 
-        sec_result = calculate_securities_lending_trade(
-            security_market_value=security_market_value,
-            borrow_fee_rate=borrow_fee_pct / 100.0,
-            rebate_rate=rebate_rate_pct / 100.0,
-            collateralization_rate=collateralization_pct / 100.0,
-            loan_days=int(loan_days),
-            day_count_basis=int(sec_day_count_basis),
-            utilization_proxy=utilization_pct / 100.0,
-            is_special=is_special,
+        fee_1, fee_2 = st.columns(2)
+
+        with fee_1:
+            agent_fee_share_pct = st.number_input(
+                "Lending-agent share of positive gross revenue (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=0.0,
+                step=1.0,
+            )
+
+        with fee_2:
+            other_costs = st.number_input(
+                "Other perspective-specific costs",
+                min_value=0.0,
+                value=0.0,
+                step=100.0,
+            )
+
+        effective_borrow_fee_rate = (
+            borrow_fee_pct / 100.0
+            if collateral_type == "Non-cash"
+            else 0.0
         )
+        effective_rebate_rate = (
+            rebate_rate_pct / 100.0
+            if collateral_type == "Cash"
+            else 0.0
+        )
+        effective_reinvestment_yield = (
+            reinvestment_yield_pct / 100.0
+            if collateral_type == "Cash"
+            else 0.0
+        )
+
+        try:
+            sec_result = calculate_securities_lending_trade(
+                security_market_value=security_market_value,
+                collateral_type=collateral_type,
+                perspective=perspective,
+                borrow_fee_rate=effective_borrow_fee_rate,
+                rebate_rate=effective_rebate_rate,
+                reinvestment_yield=effective_reinvestment_yield,
+                collateralization_rate=collateralization_pct / 100.0,
+                loan_days=int(loan_days),
+                day_count_basis=int(sec_day_count_basis),
+                utilization_proxy=utilization_pct / 100.0,
+                is_special=is_special,
+                agent_fee_share=agent_fee_share_pct / 100.0,
+                other_costs=float(other_costs),
+            )
+        except ValueError as exc:
+            st.error(f"Securities-lending input error: {exc}")
+            return
 
         sec_result_dict = sec_lending_result_to_dict(sec_result)
         sec_commentary = generate_sec_lending_commentary(sec_result)
 
-        st.subheader("Securities Lending Summary")
+        st.subheader("Securities Lending Economics")
 
-        s1, s2, s3, s4, s5 = st.columns(5)
+        s1, s2, s3, s4, s5, s6 = st.columns(6)
 
-        s1.metric("Collateral Required", _format_currency(sec_result.collateral_required, sec_currency))
-        s2.metric("Borrow Fee Amount", _format_currency(sec_result.borrow_fee_amount, sec_currency))
-        s3.metric("Rebate Amount", _format_currency(sec_result.rebate_amount, sec_currency))
-        s4.metric("Net Revenue", _format_currency(sec_result.net_lending_revenue, sec_currency))
-        s5.metric("Specialness", sec_result.specialness_label)
+        s1.metric(
+            "Collateral Required",
+            _format_currency(
+                sec_result.collateral_required,
+                sec_currency,
+            ),
+        )
+
+        if collateral_type == "Non-cash":
+            s2.metric(
+                "Non-cash Fee Income",
+                _format_currency(
+                    sec_result.borrow_fee_amount,
+                    sec_currency,
+                ),
+            )
+            s3.metric(
+                "Agent Fee",
+                _format_currency(
+                    sec_result.agent_fee_amount,
+                    sec_currency,
+                ),
+            )
+            s4.metric(
+                "Other Costs",
+                _format_currency(
+                    sec_result.other_costs,
+                    sec_currency,
+                ),
+            )
+        else:
+            s2.metric(
+                "Reinvestment Income",
+                _format_currency(
+                    sec_result.reinvestment_income,
+                    sec_currency,
+                ),
+            )
+            s3.metric(
+                "Rebate Paid",
+                _format_currency(
+                    sec_result.rebate_amount,
+                    sec_currency,
+                ),
+            )
+            s4.metric(
+                "Gross Cash Spread Revenue",
+                _format_currency(
+                    sec_result.gross_lending_revenue,
+                    sec_currency,
+                ),
+            )
+
+        s5.metric(
+            f"Net Revenue — {perspective}",
+            _format_currency(
+                sec_result.net_lending_revenue,
+                sec_currency,
+            ),
+        )
+        s6.metric(
+            "Specialness Heuristic",
+            sec_result.specialness_label,
+        )
+
+        st.caption(sec_result.revenue_convention)
 
         with st.container(border=True):
             for comment in sec_commentary:
                 st.markdown(f"- {comment}")
 
-        st.subheader("Normal vs Special Borrow Comparison")
+        st.subheader("Collateral Economics Comparison")
 
         comparison_df = calculate_borrow_fee_comparison_table(
             security_market_value=security_market_value,
-            rebate_rate=rebate_rate_pct / 100.0,
+            collateral_type=collateral_type,
+            perspective=perspective,
+            rebate_rate=effective_rebate_rate,
+            reinvestment_yield=effective_reinvestment_yield,
             collateralization_rate=collateralization_pct / 100.0,
             loan_days=int(loan_days),
             day_count_basis=int(sec_day_count_basis),
+            agent_fee_share=agent_fee_share_pct / 100.0,
+            other_costs=float(other_costs),
+            utilization_proxy=utilization_pct / 100.0,
         )
 
+        comparison_columns = [
+            "scenario",
+            "collateral_type",
+            "perspective",
+            "borrow_fee_rate",
+            "rebate_rate",
+            "reinvestment_yield",
+            "borrow_fee_amount",
+            "reinvestment_income",
+            "rebate_amount",
+            "gross_lending_revenue",
+            "agent_fee_amount",
+            "other_costs",
+            "net_lending_revenue",
+            "specialness_label",
+        ]
+
         st.dataframe(
-            comparison_df.style.format(
+            comparison_df[
+                comparison_columns
+            ].style.format(
                 {
                     "borrow_fee_rate": "{:.2%}",
                     "rebate_rate": "{:.2%}",
-                    "utilization_proxy": "{:.2%}",
-                    "collateral_required": "{:,.0f}",
+                    "reinvestment_yield": "{:.2%}",
                     "borrow_fee_amount": "{:,.0f}",
+                    "reinvestment_income": "{:,.0f}",
                     "rebate_amount": "{:,.0f}",
+                    "gross_lending_revenue": "{:,.0f}",
+                    "agent_fee_amount": "{:,.0f}",
+                    "other_costs": "{:,.0f}",
                     "net_lending_revenue": "{:,.0f}",
                 }
             ),
             use_container_width=True,
         )
-
 
         st.subheader("Financing & Margin Excel Report")
 
@@ -361,7 +556,9 @@ def render() -> None:
             margin_stress_df=margin_stress_df,
             repo_commentary=commentary,
             sec_lending_summary=sec_result_dict,
-            borrow_comparison_df=comparison_df,
+            borrow_comparison_df=comparison_df[
+                comparison_columns
+            ],
             sec_lending_commentary=sec_commentary,
         )
 
@@ -369,20 +566,25 @@ def render() -> None:
             label="Download Financing & Margin Report",
             data=financing_report_bytes,
             file_name="financing_margin_report.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            mime=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
         )
 
         st.subheader("Securities Lending Methodology Notes")
-
         st.markdown(
             """
-            - Borrow fee is an annualized fee charged for borrowing the security.
-            - Rebate is the rate paid on collateral in this simplified framework.
-            - Collateral required = security market value x collateralization rate.
-            - Borrow fee amount = security market value x borrow fee x days / day-count basis.
-            - Rebate amount = collateral required x rebate rate x days / day-count basis.
-            - Simplified net lending revenue = borrow fee amount - rebate amount.
-            - Specialness classification is based on borrow fee, utilization proxy, and manual special flag.
-            - This module does not model recall risk, manufactured dividends, settlement, counterparty risk, or full securities finance economics.
+            - **Collateral paths are mutually exclusive.**
+            - **Non-cash collateral:** gross lender revenue equals security market value × borrow fee × days / day-count basis.
+            - **Cash collateral:** gross lender revenue equals collateral required × (reinvestment yield − rebate rate) × days / day-count basis.
+            - Agent fee equals the selected share of positive gross lender revenue.
+            - Beneficial-owner net revenue equals gross lender revenue less agent fee and entered costs.
+            - Lending-agent net revenue equals agent fee less entered costs.
+            - Collateral required equals security market value × collateralization rate.
+            - Rebate and reinvestment yield are never applied to the non-cash path.
+            - Borrow fee is never applied to the cash-collateral path.
+            - Specialness is an illustrative heuristic based on fee, utilization proxy, and the manual flag; it is not calibrated to live inventory.
+            - This proxy excludes recall risk, manufactured dividends, settlement, counterparty default, tax, indemnification, and full reinvestment-risk modelling.
             """
         )
