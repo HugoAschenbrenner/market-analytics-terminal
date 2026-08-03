@@ -7,6 +7,7 @@ import streamlit as st
 from app_pages.common import render_module_header
 from reports.excel_exporter import generate_portfolio_risk_report
 from engines.portfolio_risk_engine import (
+    analyze_price_frequency,
     build_sample_price_data,
     calculate_asset_returns,
     calculate_correlation_matrix,
@@ -16,7 +17,9 @@ from engines.portfolio_risk_engine import (
     calculate_risk_contribution,
     calculate_stress_scenario_table,
     generate_portfolio_risk_commentary,
+    period_label_from_frequency,
     portfolio_risk_summary_to_dict,
+    resolve_periods_per_year,
     summarize_portfolio_risk,
 )
 
@@ -57,8 +60,134 @@ def render() -> None:
     with st.expander("Raw price data", expanded=False):
         st.dataframe(price_df.tail(20), use_container_width=True)
 
-    returns_df = calculate_asset_returns(price_df)
+    try:
+        frequency_analysis = analyze_price_frequency(
+            price_df
+        )
+        returns_df = calculate_asset_returns(
+            price_df
+        )
+    except ValueError as exc:
+        st.error(
+            f"Price-data validation failed: {exc}"
+        )
+        return
+
     assets = list(returns_df.columns)
+
+    st.subheader("Frequency & Data Quality Contract")
+
+    with st.container(border=True):
+        f1, f2, f3, f4 = st.columns(4)
+
+        f1.metric(
+            "Detected Frequency",
+            frequency_analysis.inferred_frequency,
+        )
+        f2.metric(
+            "Detected Periods / Year",
+            str(
+                frequency_analysis
+                .inferred_periods_per_year
+            ),
+        )
+        f3.metric(
+            "Median Date Spacing",
+            (
+                f"{frequency_analysis.median_spacing_days:.1f}d"
+            ),
+        )
+        f4.metric(
+            "Data Quality",
+            frequency_analysis.data_quality_status,
+        )
+
+        frequency_mode = st.selectbox(
+            "Annualization frequency",
+            [
+                "Auto-detect",
+                "Daily",
+                "Weekly",
+                "Monthly",
+                "Quarterly",
+                "Annual",
+                "Custom",
+            ],
+            index=0,
+            help=(
+                "Auto-detect uses median calendar spacing. "
+                "Override it when the intended economic sampling "
+                "frequency differs from the raw dates."
+            ),
+        )
+
+        custom_periods_per_year = None
+
+        if frequency_mode == "Custom":
+            custom_periods_per_year = st.number_input(
+                "Custom periods per year",
+                min_value=1,
+                max_value=1000,
+                value=252,
+                step=1,
+            )
+
+        periods_per_year = resolve_periods_per_year(
+            frequency_mode=frequency_mode,
+            inferred_periods_per_year=(
+                frequency_analysis
+                .inferred_periods_per_year
+            ),
+            custom_periods_per_year=(
+                int(custom_periods_per_year)
+                if custom_periods_per_year is not None
+                else None
+            ),
+        )
+
+        if frequency_mode == "Auto-detect":
+            selected_frequency_label = (
+                frequency_analysis.inferred_frequency
+            )
+        elif frequency_mode == "Custom":
+            selected_frequency_label = "Custom"
+        else:
+            selected_frequency_label = frequency_mode
+
+        maximum_horizon = max(
+            1,
+            min(
+                60,
+                max(1, len(returns_df) // 5),
+            ),
+        )
+
+        var_horizon_periods = st.number_input(
+            "Historical VaR / CVaR horizon (periods)",
+            min_value=1,
+            max_value=maximum_horizon,
+            value=1,
+            step=1,
+            help=(
+                "VaR and CVaR use overlapping compounded "
+                "historical returns over this number of periods."
+            ),
+        )
+
+        horizon_unit = period_label_from_frequency(
+            selected_frequency_label,
+            int(var_horizon_periods),
+        )
+
+        st.caption(
+            f"Selected contract: {periods_per_year} periods/year; "
+            f"VaR/CVaR horizon: {int(var_horizon_periods)} "
+            f"{horizon_unit}. Arithmetic annualized return and "
+            "geometric CAGR are reported separately."
+        )
+
+        for warning in frequency_analysis.warnings:
+            st.warning(warning)
 
     st.subheader("Portfolio Weights")
 
@@ -104,9 +233,43 @@ def render() -> None:
         returns_df=returns_df,
         weights=weights,
         risk_free_rate=risk_free_rate_pct / 100.0,
+        periods_per_year=int(periods_per_year),
+        var_horizon_periods=int(
+            var_horizon_periods
+        ),
+        frequency_label=selected_frequency_label,
     )
 
-    summary_dict = portfolio_risk_summary_to_dict(summary)
+    summary_dict = portfolio_risk_summary_to_dict(
+        summary
+    )
+
+    summary_dict.update(
+        {
+            "detected_frequency": (
+                frequency_analysis.inferred_frequency
+            ),
+            "detected_periods_per_year": (
+                frequency_analysis
+                .inferred_periods_per_year
+            ),
+            "median_spacing_days": (
+                frequency_analysis
+                .median_spacing_days
+            ),
+            "maximum_gap_days": (
+                frequency_analysis
+                .maximum_gap_days
+            ),
+            "data_quality_status": (
+                frequency_analysis
+                .data_quality_status
+            ),
+            "data_quality_warnings": " | ".join(
+                frequency_analysis.warnings
+            ),
+        }
+    )
     risk_contribution_df = calculate_risk_contribution(returns_df, weights)
     stress_df = calculate_stress_scenario_table(weights)
     correlation_matrix = calculate_correlation_matrix(returns_df)
@@ -118,21 +281,73 @@ def render() -> None:
 
     st.subheader("Portfolio Risk Summary")
 
-    c1, c2, c3, c4, c5 = st.columns(5)
+    horizon_label = period_label_from_frequency(
+        summary.frequency_label,
+        summary.var_horizon_periods,
+    )
 
-    c1.metric("Ann. Return", _format_percent(summary.annualized_return))
-    c2.metric("Ann. Volatility", _format_percent(summary.annualized_volatility))
-    c3.metric("Sharpe", _format_number(summary.sharpe_ratio))
-    c4.metric("Max Drawdown", _format_percent(summary.max_drawdown))
-    c5.metric("Hist. VaR 95%", _format_percent(summary.historical_var_95))
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
 
-    c6, c7, c8, c9, c10 = st.columns(5)
+    c1.metric(
+        "Arithmetic Ann. Return",
+        _format_percent(summary.annualized_return),
+    )
+    c2.metric(
+        "Geometric CAGR",
+        _format_percent(summary.cagr),
+    )
+    c3.metric(
+        "Ann. Volatility",
+        _format_percent(summary.annualized_volatility),
+    )
+    c4.metric(
+        "Arithmetic Sharpe",
+        _format_number(summary.sharpe_ratio),
+    )
+    c5.metric(
+        "Max Drawdown",
+        _format_percent(summary.max_drawdown),
+    )
+    c6.metric(
+        (
+            f"Hist. VaR 95% "
+            f"({summary.var_horizon_periods} {horizon_label})"
+        ),
+        _format_percent(summary.historical_var_95),
+    )
 
-    c6.metric("Hist. CVaR 95%", _format_percent(summary.historical_cvar_95))
-    c7.metric("Best Period", _format_percent(summary.best_period_return))
-    c8.metric("Worst Period", _format_percent(summary.worst_period_return))
-    c9.metric("Assets", str(summary.number_of_assets))
-    c10.metric("Observations", str(summary.number_of_observations))
+    c7, c8, c9, c10, c11, c12 = st.columns(6)
+
+    c7.metric(
+        (
+            f"Hist. CVaR 95% "
+            f"({summary.var_horizon_periods} {horizon_label})"
+        ),
+        _format_percent(summary.historical_cvar_95),
+    )
+    c8.metric(
+        "Best 1-Period Return",
+        _format_percent(summary.best_period_return),
+    )
+    c9.metric(
+        "Worst 1-Period Return",
+        _format_percent(summary.worst_period_return),
+    )
+    c10.metric(
+        "Assets",
+        str(summary.number_of_assets),
+    )
+    c11.metric(
+        "Observations",
+        str(summary.number_of_observations),
+    )
+    c12.metric(
+        "Frequency",
+        (
+            f"{summary.frequency_label} "
+            f"({summary.periods_per_year}/y)"
+        ),
+    )
 
     st.subheader("Desk Commentary")
 
@@ -391,17 +606,20 @@ def render() -> None:
 
 
     st.subheader("Methodology Notes")
-
     st.markdown(
-        """
-        - Portfolio return is calculated as the weighted sum of asset returns.
+        f"""
+        - Portfolio return is the weighted sum of simple asset returns.
         - Weights are normalized if they do not sum exactly to 100%.
-        - Annualized return uses arithmetic average return multiplied by 252.
-        - Annualized volatility uses standard deviation multiplied by sqrt(252).
-        - Sharpe ratio uses the user-defined risk-free rate.
-        - Historical VaR and CVaR are reported as positive loss numbers.
-        - Risk contribution uses covariance-based contribution to portfolio volatility.
-        - Stress scenarios are predefined simplified shocks based on generic asset labels.
-        - This module does not model liquidity, transaction costs, factor exposure, or live risk.
+        - Dates must be valid and unique; asset prices must be numeric, complete, and strictly positive.
+        - Frequency is inferred from median calendar spacing and may be overridden by the user.
+        - Arithmetic annualized return uses the mean periodic return multiplied by **{periods_per_year}** periods per year.
+        - Geometric CAGR is calculated from compounded wealth over the observed sample.
+        - Annualized volatility uses periodic standard deviation multiplied by the square root of **{periods_per_year}**.
+        - The displayed Sharpe ratio uses arithmetic annualized return and the user-defined annual risk-free rate.
+        - Historical VaR and CVaR use overlapping compounded returns over **{int(var_horizon_periods)} {horizon_unit}**.
+        - VaR and CVaR are reported as positive loss numbers.
+        - Risk contribution uses an annualized covariance matrix under the same frequency convention.
+        - Stress scenarios are simplified predefined shocks based on generic asset labels.
+        - This module does not model liquidity, transaction costs, factor exposures, non-synchronous prices, or intraday risk.
         """
     )

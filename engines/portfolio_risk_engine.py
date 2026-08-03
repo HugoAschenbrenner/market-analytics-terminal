@@ -6,11 +6,11 @@ This module implements transparent portfolio risk analytics.
 Financial conventions:
 - Price data is converted into simple returns.
 - Portfolio return = weighted sum of asset returns.
-- Annualized return = average periodic return x periods per year.
+- Arithmetic annualized return = average periodic return x explicitly selected periods per year.
 - Annualized volatility = periodic volatility x sqrt(periods per year).
 - Sharpe ratio = (annualized return - risk-free rate) / annualized volatility.
-- Historical VaR is reported as a positive loss number.
-- Historical CVaR is the average loss beyond VaR.
+- Historical VaR is reported as a positive loss number at an explicitly selected horizon.
+- Historical CVaR is the average loss beyond VaR over the same selected horizon.
 - Risk contribution uses covariance-based volatility contribution.
 
 Important limitation:
@@ -29,17 +29,37 @@ import pandas as pd
 
 
 @dataclass(frozen=True)
+class FrequencyAnalysis:
+    """Observed date-frequency and data-quality diagnostics."""
+
+    inferred_frequency: str
+    inferred_periods_per_year: int
+    observation_count: int
+    median_spacing_days: float
+    maximum_gap_days: float
+    irregularity_ratio: float
+    calendar_span_years: float
+    data_quality_status: str
+    warnings: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class PortfolioRiskSummary:
-    """Portfolio risk summary."""
+    """Portfolio risk summary with explicit frequency and horizon."""
 
     number_of_assets: int
     number_of_observations: int
+    periods_per_year: int
+    frequency_label: str
+    sample_years: float
     annualized_return: float
+    cagr: float
     annualized_volatility: float
     sharpe_ratio: float
     max_drawdown: float
     historical_var_95: float
     historical_cvar_95: float
+    var_horizon_periods: int
     best_period_return: float
     worst_period_return: float
 
@@ -105,28 +125,325 @@ def load_price_data(path: str) -> pd.DataFrame:
     return df
 
 
-def prepare_price_data(price_df: pd.DataFrame) -> pd.DataFrame:
-    """Prepare price data with date index and numeric asset columns."""
-
+def _parse_and_validate_dates(
+    price_df: pd.DataFrame,
+) -> pd.Series:
+    """Parse dates and reject invalid or duplicated observations."""
     if "date" not in price_df.columns:
-        raise ValueError("Price data must include a 'date' column.")
+        raise ValueError(
+            "Price data must include a 'date' column."
+        )
 
-    df = price_df.copy()
-    df["date"] = pd.to_datetime(df["date"])
-    df = df.sort_values("date").set_index("date")
+    parsed_dates = pd.to_datetime(
+        price_df["date"],
+        errors="coerce",
+    )
 
-    for column in df.columns:
-        df[column] = pd.to_numeric(df[column], errors="coerce")
+    invalid_count = int(parsed_dates.isna().sum())
 
-    df = df.dropna(axis=0, how="any")
+    if invalid_count:
+        raise ValueError(
+            f"Price data contains {invalid_count} invalid date value(s)."
+        )
 
-    if df.empty:
-        raise ValueError("Price data is empty after cleaning.")
+    duplicate_count = int(
+        parsed_dates.duplicated(keep=False).sum()
+    )
 
-    if len(df.columns) < 2:
-        raise ValueError("At least two asset columns are required.")
+    if duplicate_count:
+        raise ValueError(
+            "Price data contains duplicated dates. "
+            "Each observation date must be unique."
+        )
 
-    return df
+    return parsed_dates
+
+
+def _classify_frequency(
+    median_spacing_days: float,
+) -> tuple[str, int, float, float, float]:
+    """
+    Map median calendar spacing to a market-frequency convention.
+
+    Returns:
+    frequency label, periods per year, regular lower bound,
+    regular upper bound and material-gap threshold.
+    """
+    if median_spacing_days <= 3.0:
+        return "Daily", 252, 0.5, 4.0, 10.0
+
+    if median_spacing_days <= 10.0:
+        return "Weekly", 52, 4.0, 10.0, 21.0
+
+    if median_spacing_days <= 45.0:
+        return "Monthly", 12, 20.0, 40.0, 65.0
+
+    if median_spacing_days <= 120.0:
+        return "Quarterly", 4, 70.0, 110.0, 180.0
+
+    return "Annual", 1, 300.0, 430.0, 550.0
+
+
+def analyze_price_frequency(
+    price_df: pd.DataFrame,
+) -> FrequencyAnalysis:
+    """
+    Infer observation frequency and diagnose date regularity.
+
+    Frequency is inferred from median calendar-day spacing.
+    The result is an explicit analytics convention, not an
+    exchange-calendar reconstruction.
+    """
+    parsed_dates = _parse_and_validate_dates(
+        price_df
+    )
+
+    sorted_dates = (
+        parsed_dates
+        .sort_values()
+        .reset_index(drop=True)
+    )
+
+    if len(sorted_dates) < 3:
+        raise ValueError(
+            "At least three dated price observations are required."
+        )
+
+    spacing_days = (
+        sorted_dates
+        .diff()
+        .dropna()
+        .dt.total_seconds()
+        .div(86400.0)
+    )
+
+    if (spacing_days <= 0).any():
+        raise ValueError(
+            "Price observation dates must be strictly increasing."
+        )
+
+    median_spacing_days = float(
+        spacing_days.median()
+    )
+
+    (
+        frequency_label,
+        periods_per_year,
+        regular_lower,
+        regular_upper,
+        material_gap_threshold,
+    ) = _classify_frequency(
+        median_spacing_days
+    )
+
+    regular_mask = spacing_days.between(
+        regular_lower,
+        regular_upper,
+        inclusive="both",
+    )
+
+    irregularity_ratio = float(
+        1.0 - regular_mask.mean()
+    )
+
+    maximum_gap_days = float(
+        spacing_days.max()
+    )
+
+    calendar_span_years = float(
+        (
+            sorted_dates.iloc[-1]
+            - sorted_dates.iloc[0]
+        ).days
+        / 365.25
+    )
+
+    warnings: list[str] = []
+
+    if len(sorted_dates) < 20:
+        warnings.append(
+            "The dataset contains fewer than 20 price observations; "
+            "risk estimates may be unstable."
+        )
+
+    if irregularity_ratio > 0.20:
+        warnings.append(
+            f"{irregularity_ratio:.0%} of date intervals are "
+            f"inconsistent with the inferred {frequency_label.lower()} "
+            "frequency."
+        )
+
+    if maximum_gap_days > material_gap_threshold:
+        warnings.append(
+            f"Maximum date gap is {maximum_gap_days:.1f} days, "
+            "which may indicate missing observations."
+        )
+
+    return FrequencyAnalysis(
+        inferred_frequency=frequency_label,
+        inferred_periods_per_year=periods_per_year,
+        observation_count=len(sorted_dates),
+        median_spacing_days=median_spacing_days,
+        maximum_gap_days=maximum_gap_days,
+        irregularity_ratio=irregularity_ratio,
+        calendar_span_years=calendar_span_years,
+        data_quality_status=(
+            "Review" if warnings else "OK"
+        ),
+        warnings=tuple(warnings),
+    )
+
+
+def resolve_periods_per_year(
+    frequency_mode: str,
+    inferred_periods_per_year: int,
+    custom_periods_per_year: int | None = None,
+) -> int:
+    """Resolve the user-selected annualization factor."""
+    mapping = {
+        "Daily": 252,
+        "Weekly": 52,
+        "Monthly": 12,
+        "Quarterly": 4,
+        "Annual": 1,
+    }
+
+    if frequency_mode == "Auto-detect":
+        resolved = int(inferred_periods_per_year)
+    elif frequency_mode == "Custom":
+        if custom_periods_per_year is None:
+            raise ValueError(
+                "Custom periods per year must be supplied."
+            )
+        resolved = int(custom_periods_per_year)
+    elif frequency_mode in mapping:
+        resolved = mapping[frequency_mode]
+    else:
+        raise ValueError(
+            f"Unsupported frequency mode: {frequency_mode}"
+        )
+
+    if resolved <= 0:
+        raise ValueError(
+            "Periods per year must be strictly positive."
+        )
+
+    return resolved
+
+
+def frequency_label_from_periods(
+    periods_per_year: int,
+) -> str:
+    """Map an annualization factor to a readable label."""
+    mapping = {
+        252: "Daily",
+        52: "Weekly",
+        12: "Monthly",
+        4: "Quarterly",
+        1: "Annual",
+    }
+
+    return mapping.get(
+        int(periods_per_year),
+        "Custom",
+    )
+
+
+def period_label_from_frequency(
+    frequency_label: str,
+    period_count: int = 1,
+) -> str:
+    """Return day/week/month-style wording for VaR horizon."""
+    singular_mapping = {
+        "Daily": "day",
+        "Weekly": "week",
+        "Monthly": "month",
+        "Quarterly": "quarter",
+        "Annual": "year",
+        "Custom": "period",
+    }
+
+    singular = singular_mapping.get(
+        frequency_label,
+        "period",
+    )
+
+    if int(period_count) == 1:
+        return singular
+
+    if singular == "day":
+        return "days"
+
+    return singular + "s"
+
+
+def prepare_price_data(
+    price_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Prepare strictly validated price data.
+
+    Dates must be valid and unique. Asset values must be numeric,
+    complete and strictly positive.
+    """
+    parsed_dates = _parse_and_validate_dates(
+        price_df
+    )
+
+    asset_columns = [
+        column
+        for column in price_df.columns
+        if column != "date"
+    ]
+
+    if len(asset_columns) < 2:
+        raise ValueError(
+            "At least two asset columns are required."
+        )
+
+    numeric_assets = (
+        price_df[asset_columns]
+        .apply(
+            pd.to_numeric,
+            errors="coerce",
+        )
+    )
+
+    missing_rows = int(
+        numeric_assets.isna().any(axis=1).sum()
+    )
+
+    if missing_rows:
+        raise ValueError(
+            f"Price data contains {missing_rows} row(s) "
+            "with missing or non-numeric asset prices."
+        )
+
+    non_positive_count = int(
+        (numeric_assets <= 0).sum().sum()
+    )
+
+    if non_positive_count:
+        raise ValueError(
+            "Asset prices must be strictly positive. "
+            f"Found {non_positive_count} non-positive value(s)."
+        )
+
+    prepared = numeric_assets.copy()
+    prepared.insert(0, "date", parsed_dates)
+
+    prepared = (
+        prepared
+        .sort_values("date")
+        .set_index("date")
+    )
+
+    if prepared.empty:
+        raise ValueError(
+            "Price data is empty after preparation."
+        )
+
+    return prepared
 
 
 def calculate_asset_returns(price_df: pd.DataFrame) -> pd.DataFrame:
@@ -202,42 +519,183 @@ def calculate_drawdown_series(portfolio_returns: pd.Series) -> pd.Series:
     return drawdown
 
 
+def calculate_horizon_return_series(
+    portfolio_returns: pd.Series,
+    horizon_periods: int = 1,
+) -> pd.Series:
+    """
+    Calculate overlapping compounded returns for a risk horizon.
+
+    A horizon of one returns the original periodic return series.
+    A horizon above one uses overlapping historical windows.
+    """
+    horizon = int(horizon_periods)
+
+    if horizon <= 0:
+        raise ValueError(
+            "Risk horizon must be at least one period."
+        )
+
+    clean_returns = (
+        portfolio_returns
+        .astype(float)
+        .dropna()
+    )
+
+    if len(clean_returns) < horizon:
+        raise ValueError(
+            "Not enough return observations for the selected "
+            "VaR/CVaR horizon."
+        )
+
+    if horizon == 1:
+        result = clean_returns.copy()
+    else:
+        result = (
+            (1.0 + clean_returns)
+            .rolling(horizon)
+            .apply(np.prod, raw=True)
+            .dropna()
+            - 1.0
+        )
+
+    result.name = (
+        f"portfolio_return_{horizon}_period"
+    )
+
+    return result
+
+
 def calculate_historical_var(
     portfolio_returns: pd.Series,
     confidence_level: float = 0.95,
+    horizon_periods: int = 1,
 ) -> float:
-    """Calculate historical VaR as a positive loss number."""
+    """
+    Calculate historical VaR as a positive loss number.
 
+    Returns are compounded over the selected horizon using
+    overlapping historical windows.
+    """
     if not 0 < confidence_level < 1:
-        raise ValueError("Confidence level must be between 0 and 1.")
+        raise ValueError(
+            "Confidence level must be between 0 and 1."
+        )
 
-    quantile = portfolio_returns.quantile(1.0 - confidence_level)
+    horizon_returns = (
+        calculate_horizon_return_series(
+            portfolio_returns,
+            horizon_periods=horizon_periods,
+        )
+    )
 
-    return float(max(0.0, -quantile))
+    quantile = horizon_returns.quantile(
+        1.0 - confidence_level
+    )
+
+    return float(
+        max(0.0, -quantile)
+    )
 
 
 def calculate_historical_cvar(
     portfolio_returns: pd.Series,
     confidence_level: float = 0.95,
+    horizon_periods: int = 1,
 ) -> float:
-    """Calculate historical CVaR as a positive loss number."""
+    """
+    Calculate historical CVaR over the selected risk horizon.
 
-    var = calculate_historical_var(portfolio_returns, confidence_level)
-    tail_returns = portfolio_returns[portfolio_returns <= -var]
+    CVaR is the average loss in the historical tail beyond VaR.
+    """
+    horizon_returns = (
+        calculate_horizon_return_series(
+            portfolio_returns,
+            horizon_periods=horizon_periods,
+        )
+    )
+
+    var = calculate_historical_var(
+        horizon_returns,
+        confidence_level=confidence_level,
+        horizon_periods=1,
+    )
+
+    tail_returns = horizon_returns[
+        horizon_returns <= -var
+    ]
 
     if tail_returns.empty:
         return float(var)
 
-    return float(max(0.0, -tail_returns.mean()))
+    return float(
+        max(0.0, -tail_returns.mean())
+    )
 
 
 def calculate_annualized_return(
     portfolio_returns: pd.Series,
     periods_per_year: int = 252,
 ) -> float:
-    """Calculate arithmetic annualized return."""
+    """
+    Calculate arithmetic annualized return.
 
-    return float(portfolio_returns.mean() * periods_per_year)
+    This is mean periodic return multiplied by periods per year.
+    It is not the geometric compounded annual growth rate.
+    """
+    if int(periods_per_year) <= 0:
+        raise ValueError(
+            "Periods per year must be strictly positive."
+        )
+
+    return float(
+        portfolio_returns.mean()
+        * int(periods_per_year)
+    )
+
+
+def calculate_cagr(
+    portfolio_returns: pd.Series,
+    periods_per_year: int = 252,
+) -> float:
+    """Calculate geometric compounded annual growth rate."""
+    periods = int(portfolio_returns.count())
+    annualization_factor = int(periods_per_year)
+
+    if annualization_factor <= 0:
+        raise ValueError(
+            "Periods per year must be strictly positive."
+        )
+
+    if periods <= 0:
+        raise ValueError(
+            "At least one return observation is required."
+        )
+
+    ending_wealth = float(
+        np.prod(
+            1.0
+            + portfolio_returns.astype(float)
+        )
+    )
+
+    if ending_wealth < 0:
+        raise ValueError(
+            "CAGR is undefined when compounded wealth is negative."
+        )
+
+    if ending_wealth == 0:
+        return -1.0
+
+    sample_years = (
+        periods
+        / annualization_factor
+    )
+
+    return float(
+        ending_wealth ** (1.0 / sample_years)
+        - 1.0
+    )
 
 
 def calculate_annualized_volatility(
@@ -268,19 +726,56 @@ def summarize_portfolio_risk(
     risk_free_rate: float = 0.0,
     periods_per_year: int = 252,
     confidence_level: float = 0.95,
+    var_horizon_periods: int = 1,
+    frequency_label: str | None = None,
 ) -> PortfolioRiskSummary:
-    """Summarize portfolio risk metrics."""
-
-    portfolio_returns = calculate_portfolio_returns(returns_df, weights)
-
-    annualized_return = calculate_annualized_return(
-        portfolio_returns=portfolio_returns,
-        periods_per_year=periods_per_year,
+    """Summarize portfolio risk under explicit frequency assumptions."""
+    annualization_factor = int(
+        periods_per_year
+    )
+    risk_horizon = int(
+        var_horizon_periods
     )
 
-    annualized_volatility = calculate_annualized_volatility(
+    if annualization_factor <= 0:
+        raise ValueError(
+            "Periods per year must be strictly positive."
+        )
+
+    if risk_horizon <= 0:
+        raise ValueError(
+            "VaR/CVaR horizon must be at least one period."
+        )
+
+    resolved_frequency_label = (
+        frequency_label
+        or frequency_label_from_periods(
+            annualization_factor
+        )
+    )
+
+    portfolio_returns = calculate_portfolio_returns(
+        returns_df,
+        weights,
+    )
+
+    annualized_return = (
+        calculate_annualized_return(
+            portfolio_returns=portfolio_returns,
+            periods_per_year=annualization_factor,
+        )
+    )
+
+    cagr = calculate_cagr(
         portfolio_returns=portfolio_returns,
-        periods_per_year=periods_per_year,
+        periods_per_year=annualization_factor,
+    )
+
+    annualized_volatility = (
+        calculate_annualized_volatility(
+            portfolio_returns=portfolio_returns,
+            periods_per_year=annualization_factor,
+        )
     )
 
     sharpe_ratio = calculate_sharpe_ratio(
@@ -289,29 +784,49 @@ def summarize_portfolio_risk(
         risk_free_rate=risk_free_rate,
     )
 
-    drawdown = calculate_drawdown_series(portfolio_returns)
+    drawdown = calculate_drawdown_series(
+        portfolio_returns
+    )
 
     return PortfolioRiskSummary(
         number_of_assets=len(weights),
         number_of_observations=len(portfolio_returns),
-        annualized_return=float(annualized_return),
-        annualized_volatility=float(annualized_volatility),
+        periods_per_year=annualization_factor,
+        frequency_label=resolved_frequency_label,
+        sample_years=float(
+            len(portfolio_returns)
+            / annualization_factor
+        ),
+        annualized_return=float(
+            annualized_return
+        ),
+        cagr=float(cagr),
+        annualized_volatility=float(
+            annualized_volatility
+        ),
         sharpe_ratio=float(sharpe_ratio),
         max_drawdown=float(drawdown.min()),
         historical_var_95=float(
             calculate_historical_var(
                 portfolio_returns=portfolio_returns,
                 confidence_level=confidence_level,
+                horizon_periods=risk_horizon,
             )
         ),
         historical_cvar_95=float(
             calculate_historical_cvar(
                 portfolio_returns=portfolio_returns,
                 confidence_level=confidence_level,
+                horizon_periods=risk_horizon,
             )
         ),
-        best_period_return=float(portfolio_returns.max()),
-        worst_period_return=float(portfolio_returns.min()),
+        var_horizon_periods=risk_horizon,
+        best_period_return=float(
+            portfolio_returns.max()
+        ),
+        worst_period_return=float(
+            portfolio_returns.min()
+        ),
     )
 
 
@@ -473,35 +988,64 @@ def generate_portfolio_risk_commentary(
     stress_df: pd.DataFrame,
 ) -> list[str]:
     """Generate desk-style portfolio risk commentary."""
-
     largest_contributor = risk_contribution_df.loc[
-        risk_contribution_df["pct_contribution_to_volatility"].idxmax()
+        risk_contribution_df[
+            "pct_contribution_to_volatility"
+        ].idxmax()
     ]
 
     worst_stress = stress_df.loc[
-        stress_df["estimated_portfolio_return"].idxmin()
+        stress_df[
+            "estimated_portfolio_return"
+        ].idxmin()
     ]
+
+    horizon_unit = period_label_from_frequency(
+        summary.frequency_label,
+        summary.var_horizon_periods,
+    )
 
     comments = [
         (
-            f"Annualized volatility is {summary.annualized_volatility:.2%}, "
-            f"with Sharpe ratio of {summary.sharpe_ratio:.2f}."
+            f"Annualization uses {summary.periods_per_year} "
+            f"{summary.frequency_label.lower()} periods per year "
+            f"over approximately {summary.sample_years:.2f} years "
+            "of return observations."
         ),
         (
-            f"Maximum historical drawdown is {summary.max_drawdown:.2%}; "
-            f"historical 95% VaR is {summary.historical_var_95:.2%} and CVaR is {summary.historical_cvar_95:.2%}."
+            f"Arithmetic annualized return is "
+            f"{summary.annualized_return:.2%}, versus geometric "
+            f"CAGR of {summary.cagr:.2%}. Annualized volatility is "
+            f"{summary.annualized_volatility:.2%} and the arithmetic "
+            f"Sharpe ratio is {summary.sharpe_ratio:.2f}."
         ),
         (
-            f"Largest volatility contribution comes from {largest_contributor['asset']} "
-            f"at {largest_contributor['pct_contribution_to_volatility']:.2%} of total portfolio volatility."
+            f"Maximum historical drawdown is "
+            f"{summary.max_drawdown:.2%}. Historical 95% VaR is "
+            f"{summary.historical_var_95:.2%} and CVaR is "
+            f"{summary.historical_cvar_95:.2%} over a "
+            f"{summary.var_horizon_periods}-{horizon_unit} horizon."
         ),
         (
-            f"Worst predefined stress is '{worst_stress['scenario']}' with estimated portfolio return "
-            f"of {worst_stress['estimated_portfolio_return']:.2%}."
+            f"Largest volatility contribution comes from "
+            f"{largest_contributor['asset']} at "
+            f"{largest_contributor['pct_contribution_to_volatility']:.2%} "
+            "of total portfolio volatility."
         ),
         (
-            "This is a simplified portfolio risk proxy and does not model liquidity, transaction costs, factor exposures, or intraday risk."
+            f"Worst predefined stress is "
+            f"'{worst_stress['scenario']}' with estimated portfolio "
+            f"return of "
+            f"{worst_stress['estimated_portfolio_return']:.2%}."
+        ),
+        (
+            "Historical VaR/CVaR uses overlapping compounded "
+            "returns at the selected horizon. This remains a "
+            "simplified historical risk proxy and does not model "
+            "liquidity, transaction costs, factor exposures, "
+            "non-synchronous prices or intraday risk."
         ),
     ]
 
     return comments
+
