@@ -4,12 +4,12 @@ from datetime import date
 from openpyxl import load_workbook
 
 from engines.repo_engine import (
-    calculate_margin_call,
-    calculate_margin_stress_table,
+    calculate_contractual_variation_margin,
+    calculate_refinancing_stress_table,
     calculate_repo_sensitivity_table,
     calculate_repo_trade,
-    generate_repo_margin_commentary,
-    margin_result_to_dict,
+    contractual_margin_result_to_dict,
+    generate_contractual_margin_commentary,
     repo_result_to_dict,
 )
 from engines.sec_lending_engine import (
@@ -42,21 +42,30 @@ def test_financing_margin_excel_report_generates_valid_workbook():
         currency="EUR",
     )
 
-    margin_result = calculate_margin_call(
-        collateral_market_value=repo_result.collateral_market_value,
+    margin_result = calculate_contractual_variation_margin(
         cash_amount=repo_result.cash_amount,
-        original_haircut=repo_result.haircut,
-        collateral_price_shock=-0.05,
-        new_haircut=0.04,
+        repo_rate=repo_result.repo_rate,
+        start_date=repo_result.start_date,
+        end_date=repo_result.end_date,
+        margin_date=date(2026, 5, 21),
+        day_count_basis=repo_result.day_count_basis,
+        current_dirty_collateral_value=9_500_000,
+        contractual_haircut=repo_result.haircut,
+        transaction_direction="Cash lender / reverse repo",
+        threshold=0.0,
+        minimum_transfer_amount=0.0,
+        rounding_increment=1.0,
+        rounding_method="Nearest",
+        currency="EUR",
+        netting_set_id="NS-TEST",
     )
 
-    margin_stress_df = calculate_margin_stress_table(
-        collateral_market_value=repo_result.collateral_market_value,
-        cash_amount=repo_result.cash_amount,
-        original_haircut=repo_result.haircut,
+    margin_stress_df = calculate_refinancing_stress_table(
+        current_dirty_collateral_value=9_500_000,
+        contractual_haircut=repo_result.haircut,
+        currency="EUR",
     )
-
-    repo_commentary = generate_repo_margin_commentary(margin_result)
+    repo_commentary = generate_contractual_margin_commentary(margin_result)
 
     sec_result = calculate_securities_lending_trade(
         security_market_value=5_000_000,
@@ -93,7 +102,7 @@ def test_financing_margin_excel_report_generates_valid_workbook():
     report_bytes = generate_financing_margin_report(
         repo_summary=repo_result_to_dict(repo_result),
         repo_sensitivity_df=repo_sensitivity_df,
-        margin_summary=margin_result_to_dict(margin_result),
+        margin_summary=contractual_margin_result_to_dict(margin_result),
         margin_stress_df=margin_stress_df,
         repo_commentary=repo_commentary,
         sec_lending_summary=sec_lending_result_to_dict(sec_result),
@@ -109,8 +118,8 @@ def test_financing_margin_excel_report_generates_valid_workbook():
     expected_sheets = {
         "Repo_Summary",
         "Repo_Sensitivity",
-        "Margin_Summary",
-        "Margin_Stress",
+        "Contractual_VM",
+        "Refinancing_Stress",
         "Sec_Lending_Summary",
         "Borrow_Comparison",
         "Methodology",

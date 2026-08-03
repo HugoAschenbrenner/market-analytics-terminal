@@ -344,8 +344,8 @@ def generate_financing_margin_report(
     Sheets:
     1. Repo_Summary
     2. Repo_Sensitivity
-    3. Margin_Summary
-    4. Margin_Stress
+    3. Contractual_VM
+    4. Refinancing_Stress
     5. Sec_Lending_Summary
     6. Borrow_Comparison
     7. Methodology
@@ -383,19 +383,19 @@ def generate_financing_margin_report(
 
         _write_key_value_sheet(
             writer=writer,
-            sheet_name="Margin_Summary",
-            title="Repo Margin Call Summary",
+            sheet_name="Contractual_VM",
+            title="Contractual Variation Margin Summary",
             data=margin_summary,
             commentary=repo_commentary,
         )
 
         margin_stress_df.to_excel(
             writer,
-            sheet_name="Margin_Stress",
+            sheet_name="Refinancing_Stress",
             index=False,
         )
-        writer.sheets["Margin_Stress"].set_row(0, None, header_format)
-        _auto_adjust_columns(writer, "Margin_Stress", margin_stress_df)
+        writer.sheets["Refinancing_Stress"].set_row(0, None, header_format)
+        _auto_adjust_columns(writer, "Refinancing_Stress", margin_stress_df)
 
         _write_key_value_sheet(
             writer=writer,
@@ -418,10 +418,12 @@ def generate_financing_margin_report(
             "Repo cash amount equals collateral market value multiplied by one minus haircut.",
             "Repo interest equals cash amount multiplied by repo rate multiplied by days divided by day-count basis.",
             "Repurchase amount equals cash amount plus repo interest.",
-            "Adjusted collateral value equals collateral market value multiplied by one plus collateral price shock.",
-            "Eligible collateral equals adjusted collateral value multiplied by one minus stressed haircut.",
-            "Margin deficit equals max(0, cash amount minus eligible collateral).",
-            "Margin surplus equals max(0, eligible collateral minus cash amount).",
+            "Contractual variation margin uses the accrued repurchase price at the selected margin date.",
+            "Current collateral is entered as a dirty value and remains subject to the original contractual haircut.",
+            "Threshold, minimum transfer amount and contractual rounding are applied before an executable margin transfer is reported.",
+            "A haircut increase is excluded from contractual variation margin and is reported separately as refinancing or re-roll liquidity stress.",
+            "Refinancing liquidity stress compares current funding capacity with stressed funding capacity under a stated collateral-price shock and refinancing haircut.",
+            "Currency, transaction direction and netting-set ID are explicit, but this remains a single-netting-set proxy rather than a full GMRA collateral system.",
             "Securities-lending cash and non-cash collateral paths are mutually exclusive.",
             "Non-cash collateral uses only the securities loan fee; rebate and cash-reinvestment fields must be zero.",
             "Non-cash gross lender revenue equals security market value multiplied by fee multiplied by days divided by day-count basis.",

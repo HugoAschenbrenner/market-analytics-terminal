@@ -5,12 +5,18 @@ import streamlit as st
 from app_pages.common import render_module_header
 from reports.excel_exporter import generate_financing_margin_report
 from engines.repo_engine import (
+    calculate_contractual_variation_margin,
     calculate_margin_call,
     calculate_margin_stress_table,
+    calculate_refinancing_haircut_stress,
+    calculate_refinancing_stress_table,
     calculate_repo_sensitivity_table,
     calculate_repo_trade,
+    contractual_margin_result_to_dict,
+    generate_contractual_margin_commentary,
     generate_repo_margin_commentary,
     margin_result_to_dict,
+    refinancing_stress_result_to_dict,
     repo_result_to_dict,
 )
 from engines.sec_lending_engine import (
@@ -123,81 +129,203 @@ def render() -> None:
             use_container_width=True,
         )
 
-        st.subheader("Collateral Shock & Margin Call")
+        st.subheader("Contractual Variation Margin")
+        st.info(
+            "The existing repo keeps its contractual haircut. Variation "
+            "margin is calculated against the accrued repurchase price on "
+            "the selected margin date and the current dirty collateral value. "
+            "A stressed haircut is handled separately as refinancing/re-roll "
+            "liquidity risk."
+        )
 
-        s1, s2 = st.columns(2)
+        margin_1, margin_2, margin_3 = st.columns(3)
+        default_margin_date = min(
+            start_date + timedelta(days=max(1, int(result.repo_days // 2))),
+            end_date,
+        )
 
-        with s1:
-            collateral_price_shock_pct = st.number_input(
-                "Collateral price shock (%)",
-                min_value=-50.0,
-                max_value=50.0,
-                value=-5.0,
-                step=0.5,
+        with margin_1:
+            transaction_direction = st.selectbox(
+                "Transaction direction",
+                ["Cash lender / reverse repo", "Cash borrower / repo"],
+                index=0,
+            )
+            margin_date = st.date_input(
+                "Contractual margin date",
+                value=default_margin_date,
+                min_value=start_date,
+                max_value=end_date,
+            )
+            netting_set_id = st.text_input("Netting-set ID", value="NS-1")
+
+        with margin_2:
+            current_dirty_collateral_value = st.number_input(
+                "Current dirty collateral value",
+                min_value=0.0,
+                value=float(result.collateral_market_value * 0.95),
+                step=100_000.0,
+                help=(
+                    "Enter the collateral dirty value at the margin date, "
+                    "including accrued interest where relevant."
+                ),
+            )
+            threshold = st.number_input(
+                "Contractual threshold",
+                min_value=0.0,
+                value=0.0,
+                step=10_000.0,
+            )
+            minimum_transfer_amount = st.number_input(
+                "Minimum transfer amount (MTA)",
+                min_value=0.0,
+                value=0.0,
+                step=10_000.0,
             )
 
-        with s2:
-            new_haircut_pct = st.number_input(
-                "Stressed haircut (%)",
+        with margin_3:
+            rounding_increment = st.number_input(
+                "Margin rounding increment",
+                min_value=0.0,
+                value=1.0,
+                step=1_000.0,
+            )
+            rounding_method = st.selectbox(
+                "Margin rounding method",
+                ["Nearest", "Away from zero", "None"],
+                index=0,
+            )
+
+        try:
+            margin_result = calculate_contractual_variation_margin(
+                cash_amount=result.cash_amount,
+                repo_rate=result.repo_rate,
+                start_date=result.start_date,
+                end_date=result.end_date,
+                margin_date=margin_date,
+                day_count_basis=result.day_count_basis,
+                current_dirty_collateral_value=current_dirty_collateral_value,
+                contractual_haircut=result.haircut,
+                transaction_direction=transaction_direction,
+                threshold=threshold,
+                minimum_transfer_amount=minimum_transfer_amount,
+                rounding_increment=rounding_increment,
+                rounding_method=rounding_method,
+                currency=currency,
+                netting_set_id=netting_set_id,
+            )
+        except ValueError as exc:
+            st.error(f"Repo margin contract error: {exc}")
+            return
+
+        margin_dict = contractual_margin_result_to_dict(margin_result)
+        commentary = generate_contractual_margin_commentary(margin_result)
+
+        vm1, vm2, vm3, vm4, vm5 = st.columns(5)
+        vm1.metric(
+            "Accrued Repurchase Price",
+            _format_currency(margin_result.accrued_repurchase_price, currency),
+        )
+        vm2.metric(
+            "Dirty Collateral",
+            _format_currency(
+                margin_result.current_dirty_collateral_value,
+                currency,
+            ),
+        )
+        vm3.metric(
+            "Eligible Collateral",
+            _format_currency(margin_result.current_eligible_collateral, currency),
+        )
+        vm4.metric(
+            "Contractual VM Transfer",
+            _format_currency(margin_result.collateral_transfer_amount, currency),
+        )
+        vm5.metric(
+            "Transfer Required?",
+            "Yes" if margin_result.margin_transfer_required else "No",
+        )
+        st.caption(margin_result.transfer_direction)
+
+        with st.container(border=True):
+            for comment in commentary:
+                st.markdown(f"- {comment}")
+
+        st.subheader("Refinancing / Re-roll Haircut Stress")
+        st.caption(
+            "This section estimates funding-capacity and liquidity changes "
+            "on a refinancing or renegotiation. It is not contractual "
+            "variation margin on the existing repo."
+        )
+
+        refi_1, refi_2 = st.columns(2)
+        with refi_1:
+            refinancing_price_shock_pct = st.number_input(
+                "Additional refinancing collateral shock (%)",
+                min_value=-50.0,
+                max_value=50.0,
+                value=0.0,
+                step=0.5,
+            )
+        with refi_2:
+            refinancing_haircut_pct = st.number_input(
+                "Refinancing / re-roll haircut (%)",
                 min_value=0.0,
                 max_value=99.0,
                 value=haircut_pct + 2.0,
                 step=0.25,
             )
 
-        margin_result = calculate_margin_call(
-            collateral_market_value=result.collateral_market_value,
-            cash_amount=result.cash_amount,
-            original_haircut=result.haircut,
-            collateral_price_shock=collateral_price_shock_pct / 100.0,
-            new_haircut=new_haircut_pct / 100.0,
+        refinancing_result = calculate_refinancing_haircut_stress(
+            current_dirty_collateral_value=current_dirty_collateral_value,
+            contractual_haircut=result.haircut,
+            refinancing_haircut=refinancing_haircut_pct / 100.0,
+            collateral_price_shock=refinancing_price_shock_pct / 100.0,
+            currency=currency,
         )
 
-        margin_dict = margin_result_to_dict(margin_result)
-        commentary = generate_repo_margin_commentary(margin_result)
-
-        mc1, mc2, mc3, mc4 = st.columns(4)
-
-        mc1.metric(
-            "Adjusted Collateral",
-            _format_currency(margin_result.adjusted_collateral_value, currency),
+        rf1, rf2, rf3, rf4 = st.columns(4)
+        rf1.metric(
+            "Current Funding Capacity",
+            _format_currency(refinancing_result.current_funding_capacity, currency),
         )
-        mc2.metric(
-            "Eligible Collateral",
-            _format_currency(margin_result.new_eligible_collateral, currency),
+        rf2.metric(
+            "Stressed Refinance Capacity",
+            _format_currency(
+                refinancing_result.stressed_refinancing_funding_capacity,
+                currency,
+            ),
         )
-        mc3.metric(
-            "Margin Deficit",
-            _format_currency(margin_result.margin_deficit, currency),
+        rf3.metric(
+            "Refinancing Liquidity Shortfall",
+            _format_currency(
+                refinancing_result.refinancing_liquidity_shortfall,
+                currency,
+            ),
         )
-        mc4.metric(
-            "Margin Call?",
-            "Yes" if margin_result.margin_call_required else "No",
+        rf4.metric("Contractual Margin Call?", "No — separate liquidity stress")
+        st.caption(f"Main refinancing driver: {refinancing_result.driver}.")
+
+        margin_stress_df = calculate_refinancing_stress_table(
+            current_dirty_collateral_value=current_dirty_collateral_value,
+            contractual_haircut=result.haircut,
+            currency=currency,
         )
-
-        with st.container(border=True):
-            for comment in commentary:
-                st.markdown(f"- {comment}")
-
-        st.subheader("Margin Stress Scenarios")
-
-        margin_stress_df = calculate_margin_stress_table(
-            collateral_market_value=result.collateral_market_value,
-            cash_amount=result.cash_amount,
-            original_haircut=result.haircut,
-        )
-
         st.dataframe(
             margin_stress_df.style.format(
                 {
                     "collateral_price_shock": "{:.2%}",
-                    "original_haircut": "{:.2%}",
-                    "new_haircut": "{:.2%}",
-                    "adjusted_collateral_value": "{:,.0f}",
-                    "new_eligible_collateral": "{:,.0f}",
-                    "margin_deficit": "{:,.0f}",
-                    "margin_surplus": "{:,.0f}",
-                    "deficit_pct_of_original_collateral": "{:.2%}",
+                    "contractual_haircut": "{:.2%}",
+                    "refinancing_haircut": "{:.2%}",
+                    "current_dirty_collateral_value": "{:,.0f}",
+                    "shocked_dirty_collateral_value": "{:,.0f}",
+                    "current_funding_capacity": "{:,.0f}",
+                    "price_shocked_capacity_at_contractual_haircut": "{:,.0f}",
+                    "stressed_refinancing_funding_capacity": "{:,.0f}",
+                    "collateral_price_liquidity_change": "{:,.0f}",
+                    "haircut_reset_liquidity_change": "{:,.0f}",
+                    "total_liquidity_change": "{:,.0f}",
+                    "refinancing_liquidity_shortfall": "{:,.0f}",
+                    "refinancing_liquidity_surplus": "{:,.0f}",
                 }
             ),
             use_container_width=True,
@@ -229,20 +357,20 @@ def render() -> None:
         )
 
         st.subheader("Repo Methodology Notes")
-
         st.markdown(
             """
-            - Haircut is the percentage deduction applied to collateral value.
-            - A higher haircut reduces the cash amount available against the same collateral.
-            - Repo interest is calculated using a simple money-market convention.
-            - Repurchase amount equals initial cash amount plus repo interest.
-            - Adjusted collateral value = original collateral value x (1 + collateral price shock).
-            - Eligible collateral = adjusted collateral value x (1 - stressed haircut).
-            - Margin deficit = max(0, cash amount - eligible collateral).
-            - This module does not model legal close-out, settlement frictions, or counterparty default.
+            - Cash amount = collateral market value × (1 − contractual haircut).
+            - Repo interest uses the selected money-market day-count basis.
+            - Accrued repurchase price at the margin date = initial cash + repo interest accrued to that date.
+            - Current collateral is entered as a **dirty value** at the margin date.
+            - Contractual eligible collateral = current dirty collateral value × (1 − contractual haircut).
+            - The contractual haircut remains fixed for variation margin on the existing repo.
+            - Threshold, MTA and rounding are applied explicitly before an executable transfer is shown.
+            - A higher stressed haircut belongs to **refinancing/re-roll liquidity stress**, not automatically to variation margin.
+            - Repo and reverse-repo direction changes the transfer label, while the cash-lender exposure gap remains explicit.
+            - Currency and netting-set ID are recorded; this proxy does not implement full GMRA netting, disputes, settlement timing or legal close-out.
             """
         )
-
     with sec_lending_tab:
         st.subheader("Securities Lending Inputs")
 
