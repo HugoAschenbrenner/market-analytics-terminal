@@ -60,6 +60,7 @@ def generate_fixed_income_risk_report(
     scenario_df: pd.DataFrame,
     commentary: list[str],
     currency_df: pd.DataFrame | None = None,
+    credit_exposure_df: pd.DataFrame | None = None,
 ) -> bytes:
     """Generate a desk-style Fixed Income Risk Report as Excel bytes.
 
@@ -67,9 +68,10 @@ def generate_fixed_income_risk_report(
     1. Summary
     2. Bond_Level_Risk
     3. Currency_Exposure
-    4. DV01_Buckets
-    5. Scenario_PnL
-    6. Methodology
+    4. Credit_Spread_Exposure
+    5. DV01_Buckets
+    6. Scenario_PnL
+    7. Methodology
 
     The report uses simplified analytics and synthetic/sample data. It is not
     investment advice and not a bank-grade risk system.
@@ -184,6 +186,14 @@ def generate_fixed_income_risk_report(
             "market_value_base",
             "dv01",
             "dv01_base",
+            "credit_spread_eligible",
+            "credit_risk_class",
+            "credit_mapping_source",
+            "credit_curve_key",
+            "spread_duration",
+            "cs01",
+            "cs01_base",
+            "spread_risk_method",
             "base_currency",
             "rating",
             "sector",
@@ -209,6 +219,28 @@ def generate_fixed_income_risk_report(
             )
             writer.sheets["Currency_Exposure"].set_row(0, None, header_format)
             _auto_adjust_columns(writer, "Currency_Exposure", currency_df)
+
+        # ------------------------------------------------------------------
+        # Credit spread exposure
+        # ------------------------------------------------------------------
+        if credit_exposure_df is not None:
+            credit_exposure_df.to_excel(
+                writer,
+                sheet_name="Credit_Spread_Exposure",
+                index=False,
+            )
+            writer.sheets[
+                "Credit_Spread_Exposure"
+            ].set_row(
+                0,
+                None,
+                header_format,
+            )
+            _auto_adjust_columns(
+                writer,
+                "Credit_Spread_Exposure",
+                credit_exposure_df,
+            )
 
         # ------------------------------------------------------------------
         # DV01 buckets
@@ -248,7 +280,10 @@ def generate_fixed_income_risk_report(
             "DV01 is positive and represents the approximate gain for a 1 bp fall in yield.",
             "Estimated P&L for a positive yield shock is negative under the project convention.",
             "Scenario P&L uses duration and convexity approximation, not full bond revaluation.",
-            "Credit spread shock uses modified duration as a simplified spread-duration proxy.",
+            "Credit spread stress applies only to explicitly credit-eligible bonds; sovereign and rates-only bonds are excluded.",
+            "Credit CS01 is calculated by direct +1 bp repricing of the contractual cashflow schedule and translated into the portfolio base currency.",
+            "Credit curves are keyed by currency, sector and rating unless an explicit credit_curve_key is supplied.",
+            "The CS01 calculation remains a parallel-spread proxy and is not a full OAS, hazard-rate or recovery model.",
             "The dataset is synthetic and for demonstration only.",
             "This report is not investment advice, not a trading signal, and not a bank-grade risk report.",
         ]

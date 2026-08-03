@@ -8,6 +8,7 @@ from reports.excel_exporter import generate_fixed_income_risk_report
 from engines.fixed_income_engine import (
     apply_fx_conversion,
     build_currency_exposure_table,
+    build_credit_spread_exposure_table,
     calculate_bond_risk_metrics,
     calculate_dv01_by_bucket,
     calculate_hedge_units,
@@ -403,8 +404,142 @@ def render() -> None:
 
     summary_dict = portfolio_summary_to_dict(summary)
     currency_df = build_currency_exposure_table(risk_df)
-    bucket_df = calculate_dv01_by_bucket(risk_df)
-    scenario_df = calculate_scenario_pnl(risk_df)
+    bucket_df = calculate_dv01_by_bucket(
+        risk_df
+    )
+    credit_exposure_df = (
+        build_credit_spread_exposure_table(
+            risk_df
+        )
+    )
+
+    st.subheader("Credit Spread Risk Contract")
+
+    with st.container(border=True):
+        st.caption(
+            "Credit spread stress is separated from rates risk. "
+            "Sovereign and rates-only bonds have zero CS01 and are "
+            "excluded. Credit CS01 is calculated by direct +1 bp "
+            "contractual-cashflow repricing; it remains a transparent "
+            "parallel-spread proxy rather than full OAS pricing."
+        )
+
+        eligible_credit_df = (
+            credit_exposure_df.loc[
+                credit_exposure_df[
+                    "credit_spread_eligible"
+                ]
+            ].copy()
+        )
+        excluded_credit_df = (
+            credit_exposure_df.loc[
+                ~credit_exposure_df[
+                    "credit_spread_eligible"
+                ]
+            ].copy()
+        )
+
+        credit_spread_shocks_bps: dict[
+            str,
+            float,
+        ] = {}
+
+        if eligible_credit_df.empty:
+            st.info(
+                "No credit-spread-eligible bonds are present. "
+                "The credit scenario will report zero P&L."
+            )
+        else:
+            st.markdown(
+                "**Spread shocks by "
+                "currency / sector / rating curve**"
+            )
+            shock_columns = st.columns(
+                min(
+                    max(
+                        len(eligible_credit_df),
+                        1,
+                    ),
+                    3,
+                )
+            )
+
+            for position, (_, exposure_row) in enumerate(
+                eligible_credit_df.iterrows()
+            ):
+                curve_key = str(
+                    exposure_row[
+                        "credit_curve_key"
+                    ]
+                )
+                with shock_columns[
+                    position
+                    % len(shock_columns)
+                ]:
+                    credit_spread_shocks_bps[
+                        curve_key
+                    ] = st.number_input(
+                        f"{curve_key} shock (bps)",
+                        value=50.0,
+                        step=5.0,
+                        format="%.1f",
+                        key=(
+                            "fixed_income_credit_shock_"
+                            + str(position)
+                        ),
+                    )
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric(
+            "Credit CS01 "
+            f"({base_currency}/bp)",
+            _format_currency(
+                float(
+                    eligible_credit_df[
+                        "cs01_base"
+                    ].sum()
+                )
+            ),
+        )
+        c2.metric(
+            "Credit-Eligible Bonds",
+            str(
+                int(
+                    eligible_credit_df[
+                        "bond_count"
+                    ].sum()
+                )
+            ),
+        )
+        c3.metric(
+            "Rates-Only / Sovereign Bonds",
+            str(
+                int(
+                    excluded_credit_df[
+                        "bond_count"
+                    ].sum()
+                )
+            ),
+        )
+
+        st.dataframe(
+            credit_exposure_df.style.format(
+                {
+                    "full_market_value_base": "{:,.0f}",
+                    "cs01_base": "{:,.2f}",
+                    "spread_duration": "{:.4f}",
+                    "pct_total_credit_cs01": "{:.1%}",
+                }
+            ),
+            use_container_width=True,
+        )
+
+    scenario_df = calculate_scenario_pnl(
+        risk_df,
+        credit_spread_shocks_bps=(
+            credit_spread_shocks_bps
+        ),
+    )
     worst_scenario = identify_worst_scenario(scenario_df)
     commentary = generate_fixed_income_commentary(risk_df, bucket_df, scenario_df)
 
@@ -423,6 +558,9 @@ def render() -> None:
                 "market_value_base": "{:,.0f}",
                 "local_dv01": "{:,.0f}",
                 "dv01_base": "{:,.0f}",
+                "spread_duration": "{:.4f}",
+                "cs01": "{:,.2f}",
+                "cs01_base": "{:,.2f}",
                 "pct_base_market_value": "{:.1%}",
             }
         ),
@@ -563,6 +701,7 @@ def render() -> None:
         scenario_df=scenario_df,
         commentary=commentary,
         currency_df=currency_df,
+        credit_exposure_df=credit_exposure_df,
     )
 
     st.download_button(
@@ -615,6 +754,14 @@ def render() -> None:
         "market_value_base",
         "dv01",
         "dv01_base",
+        "credit_spread_eligible",
+        "credit_risk_class",
+        "credit_mapping_source",
+        "credit_curve_key",
+        "spread_duration",
+        "cs01",
+        "cs01_base",
+        "spread_risk_method",
         "base_currency",
         "curve_bucket",
         "rating",

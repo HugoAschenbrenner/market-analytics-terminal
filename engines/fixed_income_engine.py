@@ -896,6 +896,347 @@ def calculate_schedule_consistent_risk_metrics(
     )
 
 
+SOVEREIGN_SECTOR_TOKENS = (
+    "SOVEREIGN",
+    "GOVERNMENT",
+    "TREASURY",
+    "SUPRANATIONAL",
+)
+
+
+def _parse_explicit_boolean(
+    value,
+    field_name: str,
+) -> bool:
+    if isinstance(value, (bool, np.bool_)):
+        return bool(value)
+
+    normalized = str(value).strip().lower()
+
+    if normalized in {"true", "1", "yes", "y"}:
+        return True
+
+    if normalized in {"false", "0", "no", "n"}:
+        return False
+
+    raise ValueError(
+        f"{field_name} must be a boolean or one of "
+        "true/false, yes/no, 1/0."
+    )
+
+
+def classify_credit_spread_exposure(
+    sector: str,
+    explicit_eligibility=None,
+) -> tuple[bool, str, str]:
+    """
+    Classify whether a bond belongs in the credit-spread sleeve.
+
+    Explicit input takes precedence. Otherwise sovereign, government,
+    treasury and supranational sectors are treated as rates-only.
+    """
+    if explicit_eligibility is not None and not pd.isna(
+        explicit_eligibility
+    ):
+        eligible = _parse_explicit_boolean(
+            explicit_eligibility,
+            "credit_spread_eligible",
+        )
+        return (
+            eligible,
+            (
+                "Credit-spread eligible"
+                if eligible
+                else "Rates-only / excluded from credit stress"
+            ),
+            "Explicit input",
+        )
+
+    normalized_sector = str(sector).strip().upper()
+    is_sovereign = any(
+        token in normalized_sector
+        for token in SOVEREIGN_SECTOR_TOKENS
+    )
+    eligible = not is_sovereign
+
+    return (
+        eligible,
+        (
+            "Credit-spread eligible"
+            if eligible
+            else "Sovereign / rates-only"
+        ),
+        "Sector mapping",
+    )
+
+
+def build_credit_curve_key(
+    currency: str,
+    sector: str,
+    rating: str,
+    credit_spread_eligible: bool,
+    explicit_curve_key=None,
+) -> str:
+    if explicit_curve_key is not None and not pd.isna(
+        explicit_curve_key
+    ):
+        key = str(explicit_curve_key).strip()
+        if not key:
+            raise ValueError(
+                "credit_curve_key cannot be blank."
+            )
+        return key
+
+    normalized_currency = _normalize_currency_code(
+        currency
+    )
+
+    if not credit_spread_eligible:
+        return (
+            f"{normalized_currency}|"
+            "SOVEREIGN_RATES_ONLY"
+        )
+
+    normalized_sector = (
+        str(sector).strip().upper()
+        or "UNCLASSIFIED"
+    )
+    normalized_rating = (
+        str(rating).strip().upper()
+        or "NR"
+    )
+
+    return (
+        f"{normalized_currency}|"
+        f"{normalized_sector}|"
+        f"{normalized_rating}"
+    )
+
+
+def calculate_cashflow_repricing_cs01(
+    cashflows_per_100: np.ndarray,
+    discount_exponents: np.ndarray,
+    pricing_yield: float,
+    frequency: int,
+    notional: float,
+    spread_bump_bps: float = 1.0,
+) -> float:
+    """
+    Calculate positive local-currency CS01 by direct cashflow repricing.
+
+    CS01 is the loss for a positive one-basis-point spread widening,
+    with the risk-free component held conceptually fixed. This remains
+    a parallel-spread proxy, not a full OAS or hazard-rate model.
+    """
+    bump_bps = float(spread_bump_bps)
+
+    if (
+        not np.isfinite(bump_bps)
+        or bump_bps <= 0
+    ):
+        raise ValueError(
+            "Spread bump must be finite and strictly positive."
+        )
+
+    base_price = calculate_dirty_price_from_ytm(
+        cashflows_per_100=cashflows_per_100,
+        discount_exponents=discount_exponents,
+        yield_to_maturity=float(pricing_yield),
+        frequency=int(frequency),
+    )
+    widened_price = calculate_dirty_price_from_ytm(
+        cashflows_per_100=cashflows_per_100,
+        discount_exponents=discount_exponents,
+        yield_to_maturity=(
+            float(pricing_yield)
+            + bump_bps / 10_000.0
+        ),
+        frequency=int(frequency),
+    )
+
+    price_loss_per_100 = (
+        base_price - widened_price
+    )
+    cs01 = (
+        price_loss_per_100
+        / 100.0
+        * float(notional)
+        / bump_bps
+    )
+
+    if not np.isfinite(cs01) or cs01 < 0:
+        raise ValueError(
+            "CS01 repricing produced an invalid result."
+        )
+
+    return float(cs01)
+
+
+def attach_credit_spread_risk_metrics(
+    risk_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Add explicit credit eligibility, curve key, spread duration and CS01.
+
+    Sovereign/rates-only bonds receive zero CS01. Credit-eligible bonds
+    are repriced under a +1 bp parallel spread widening.
+    """
+    required = {
+        "bond_id",
+        "currency",
+        "sector",
+        "rating",
+        "coupon_rate",
+        "frequency",
+        "issue_date",
+        "maturity_date",
+        "valuation_date",
+        "day_count_convention",
+        "pricing_yield_used",
+        "notional",
+        "full_market_value",
+    }
+    missing = required - set(risk_df.columns)
+
+    if missing:
+        raise ValueError(
+            "Credit spread risk requires reconciled bond cashflows. "
+            f"Missing columns: {sorted(missing)}"
+        )
+
+    output = risk_df.copy()
+    eligibility_values: list[bool] = []
+    risk_classes: list[str] = []
+    mapping_sources: list[str] = []
+    curve_keys: list[str] = []
+    cs01_values: list[float] = []
+    spread_durations: list[float] = []
+    methods: list[str] = []
+
+    has_explicit_eligibility = (
+        "credit_spread_eligible"
+        in output.columns
+    )
+    has_explicit_curve_key = (
+        "credit_curve_key"
+        in output.columns
+    )
+
+    for _, row in output.iterrows():
+        explicit_eligibility = (
+            row["credit_spread_eligible"]
+            if has_explicit_eligibility
+            else None
+        )
+        (
+            eligible,
+            risk_class,
+            mapping_source,
+        ) = classify_credit_spread_exposure(
+            sector=row["sector"],
+            explicit_eligibility=(
+                explicit_eligibility
+            ),
+        )
+        explicit_curve_key = (
+            row["credit_curve_key"]
+            if has_explicit_curve_key
+            else None
+        )
+        curve_key = build_credit_curve_key(
+            currency=row["currency"],
+            sector=row["sector"],
+            rating=row["rating"],
+            credit_spread_eligible=eligible,
+            explicit_curve_key=explicit_curve_key,
+        )
+
+        if eligible:
+            (
+                _payment_dates,
+                cashflows_per_100,
+                discount_exponents,
+            ) = build_remaining_contractual_cashflows(
+                coupon_rate=float(
+                    row["coupon_rate"]
+                ),
+                frequency=int(
+                    row["frequency"]
+                ),
+                issue_date=row["issue_date"],
+                maturity_date=row["maturity_date"],
+                valuation_date=row["valuation_date"],
+                day_count_convention=(
+                    row["day_count_convention"]
+                ),
+            )
+            cs01 = calculate_cashflow_repricing_cs01(
+                cashflows_per_100=(
+                    cashflows_per_100
+                ),
+                discount_exponents=(
+                    discount_exponents
+                ),
+                pricing_yield=float(
+                    row["pricing_yield_used"]
+                ),
+                frequency=int(
+                    row["frequency"]
+                ),
+                notional=float(row["notional"]),
+                spread_bump_bps=1.0,
+            )
+            full_value = float(
+                row["full_market_value"]
+            )
+            spread_duration = (
+                cs01
+                / (
+                    full_value
+                    * 0.0001
+                )
+                if full_value > 0
+                else 0.0
+            )
+            method = (
+                "Direct +1 bp contractual-cashflow "
+                "repricing proxy"
+            )
+        else:
+            cs01 = 0.0
+            spread_duration = 0.0
+            method = (
+                "Excluded from credit-spread stress; "
+                "rates-only exposure"
+            )
+
+        eligibility_values.append(eligible)
+        risk_classes.append(risk_class)
+        mapping_sources.append(mapping_source)
+        curve_keys.append(curve_key)
+        cs01_values.append(float(cs01))
+        spread_durations.append(
+            float(spread_duration)
+        )
+        methods.append(method)
+
+    output["credit_spread_eligible"] = (
+        eligibility_values
+    )
+    output["credit_risk_class"] = risk_classes
+    output["credit_mapping_source"] = (
+        mapping_sources
+    )
+    output["credit_curve_key"] = curve_keys
+    output["spread_duration"] = (
+        spread_durations
+    )
+    output["cs01"] = cs01_values
+    output["spread_risk_method"] = methods
+
+    return output
+
+
 def calculate_bond_risk_metrics(
     bonds: pd.DataFrame,
     valuation_date: Optional[date] = None,
@@ -1124,7 +1465,8 @@ def calculate_bond_risk_metrics(
 
         output_rows.append(row)
 
-    return pd.DataFrame(output_rows)
+    result = pd.DataFrame(output_rows)
+    return attach_credit_spread_risk_metrics(result)
 
 def _normalize_currency_code(value: str) -> str:
     """Normalize and validate a three-letter currency code."""
@@ -1193,39 +1535,57 @@ def apply_fx_conversion(
     base_currency: str,
     fx_rates: dict[str, float],
 ) -> pd.DataFrame:
-    """
-    Translate clean value, full value, accrued interest and DV01 to base currency.
+    # Translate clean value, full value, accrued interest, DV01 and CS01
+    # into the selected base currency.
+    required = {
+        "currency",
+        "market_value",
+        "dv01",
+    }
+    missing_columns = required - set(
+        risk_df.columns
+    )
 
-    For backward compatibility, synthetic risk frames that only contain
-    market_value are interpreted as having zero accrued interest and therefore
-    equal clean and full values.
-    """
-    required = {"currency", "market_value", "dv01"}
-    missing_columns = required - set(risk_df.columns)
     if missing_columns:
         raise ValueError(
-            f"Missing columns for FX conversion: {sorted(missing_columns)}"
+            "Missing columns for FX conversion: "
+            f"{sorted(missing_columns)}"
         )
 
     converted = risk_df.copy()
     converted["currency"] = (
-        converted["currency"].astype(str).str.strip().str.upper()
+        converted["currency"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
     )
 
     if "full_market_value" not in converted.columns:
-        converted["full_market_value"] = converted["market_value"].astype(float)
+        converted["full_market_value"] = (
+            converted["market_value"].astype(float)
+        )
+
     if "clean_market_value" not in converted.columns:
-        converted["clean_market_value"] = converted["full_market_value"].astype(float)
+        converted["clean_market_value"] = (
+            converted["full_market_value"].astype(float)
+        )
+
     if "accrued_interest_amount" not in converted.columns:
         converted["accrued_interest_amount"] = (
             converted["full_market_value"].astype(float)
             - converted["clean_market_value"].astype(float)
         )
 
-    converted["market_value"] = converted["full_market_value"].astype(float)
+    converted["market_value"] = (
+        converted["full_market_value"].astype(float)
+    )
 
-    base = _normalize_currency_code(base_currency)
-    currencies = sorted(converted["currency"].unique().tolist())
+    base = _normalize_currency_code(
+        base_currency
+    )
+    currencies = sorted(
+        converted["currency"].unique().tolist()
+    )
     validated_rates = validate_fx_rates(
         currencies=currencies,
         base_currency=base,
@@ -1233,7 +1593,12 @@ def apply_fx_conversion(
     )
 
     converted["base_currency"] = base
-    converted["fx_to_base"] = converted["currency"].map(validated_rates)
+    converted["fx_to_base"] = (
+        converted["currency"].map(
+            validated_rates
+        )
+    )
+
     converted["clean_market_value_base"] = (
         converted["clean_market_value"].astype(float)
         * converted["fx_to_base"].astype(float)
@@ -1246,14 +1611,63 @@ def apply_fx_conversion(
         converted["accrued_interest_amount"].astype(float)
         * converted["fx_to_base"].astype(float)
     )
-    converted["market_value_base"] = converted["full_market_value_base"]
+    converted["market_value_base"] = (
+        converted["full_market_value_base"]
+    )
     converted["dv01_base"] = (
         converted["dv01"].astype(float)
         * converted["fx_to_base"].astype(float)
     )
 
-    return converted
+    # Backward compatibility for synthetic test frames that predate
+    # the explicit credit-spread contract.
+    if "credit_spread_eligible" not in converted.columns:
+        converted["credit_spread_eligible"] = True
 
+    if "credit_risk_class" not in converted.columns:
+        converted["credit_risk_class"] = (
+            "Unclassified credit proxy"
+        )
+
+    if "credit_mapping_source" not in converted.columns:
+        converted["credit_mapping_source"] = (
+            "Backward-compatible synthetic default"
+        )
+
+    if "credit_curve_key" not in converted.columns:
+        converted["credit_curve_key"] = (
+            converted["currency"].astype(str)
+            + "|UNCLASSIFIED|NR"
+        )
+
+    if "cs01" not in converted.columns:
+        converted["cs01"] = (
+            converted["dv01"].astype(float)
+        )
+
+    if "spread_duration" not in converted.columns:
+        denominator = (
+            converted["full_market_value"].astype(float)
+            * 0.0001
+        )
+        converted["spread_duration"] = np.where(
+            denominator > 0,
+            converted["cs01"].astype(float)
+            / denominator,
+            0.0,
+        )
+
+    if "spread_risk_method" not in converted.columns:
+        converted["spread_risk_method"] = (
+            "Backward-compatible DV01 proxy"
+        )
+
+    converted["cs01_base"] = (
+        converted["cs01"].astype(float)
+        * converted["fx_to_base"].astype(float)
+    )
+
+    return converted
 
 def build_currency_exposure_table(
     risk_df: pd.DataFrame,
@@ -1313,6 +1727,120 @@ def build_currency_exposure_table(
     )
     currency_df["base_currency"] = str(base_values[0])
     return currency_df
+
+
+def build_credit_spread_exposure_table(
+    risk_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Aggregate credit-spread exposure by explicit currency/sector/rating key.
+
+    Sovereign/rates-only rows remain visible with zero CS01 so the
+    exclusion from credit stress is auditable.
+    """
+    required = {
+        "bond_id",
+        "currency",
+        "sector",
+        "rating",
+        "base_currency",
+        "credit_spread_eligible",
+        "credit_risk_class",
+        "credit_mapping_source",
+        "credit_curve_key",
+        "spread_risk_method",
+        "full_market_value_base",
+        "cs01_base",
+    }
+    missing = required - set(risk_df.columns)
+
+    if missing:
+        raise ValueError(
+            "Credit spread exposure requires explicit mapping "
+            "and base-currency CS01. "
+            f"Missing columns: {sorted(missing)}"
+        )
+
+    base_values = (
+        risk_df["base_currency"]
+        .dropna()
+        .astype(str)
+        .unique()
+    )
+
+    if len(base_values) != 1:
+        raise ValueError(
+            "Risk data must contain exactly one base currency."
+        )
+
+    working = risk_df.copy()
+    working["sector"] = (
+        working["sector"].astype(str)
+    )
+    working["rating"] = (
+        working["rating"].astype(str)
+    )
+
+    exposure = (
+        working.groupby(
+            [
+                "credit_spread_eligible",
+                "credit_risk_class",
+                "credit_curve_key",
+                "currency",
+                "sector",
+                "rating",
+                "credit_mapping_source",
+                "spread_risk_method",
+            ],
+            as_index=False,
+            dropna=False,
+        )
+        .agg(
+            full_market_value_base=(
+                "full_market_value_base",
+                "sum",
+            ),
+            cs01_base=("cs01_base", "sum"),
+            bond_count=("bond_id", "count"),
+        )
+        .sort_values(
+            [
+                "credit_spread_eligible",
+                "credit_curve_key",
+            ],
+            ascending=[False, True],
+        )
+        .reset_index(drop=True)
+    )
+
+    exposure["spread_duration"] = np.where(
+        exposure["full_market_value_base"] > 0,
+        exposure["cs01_base"]
+        / (
+            exposure["full_market_value_base"]
+            * 0.0001
+        ),
+        0.0,
+    )
+
+    eligible_cs01 = float(
+        exposure.loc[
+            exposure["credit_spread_eligible"],
+            "cs01_base",
+        ].sum()
+    )
+    exposure["pct_total_credit_cs01"] = np.where(
+        exposure["credit_spread_eligible"]
+        & (eligible_cs01 > 0),
+        exposure["cs01_base"] / eligible_cs01,
+        0.0,
+    )
+    exposure["base_currency"] = str(
+        base_values[0]
+    )
+
+    return exposure
 
 
 def summarize_portfolio(
@@ -1523,8 +2051,19 @@ def _bucket_shock_bps_for_scenario(curve_bucket: str, scenario_name: str) -> flo
     raise ValueError(f"Unknown scenario name: {scenario_name}")
 
 
-def calculate_scenario_pnl(risk_df: pd.DataFrame) -> pd.DataFrame:
-    """Calculate fixed-income scenario P&L in the selected base currency."""
+def calculate_scenario_pnl(
+    risk_df: pd.DataFrame,
+    credit_spread_shocks_bps: (
+        dict[str, float] | None
+    ) = None,
+) -> pd.DataFrame:
+    """
+    Calculate rates and credit scenario P&L in the base currency.
+
+    Rates scenarios use full-value duration/convexity. Credit spread
+    stress is restricted to credit-eligible bonds and uses CS01 from
+    direct contractual-cashflow repricing. Sovereigns are excluded.
+    """
     required = {
         "bond_id",
         "curve_bucket",
@@ -1533,17 +2072,31 @@ def calculate_scenario_pnl(risk_df: pd.DataFrame) -> pd.DataFrame:
         "modified_duration",
         "convexity",
         "dv01_base",
+        "credit_spread_eligible",
+        "credit_curve_key",
+        "cs01_base",
     }
     missing = required - set(risk_df.columns)
+
     if missing:
         raise ValueError(
-            "Scenario P&L requires FX-converted data. "
+            "Scenario P&L requires FX-converted rates and "
+            "credit-spread risk data. "
             f"Missing columns: {sorted(missing)}"
         )
 
-    base_values = risk_df["base_currency"].dropna().astype(str).unique()
+    base_values = (
+        risk_df["base_currency"]
+        .dropna()
+        .astype(str)
+        .unique()
+    )
+
     if len(base_values) != 1:
-        raise ValueError("Risk data must contain exactly one base currency.")
+        raise ValueError(
+            "Risk data must contain exactly one base currency."
+        )
+
     base_currency = str(base_values[0])
 
     scenario_names = [
@@ -1565,48 +2118,176 @@ def calculate_scenario_pnl(risk_df: pd.DataFrame) -> pd.DataFrame:
                 curve_bucket=row["curve_bucket"],
                 scenario_name=scenario_name,
             )
-            pnl_components = estimate_pnl_with_duration_convexity(
-                modified_duration=float(row["modified_duration"]),
-                convexity=float(row["convexity"]),
-                market_value=float(row["market_value_base"]),
-                yield_move_bps=shock_bps,
+            pnl_components = (
+                estimate_pnl_with_duration_convexity(
+                    modified_duration=float(
+                        row["modified_duration"]
+                    ),
+                    convexity=float(
+                        row["convexity"]
+                    ),
+                    market_value=float(
+                        row["market_value_base"]
+                    ),
+                    yield_move_bps=shock_bps,
+                )
             )
-            total_duration_pnl += pnl_components["duration_pnl"]
-            total_convexity_pnl += pnl_components["convexity_pnl"]
-            total_estimated_pnl += pnl_components["estimated_pnl"]
+            total_duration_pnl += (
+                pnl_components["duration_pnl"]
+            )
+            total_convexity_pnl += (
+                pnl_components["convexity_pnl"]
+            )
+            total_estimated_pnl += (
+                pnl_components["estimated_pnl"]
+            )
 
         scenario_rows.append(
             {
                 "scenario_name": scenario_name,
                 "risk_factor": "rates",
-                "shock_description": _describe_fixed_income_scenario(scenario_name),
+                "shock_description": (
+                    _describe_fixed_income_scenario(
+                        scenario_name
+                    )
+                ),
                 "duration_pnl": total_duration_pnl,
                 "convexity_pnl": total_convexity_pnl,
                 "estimated_pnl": total_estimated_pnl,
                 "currency": base_currency,
-                "main_driver": "Rates duration / curve exposure",
+                "main_driver": (
+                    "Rates duration / curve exposure"
+                ),
+                "credit_cs01_base": 0.0,
+                "credit_bond_count": 0,
+                "sovereign_excluded_count": 0,
+                "credit_curve_count": 0,
+                "weighted_spread_shock_bps": 0.0,
             }
         )
 
-    spread_shock_bps = 50.0
-    spread_pnl = float(-(risk_df["dv01_base"] * spread_shock_bps).sum())
+    eligible = risk_df.loc[
+        risk_df["credit_spread_eligible"]
+        .astype(bool)
+    ].copy()
+    excluded_count = int(
+        (~risk_df["credit_spread_eligible"]
+         .astype(bool)).sum()
+    )
+    curve_keys = sorted(
+        eligible["credit_curve_key"]
+        .astype(str)
+        .unique()
+        .tolist()
+    )
+
+    if credit_spread_shocks_bps is None:
+        validated_shocks = {
+            key: 50.0
+            for key in curve_keys
+        }
+    else:
+        validated_shocks = {
+            str(key): float(value)
+            for key, value
+            in credit_spread_shocks_bps.items()
+        }
+        missing_shocks = [
+            key
+            for key in curve_keys
+            if key not in validated_shocks
+        ]
+
+        if missing_shocks:
+            raise ValueError(
+                "Missing credit spread shock(s) for: "
+                + ", ".join(missing_shocks)
+            )
+
+    for key in curve_keys:
+        shock = float(validated_shocks[key])
+
+        if not np.isfinite(shock):
+            raise ValueError(
+                f"Credit spread shock for {key} "
+                "must be finite."
+            )
+
+    if eligible.empty:
+        credit_cs01 = 0.0
+        spread_pnl = 0.0
+        weighted_shock = 0.0
+    else:
+        eligible["spread_shock_bps"] = (
+            eligible["credit_curve_key"]
+            .astype(str)
+            .map(validated_shocks)
+            .astype(float)
+        )
+        eligible["spread_pnl"] = (
+            -eligible["cs01_base"].astype(float)
+            * eligible["spread_shock_bps"]
+        )
+        credit_cs01 = float(
+            eligible["cs01_base"].sum()
+        )
+        spread_pnl = float(
+            eligible["spread_pnl"].sum()
+        )
+        weighted_shock = (
+            float(
+                (
+                    eligible["cs01_base"]
+                    * eligible["spread_shock_bps"]
+                ).sum()
+                / credit_cs01
+            )
+            if credit_cs01 > 0
+            else 0.0
+        )
+
+    all_fifty = (
+        len(validated_shocks) > 0
+        and all(
+            np.isclose(value, 50.0)
+            for value in validated_shocks.values()
+        )
+    )
+    scenario_name = (
+        "Credit spread +50 bps"
+        if all_fifty
+        else "Credit spread curve stress"
+    )
+
     scenario_rows.append(
         {
-            "scenario_name": "Credit spread +50 bps",
-            "risk_factor": "credit",
+            "scenario_name": scenario_name,
+            "risk_factor": "credit_spread",
             "shock_description": (
-                "All credit spreads widen by 50 bps. Uses modified duration "
-                "as a spread-duration proxy."
+                "Credit-eligible bonds are shocked by their "
+                "currency/sector/rating spread curve. Sovereign "
+                "and rates-only bonds are excluded. CS01 is a "
+                "direct +1 bp contractual-cashflow repricing proxy, "
+                "not a full OAS or hazard-rate model."
             ),
             "duration_pnl": spread_pnl,
             "convexity_pnl": 0.0,
             "estimated_pnl": spread_pnl,
             "currency": base_currency,
-            "main_driver": "Credit spread duration proxy",
+            "main_driver": (
+                "Credit-only CS01 by spread curve"
+            ),
+            "credit_cs01_base": credit_cs01,
+            "credit_bond_count": int(len(eligible)),
+            "sovereign_excluded_count": excluded_count,
+            "credit_curve_count": int(len(curve_keys)),
+            "weighted_spread_shock_bps": (
+                weighted_shock
+            ),
         }
     )
-    return pd.DataFrame(scenario_rows)
 
+    return pd.DataFrame(scenario_rows)
 
 def _describe_fixed_income_scenario(scenario_name: str) -> str:
     """Return a readable description for fixed income scenario labels."""

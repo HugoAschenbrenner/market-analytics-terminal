@@ -6,6 +6,7 @@ from openpyxl import load_workbook
 from engines.fixed_income_engine import (
     apply_fx_conversion,
     build_currency_exposure_table,
+    build_credit_spread_exposure_table,
     calculate_bond_risk_metrics,
     calculate_dv01_by_bucket,
     calculate_scenario_pnl,
@@ -49,6 +50,11 @@ def test_fixed_income_excel_report_generates_valid_workbook():
     currency_df = build_currency_exposure_table(
         risk_df
     )
+    credit_exposure_df = (
+        build_credit_spread_exposure_table(
+            risk_df
+        )
+    )
 
     report_bytes = generate_fixed_income_risk_report(
         summary=summary_dict,
@@ -57,6 +63,7 @@ def test_fixed_income_excel_report_generates_valid_workbook():
         scenario_df=scenario_df,
         commentary=commentary,
         currency_df=currency_df,
+        credit_exposure_df=credit_exposure_df,
     )
 
     assert isinstance(report_bytes, bytes)
@@ -71,6 +78,7 @@ def test_fixed_income_excel_report_generates_valid_workbook():
         "Summary",
         "Bond_Level_Risk",
         "Currency_Exposure",
+        "Credit_Spread_Exposure",
         "DV01_Buckets",
         "Scenario_PnL",
         "Methodology",
