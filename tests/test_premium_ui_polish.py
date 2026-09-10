@@ -12,5 +12,5 @@ def test_theme_file_exists_and_contains_global_styles():
 def test_app_imports_and_applies_global_styles():
     text = Path("app.py").read_text()
 
-    assert "from app_pages.theme import apply_global_styles" in text
-    assert "apply_global_styles()" in text
+    assert "from components.global_header import global_header" in text
+    assert "global_header(state)" in text
