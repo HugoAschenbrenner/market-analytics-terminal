@@ -147,7 +147,7 @@ def _render_market_data_snapshot() -> None:
             return
 
         snapshot_df = _market_snapshot_to_dataframe(payload)
-        st.caption("Prices are unadjusted closes; change is the price move between the last two bars, excluding distributions. Observation date/time belongs to the provider bar; timestamp_utc is retrieval time, not a live price timestamp.")
+        st.caption("Prices use the provider's Close field without dividend adjustment; change is the price move between the last two bars, excluding cash distributions. Observation date/time belongs to the provider bar; timestamp_utc is retrieval time, not a live price timestamp.")
         if payload.get("status") in {"partial", "unavailable", "dependency_missing"}:
             st.warning("Some requested quotes are unavailable. See each row's status; missing data is not a zero price or return.")
         if snapshot_df.empty:

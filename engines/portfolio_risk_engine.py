@@ -1061,7 +1061,7 @@ def generate_portfolio_risk_commentary(
         ),
         (
             f"Maximum historical drawdown is "
-            f"{summary.max_drawdown:.2%}. Historical {summary.confidence_level:.0%} VaR is "
+            f"{summary.max_drawdown:.2%}. Historical {summary.confidence_level * 100:g}% VaR is "
             f"{summary.historical_var_95:.2%} and CVaR is "
             f"{summary.historical_cvar_95:.2%} over a "
             f"{summary.var_horizon_periods}-{horizon_unit} horizon."

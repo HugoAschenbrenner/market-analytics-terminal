@@ -20,7 +20,7 @@ import pandas as pd
 
 
 DEFAULT_SOURCE = "yfinance"
-DATA_MODE = "near-live / delayed public data"
+DATA_MODE = "historical / delayed public data"
 DEFAULT_CACHE_TTL_SECONDS = 60
 DISCLAIMER = (
     "Free/public market data adapter for educational and portfolio-demo use only. "
@@ -47,7 +47,7 @@ class MarketQuote:
     error: Optional[str] = None
     observation_date: Optional[str] = None
     observation_timestamp: Optional[str] = None
-    price_basis: str = "unadjusted close"
+    price_basis: str = "Close (not dividend-adjusted)"
 
 
 def utc_timestamp() -> str:

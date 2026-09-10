@@ -64,15 +64,16 @@ def test_cvar_selects_raw_return_tail_before_flooring_losses():
     assert pr.calculate_historical_cvar(returns, confidence_level=0.8) == 0.0
 
 
-def test_nondefault_confidence_is_not_reported_as_95_percent():
+@pytest.mark.parametrize("confidence,label", [(0.8, "80%"), (0.975, "97.5%")])
+def test_nondefault_confidence_is_not_reported_as_95_percent(confidence, label):
     returns = pd.DataFrame({"A": [-0.05, -0.03, 0.01, 0.04, 0.02], "B": [0.01, 0.02, -0.01, 0.03, 0.01]})
     weights = {"A": 0.5, "B": 0.5}
-    summary = pr.summarize_portfolio_risk(returns, weights, confidence_level=0.8)
+    summary = pr.summarize_portfolio_risk(returns, weights, confidence_level=confidence)
     report = pr.portfolio_risk_summary_to_dict(summary)
-    assert report["confidence_level"] == 0.8
+    assert report["confidence_level"] == confidence
     assert "historical_var_95" not in report
     commentary = pr.generate_portfolio_risk_commentary(summary, pr.calculate_risk_contribution(returns, weights), pr.calculate_stress_scenario_table(weights))
-    assert "Historical 80% VaR" in " ".join(commentary)
+    assert f"Historical {label} VaR" in " ".join(commentary)
 
 
 def test_end_of_month_schedule_does_not_drift_after_february():

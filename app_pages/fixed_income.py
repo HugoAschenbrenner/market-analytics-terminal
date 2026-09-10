@@ -160,7 +160,7 @@ def _render_rates_bond_market_snapshot() -> None:
             st.markdown(f"- {line}")
 
         bond_proxy_payload = payload.get("bond_etf_proxies", {})
-        st.caption("ETF prices are unadjusted closes; changes exclude distributions. The observation date/time is the provider bar time; timestamp_utc is retrieval time.")
+        st.caption("ETF prices use the provider's Close field without dividend adjustment; changes exclude cash distributions. The observation date/time is the provider bar time; timestamp_utc is retrieval time.")
 
         if bond_proxy_payload:
             st.markdown("**Bond ETF Proxy Snapshot**")
