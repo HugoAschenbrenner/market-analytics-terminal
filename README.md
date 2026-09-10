@@ -245,9 +245,11 @@ python -m pytest -q
 
 ---
 
-## Current Test Coverage
+## Audit and Test Coverage
 
-The project contains more than 240 passing tests covering:
+See [September 2026 audit](docs/audit_2026_09_10.md) for verified defects, corrections, validation evidence and remaining model limits.
+
+The project includes automated regression tests covering:
 
 - fixed income analytics
 - repo and securities lending

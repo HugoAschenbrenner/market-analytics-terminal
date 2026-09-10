@@ -53,7 +53,7 @@ EXECUTIVE_INSIGHTS = [
     },
     {
         "risk": "Collateral and funding stress",
-        "why": "Repo margin calls are driven by collateral depreciation and haircut widening.",
+        "why": "Contractual repo margin reflects accrued exposure and collateral value; haircut widening is a separate refinancing stress.",
         "next_check": "Open Repo & Securities Lending to stress collateral value and haircut assumptions.",
         "page": "Repo & Securities Lending",
     },
@@ -68,7 +68,7 @@ EXECUTIVE_INSIGHTS = [
 
 QUESTIONS = [
     "Where is duration risk concentrated in a bond portfolio?",
-    "How much margin call is created by collateral depreciation and haircut widening?",
+    "How much margin call follows collateral depreciation, and how much refinancing cash is needed after haircut widening?",
     "What is the payoff profile of a Phoenix or Athena autocallable?",
     "How does worst-of basket dispersion affect barrier risk?",
     "Which asset contributes most to portfolio volatility?",
@@ -153,10 +153,10 @@ def render() -> None:
 
     snapshot_items = [
         ("Modules", "5", "Fixed income, repo, structured products, portfolio risk, cross-asset."),
-        ("Tests", "150+", "Automated checks across engines, reports, UI integration, and documentation."),
+        ("Tests", "Automated", "Regression checks across engines, reports, UI integration, and documentation; see the audit validation record for the latest run."),
         ("Reports", "4", "Excel exports for fixed income, financing, structured products, and portfolio risk."),
         ("Languages", "Python/R", "Streamlit terminal with R portfolio analytics companion."),
-        ("Data policy", "Synthetic", "Synthetic sample data and user-provided inputs only."),
+        ("Data policy", "Demo + public", "Synthetic/sample analytics, uploaded data and optional separate public market context."),
     ]
 
     for col, (label, value, help_text) in zip(snapshot_cols, snapshot_items):
@@ -174,6 +174,7 @@ def render() -> None:
                 st.write(f"• {question}")
 
     st.subheader("Top 3 Risk Insights")
+    st.caption("Illustrative teaching points, not calculated findings from your current portfolio.")
 
     insight_cols = st.columns(3)
 
@@ -197,7 +198,7 @@ def render() -> None:
         with st.container(border=True):
             st.markdown("#### Data policy")
             st.write(
-                "The app uses synthetic sample data and user-provided inputs only. "
+                "Analytics use synthetic sample data and user-provided inputs. Optional public quotes and Treasury rates provide separate market context. "
                 "No proprietary client, employer, or confidential market data is included."
             )
 
@@ -206,7 +207,7 @@ def render() -> None:
             st.markdown("#### Build facts")
             st.write(
                 "Python, Streamlit, R companion analytics, Excel exports, modular engines, "
-                "GitHub documentation, screenshots, and 150+ automated tests."
+                "GitHub documentation, screenshots, and automated regression tests."
             )
 
     st.subheader("Desk Workflow")

@@ -62,6 +62,7 @@ class PortfolioRiskSummary:
     var_horizon_periods: int
     best_period_return: float
     worst_period_return: float
+    confidence_level: float = 0.95
 
 
 def build_sample_price_data(
@@ -419,6 +420,9 @@ def prepare_price_data(
             "with missing or non-numeric asset prices."
         )
 
+    if not np.isfinite(numeric_assets.to_numpy()).all():
+        raise ValueError("Asset prices must be finite.")
+
     non_positive_count = int(
         (numeric_assets <= 0).sum().sum()
     )
@@ -464,9 +468,11 @@ def normalize_weights(weights: dict[str, float]) -> dict[str, float]:
     if not weights:
         raise ValueError("Weights cannot be empty.")
 
+    if any(not np.isfinite(float(weight)) or float(weight) < 0 for weight in weights.values()):
+        raise ValueError("Long-only weights must be finite and non-negative.")
     total_weight = float(sum(weights.values()))
 
-    if total_weight <= 0:
+    if not np.isfinite(total_weight) or total_weight <= 0:
         raise ValueError("Total weight must be positive.")
 
     return {asset: float(weight) / total_weight for asset, weight in weights.items()}
@@ -481,6 +487,12 @@ def validate_weights(returns_df: pd.DataFrame, weights: dict[str, float]) -> dic
         raise ValueError(f"Weights include assets not in returns data: {missing_assets}")
 
     normalized_weights = normalize_weights(weights)
+
+    values = returns_df[list(normalized_weights)].to_numpy(dtype=float)
+    if values.size == 0 or not np.isfinite(values).all():
+        raise ValueError("Asset returns must be non-empty, complete and finite.")
+    if (values < -1.0).any():
+        raise ValueError("Simple asset returns cannot be below -100%.")
 
     return normalized_weights
 
@@ -512,7 +524,7 @@ def calculate_drawdown_series(portfolio_returns: pd.Series) -> pd.Series:
     """Calculate drawdown series."""
 
     cumulative = calculate_cumulative_return_series(portfolio_returns)
-    running_max = cumulative.cummax()
+    running_max = cumulative.cummax().clip(lower=1.0)
     drawdown = cumulative / running_max - 1.0
     drawdown.name = "drawdown"
 
@@ -615,18 +627,18 @@ def calculate_historical_cvar(
         )
     )
 
-    var = calculate_historical_var(
-        horizon_returns,
-        confidence_level=confidence_level,
-        horizon_periods=1,
-    )
+    if not 0 < confidence_level < 1:
+        raise ValueError("Confidence level must be between 0 and 1.")
+    # Select the return tail before flooring the reported loss at zero.
+    # Using the floored VaR would drop tail gains and overstate expected loss.
+    quantile = horizon_returns.quantile(1.0 - confidence_level)
 
     tail_returns = horizon_returns[
-        horizon_returns <= -var
+        horizon_returns <= quantile
     ]
 
     if tail_returns.empty:
-        return float(var)
+        return float(max(0.0, -quantile))
 
     return float(
         max(0.0, -tail_returns.mean())
@@ -704,6 +716,8 @@ def calculate_annualized_volatility(
 ) -> float:
     """Calculate annualized volatility."""
 
+    if periods_per_year <= 0 or len(portfolio_returns) < 2:
+        raise ValueError("Volatility requires positive periods per year and at least two returns.")
     return float(portfolio_returns.std(ddof=1) * np.sqrt(periods_per_year))
 
 
@@ -715,7 +729,7 @@ def calculate_sharpe_ratio(
     """Calculate Sharpe ratio."""
 
     if annualized_volatility == 0:
-        return 0.0
+        return float("nan")
 
     return float((annualized_return - risk_free_rate) / annualized_volatility)
 
@@ -827,13 +841,22 @@ def summarize_portfolio_risk(
         worst_period_return=float(
             portfolio_returns.min()
         ),
+        confidence_level=float(confidence_level),
     )
 
 
 def portfolio_risk_summary_to_dict(summary: PortfolioRiskSummary) -> dict[str, Any]:
     """Convert risk summary to dictionary."""
 
-    return asdict(summary)
+    result = asdict(summary)
+    result["historical_var"] = result["historical_var_95"]
+    result["historical_cvar"] = result["historical_cvar_95"]
+    if not np.isclose(summary.confidence_level, 0.95):
+        # Keep the legacy dataclass attributes for callers, but never export
+        # an alternative confidence under a falsely labelled 95% column.
+        result.pop("historical_var_95")
+        result.pop("historical_cvar_95")
+    return result
 
 
 def calculate_correlation_matrix(returns_df: pd.DataFrame) -> pd.DataFrame:
@@ -861,6 +884,9 @@ def calculate_risk_contribution(
 
     normalized_weights = validate_weights(returns_df, weights)
 
+    if periods_per_year <= 0 or len(returns_df) < 2:
+        raise ValueError("Risk contribution requires positive periods per year and at least two returns.")
+
     assets = list(normalized_weights.keys())
     aligned_returns = returns_df[assets]
     weight_vector = np.array([normalized_weights[asset] for asset in assets])
@@ -869,7 +895,13 @@ def calculate_risk_contribution(
     portfolio_variance = float(weight_vector.T @ covariance_matrix @ weight_vector)
 
     if portfolio_variance <= 0:
-        raise ValueError("Portfolio variance must be positive.")
+        return pd.DataFrame({
+            "asset": assets,
+            "weight": weight_vector,
+            "marginal_contribution_to_risk": np.nan,
+            "contribution_to_volatility": 0.0,
+            "pct_contribution_to_volatility": np.nan,
+        })
 
     portfolio_volatility = float(np.sqrt(portfolio_variance))
     marginal_contribution = covariance_matrix @ weight_vector / portfolio_volatility
@@ -897,6 +929,9 @@ def _asset_stress_shock(asset: str, scenario: str) -> float:
     is_credit = "CREDIT" in asset_upper or "IG" in asset_upper or "HY" in asset_upper
     is_gold = "GOLD" in asset_upper
     is_cash = "CASH" in asset_upper
+
+    if is_cash:
+        return 0.0
 
     if scenario == "Uniform -5%":
         return 0.0 if is_cash else -0.05
@@ -988,11 +1023,15 @@ def generate_portfolio_risk_commentary(
     stress_df: pd.DataFrame,
 ) -> list[str]:
     """Generate desk-style portfolio risk commentary."""
-    largest_contributor = risk_contribution_df.loc[
-        risk_contribution_df[
-            "pct_contribution_to_volatility"
-        ].idxmax()
-    ]
+    valid_contributors = risk_contribution_df.dropna(subset=["pct_contribution_to_volatility"])
+    if valid_contributors.empty:
+        contribution_comment = "Volatility contribution percentages are undefined for a zero-volatility portfolio."
+    else:
+        largest_contributor = valid_contributors.loc[valid_contributors["pct_contribution_to_volatility"].idxmax()]
+        contribution_comment = (
+            f"Largest volatility contribution comes from {largest_contributor['asset']} at "
+            f"{largest_contributor['pct_contribution_to_volatility']:.2%} of total portfolio volatility."
+        )
 
     worst_stress = stress_df.loc[
         stress_df[
@@ -1004,6 +1043,7 @@ def generate_portfolio_risk_commentary(
         summary.frequency_label,
         summary.var_horizon_periods,
     )
+    sharpe_text = f"{summary.sharpe_ratio:.2f}" if np.isfinite(summary.sharpe_ratio) else "undefined (zero volatility)"
 
     comments = [
         (
@@ -1017,21 +1057,16 @@ def generate_portfolio_risk_commentary(
             f"{summary.annualized_return:.2%}, versus geometric "
             f"CAGR of {summary.cagr:.2%}. Annualized volatility is "
             f"{summary.annualized_volatility:.2%} and the arithmetic "
-            f"Sharpe ratio is {summary.sharpe_ratio:.2f}."
+            f"Sharpe ratio is {sharpe_text}."
         ),
         (
             f"Maximum historical drawdown is "
-            f"{summary.max_drawdown:.2%}. Historical 95% VaR is "
+            f"{summary.max_drawdown:.2%}. Historical {summary.confidence_level:.0%} VaR is "
             f"{summary.historical_var_95:.2%} and CVaR is "
             f"{summary.historical_cvar_95:.2%} over a "
             f"{summary.var_horizon_periods}-{horizon_unit} horizon."
         ),
-        (
-            f"Largest volatility contribution comes from "
-            f"{largest_contributor['asset']} at "
-            f"{largest_contributor['pct_contribution_to_volatility']:.2%} "
-            "of total portfolio volatility."
-        ),
+        contribution_comment,
         (
             f"Worst predefined stress is "
             f"'{worst_stress['scenario']}' with estimated portfolio "
@@ -1048,4 +1083,3 @@ def generate_portfolio_risk_commentary(
     ]
 
     return comments
-

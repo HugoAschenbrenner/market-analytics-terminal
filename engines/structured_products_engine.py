@@ -37,6 +37,7 @@ secondary market liquidity, funding, or full Monte Carlo pricing.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import math
 from typing import Literal
 
 import pandas as pd
@@ -80,6 +81,12 @@ def validate_terms(
     terms: AutocallableTerms,
 ) -> None:
     """Validate simplified autocallable terms."""
+    if not all(math.isfinite(float(value)) for value in (terms.nominal, terms.coupon_rate_per_period,
+                                                        terms.autocall_barrier, terms.coupon_barrier,
+                                                        terms.protection_barrier)):
+        raise ValueError("Product terms must be finite.")
+    if not -1 <= terms.protection_barrier <= 0:
+        raise ValueError("Protection barrier must be between 0% and 100% of initial value.")
     if terms.product_type not in [
         "Athena",
         "Phoenix",
@@ -117,6 +124,8 @@ def validate_performance_path(performance_path: list[float]) -> None:
         raise ValueError("Performance path cannot be empty.")
 
     for performance in performance_path:
+        if not math.isfinite(float(performance)):
+            raise ValueError("Performance must be finite.")
         if performance < -1.0:
             raise ValueError("Performance cannot be less than -100%.")
 
@@ -126,6 +135,7 @@ def calculate_worst_of_performance(underlying_performances: list[float]) -> floa
 
     if not underlying_performances:
         raise ValueError("Underlying performances cannot be empty.")
+    validate_performance_path(underlying_performances)
 
     return float(min(underlying_performances))
 

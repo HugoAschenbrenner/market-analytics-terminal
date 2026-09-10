@@ -10,6 +10,7 @@ bank-grade fixed-income market data infrastructure.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import math
 import xml.etree.ElementTree as ET
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -95,7 +96,8 @@ def _parse_float(value: Optional[str]) -> Optional[float]:
         return None
 
     try:
-        return float(cleaned)
+        parsed = float(cleaned)
+        return parsed if math.isfinite(parsed) else None
     except ValueError:
         return None
 
@@ -299,12 +301,16 @@ def build_treasury_curve_payload(
 
 def build_sample_treasury_curve_payload(status: str = "sample_fallback", error: Optional[str] = None) -> Dict[str, Any]:
     """Build transparent sample fallback payload if public data is unavailable."""
-    return build_treasury_curve_payload(
+    payload = build_treasury_curve_payload(
         curve=dict(SAMPLE_CURVE),
         as_of_date="sample",
         status=status,
         error=error,
     )
+    payload["source"] = "Synthetic sample Treasury curve"
+    payload["data_mode"] = "synthetic sample fallback — not observed market data"
+    payload["desk_read"] = ["Illustrative sample: " + line for line in payload["desk_read"]]
+    return payload
 
 
 def fetch_treasury_yield_curve(
@@ -408,6 +414,9 @@ def bond_proxy_quotes_to_dataframe(quotes_payload: Dict[str, Any]) -> pd.DataFra
                 "source": quote.get("source", quotes_payload.get("source")),
                 "data_mode": quote.get("data_mode", quotes_payload.get("data_mode")),
                 "timestamp_utc": quote.get("timestamp_utc", quotes_payload.get("timestamp_utc")),
+                "observation_date": quote.get("observation_date"),
+                "observation_timestamp": quote.get("observation_timestamp"),
+                "price_basis": quote.get("price_basis"),
             }
         )
 
@@ -422,6 +431,9 @@ def bond_proxy_quotes_to_dataframe(quotes_payload: Dict[str, Any]) -> pd.DataFra
             "source",
             "data_mode",
             "timestamp_utc",
+            "observation_date",
+            "observation_timestamp",
+            "price_basis",
         ],
     )
 
@@ -450,8 +462,8 @@ def build_rates_and_bond_market_snapshot(
         )
 
     return {
-        "source": "U.S. Treasury + yfinance ETF proxies",
-        "data_mode": "official daily rates + public ETF proxy quotes",
+        "source": treasury_curve["source"] + " + yfinance ETF proxies",
+        "data_mode": treasury_curve["data_mode"] + " + public ETF proxy quotes",
         "timestamp_utc": utc_timestamp(),
         "treasury_curve": treasury_curve,
         "bond_etf_proxies": bond_etf_proxies,

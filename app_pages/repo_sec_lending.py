@@ -237,7 +237,7 @@ def render() -> None:
             _format_currency(margin_result.current_eligible_collateral, currency),
         )
         vm4.metric(
-            "Contractual VM Transfer",
+            "Securities Transfer (Dirty Value)",
             _format_currency(margin_result.collateral_transfer_amount, currency),
         )
         vm5.metric(
@@ -245,6 +245,10 @@ def render() -> None:
             "Yes" if margin_result.margin_transfer_required else "No",
         )
         st.caption(margin_result.transfer_direction)
+        st.caption(
+            f"Cash-equivalent contractual VM: {abs(margin_result.contractual_margin_transfer):,.2f} {currency}. "
+            "Threshold, MTA and rounding apply to that amount. Securities dirty value equals cash-equivalent VM divided by (1 − contractual haircut)."
+        )
 
         with st.container(border=True):
             for comment in commentary:
