@@ -76,7 +76,7 @@ def validate_positive(value: float, field_name: str) -> float:
     """Validate strictly positive numeric inputs."""
     numeric_value = float(value)
 
-    if numeric_value <= 0:
+    if not np.isfinite(numeric_value) or numeric_value <= 0:
         raise ValueError(f"{field_name} must be strictly positive.")
 
     return numeric_value
@@ -85,6 +85,10 @@ def validate_positive(value: float, field_name: str) -> float:
 def option_leg_intrinsic_value(underlying_prices: Iterable[float], leg: OptionLeg) -> np.ndarray:
     """Calculate intrinsic payoff before premium for one option or underlying leg."""
     prices = np.asarray(list(underlying_prices), dtype=float)
+    if not np.isfinite(prices).all() or (prices < 0).any():
+        raise ValueError("Underlying prices must be finite and non-negative.")
+    if leg.position.lower() not in {"long", "short"}:
+        raise ValueError("Option position must be long or short.")
     position_sign = 1.0 if leg.position.lower() == "long" else -1.0
     quantity = float(leg.quantity)
 
@@ -162,7 +166,7 @@ def build_strategy_legs(
     premium = float(premium)
     quantity = validate_positive(quantity, "quantity")
 
-    if premium < 0:
+    if not np.isfinite(premium) or premium < 0:
         raise ValueError("premium cannot be negative.")
 
     second_strike = float(strike_2) if strike_2 is not None else None
@@ -171,7 +175,7 @@ def build_strategy_legs(
     if second_strike is not None:
         validate_positive(second_strike, "strike_2")
 
-    if second_premium is not None and second_premium < 0:
+    if second_premium is not None and (not np.isfinite(second_premium) or second_premium < 0):
         raise ValueError("premium_2 cannot be negative.")
 
     if strategy == "Long Call":

@@ -79,7 +79,7 @@ def generate_fixed_income_risk_report(
 
     output = BytesIO()
 
-    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+    with pd.ExcelWriter(output, engine="xlsxwriter", engine_kwargs={"options": {"strings_to_formulas": False, "strings_to_urls": False}}) as writer:
         workbook = writer.book
 
         title_format = workbook.add_format(
@@ -273,10 +273,10 @@ def generate_fixed_income_risk_report(
             "Clean value, full value, accrued interest, DV01 and scenario P&L are aggregated only after explicit FX translation.",
             "Manual FX assumptions are recorded in the Currency_Exposure and Bond_Level_Risk sheets.",
             "Coupon rate and yield to maturity are stored as decimals, e.g. 5% = 0.05.",
-            "Coupon dates are generated backwards from contractual maturity and remaining dated cashflows are priced from the recorded valuation date.",
+            "Coupon dates are anchored independently to maturity with month-end preservation; regular coupons and short first stubs are supported without business-day adjustment.",
             "Default pricing mode solves YTM from quoted clean price plus contractual accrued interest; audit mode preserves supplied YTM and reports the price gap.",
             "Duration and convexity are calculated by repricing the same contractual cashflow schedule used for price/YTM reconciliation.",
-            "Day-count convention, coupon dates, when-issued status and price reconciliation status are exported at bond level.",
+            "ACT/ACT bond calculations use coupon-reference periods; US 30/360 includes February-end rules. Day-count convention, coupon dates, when-issued status and price reconciliation status are exported at bond level.",
             "DV01 is positive and represents the approximate gain for a 1 bp fall in yield.",
             "Estimated P&L for a positive yield shock is negative under the project convention.",
             "Scenario P&L uses duration and convexity approximation, not full bond revaluation.",
@@ -284,7 +284,7 @@ def generate_fixed_income_risk_report(
             "Credit CS01 is calculated by direct +1 bp repricing of the contractual cashflow schedule and translated into the portfolio base currency.",
             "Credit curves are keyed by currency, sector and rating unless an explicit credit_curve_key is supplied.",
             "The CS01 calculation remains a parallel-spread proxy and is not a full OAS, hazard-rate or recovery model.",
-            "The dataset is synthetic and for demonstration only.",
+            "Inputs may be the synthetic sample or uploaded data; this report does not certify their provenance or accuracy.",
             "This report is not investment advice, not a trading signal, and not a bank-grade risk report.",
         ]
 
@@ -356,7 +356,7 @@ def generate_financing_margin_report(
 
     output = BytesIO()
 
-    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+    with pd.ExcelWriter(output, engine="xlsxwriter", engine_kwargs={"options": {"strings_to_formulas": False, "strings_to_urls": False}}) as writer:
         workbook = writer.book
 
         header_format = workbook.add_format(
@@ -420,7 +420,7 @@ def generate_financing_margin_report(
             "Repurchase amount equals cash amount plus repo interest.",
             "Contractual variation margin uses the accrued repurchase price at the selected margin date.",
             "Current collateral is entered as a dirty value and remains subject to the original contractual haircut.",
-            "Threshold, minimum transfer amount and contractual rounding are applied before an executable margin transfer is reported.",
+            "Threshold, minimum transfer amount and rounding apply to cash-equivalent VM. The dirty value of securities transferred equals absolute VM divided by (1 - contractual haircut).",
             "A haircut increase is excluded from contractual variation margin and is reported separately as refinancing or re-roll liquidity stress.",
             "Refinancing liquidity stress compares current funding capacity with stressed funding capacity under a stated collateral-price shock and refinancing haircut.",
             "Currency, transaction direction and netting-set ID are explicit, but this remains a single-netting-set proxy rather than a full GMRA collateral system.",
@@ -476,7 +476,7 @@ def generate_structured_products_report(
 
     output = BytesIO()
 
-    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+    with pd.ExcelWriter(output, engine="xlsxwriter", engine_kwargs={"options": {"strings_to_formulas": False, "strings_to_urls": False}}) as writer:
         workbook = writer.book
 
         header_format = workbook.add_format(
@@ -612,7 +612,7 @@ def generate_portfolio_risk_report(
 
     output = BytesIO()
 
-    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+    with pd.ExcelWriter(output, engine="xlsxwriter", engine_kwargs={"options": {"strings_to_formulas": False, "strings_to_urls": False}}) as writer:
         workbook = writer.book
 
         header_format = workbook.add_format(
@@ -667,8 +667,8 @@ def generate_portfolio_risk_report(
             "Sharpe ratio equals annualized excess return divided by annualized volatility.",
             "Historical VaR is reported as a positive loss number at the explicitly selected multi-period horizon.",
             "Historical CVaR is the average tail loss beyond VaR using overlapping compounded horizon returns.",
-            "Max drawdown is calculated from the cumulative return index.",
-            "Risk contribution uses covariance-based contribution to portfolio volatility.",
+            "Max drawdown includes initial wealth of 1 before the first return.",
+            "Risk contribution uses covariance-based contribution to portfolio volatility at the selected annualization frequency. Zero-volatility contribution percentages and Sharpe are undefined.",
             "Stress scenarios are simplified generic shocks based on asset labels.",
             "This report does not model liquidity, transaction costs, slippage, factor risk, or intraday risk.",
             "This report is not investment advice, not a trading signal, and not a production risk system.",

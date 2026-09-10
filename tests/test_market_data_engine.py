@@ -51,7 +51,7 @@ def test_build_quote_from_history_handles_single_close():
     quote = build_quote_from_history("SPY", history)
 
     assert quote["price"] == 101.25
-    assert quote["change_pct"] == 0.0
+    assert quote["change_pct"] is None
     assert quote["status"] == "ok"
 
 

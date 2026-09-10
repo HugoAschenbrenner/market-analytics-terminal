@@ -16,7 +16,7 @@ Conventions:
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from math import erf, exp, log, pi, sqrt
+from math import erf, exp, isfinite, log, pi, sqrt
 from typing import Any, Dict, Iterable, List, Optional
 
 import pandas as pd
@@ -105,6 +105,9 @@ def validate_black_scholes_inputs(
     risk_free_rate = float(risk_free_rate)
     volatility = float(volatility)
     dividend_yield = float(dividend_yield)
+
+    if not all(isfinite(value) for value in (spot, strike, maturity_years, risk_free_rate, volatility, dividend_yield)):
+        raise ValueError("Black-Scholes inputs must be finite.")
 
     if spot <= 0:
         raise ValueError("spot must be strictly positive.")
@@ -373,7 +376,9 @@ def build_black_scholes_snapshot(
     )
 
     intrinsic = option_intrinsic_value(inputs.option_type, inputs.spot, inputs.strike)
-    time_value = max(price - intrinsic, 0.0)
+    # European exercise restrictions can make value lower than immediate
+    # intrinsic value (e.g. a deep ITM put with positive interest rates).
+    time_value = price - intrinsic
     moneyness_pct = (inputs.spot / inputs.strike - 1.0) * 100.0
 
     output = BlackScholesOutputs(
@@ -614,6 +619,14 @@ def build_bsm_sensitivity_curve(
         inputs.volatility,
         points=points,
     )
+    # Include the exact selected input so markers and tangents do not use
+    # a neighbouring grid point with different contract assumptions.
+    base_axis_value = {"Spot": inputs.spot, "Strike": inputs.strike,
+                       "Maturity": inputs.maturity_years, "Rate": inputs.risk_free_rate,
+                       "Volatility": inputs.volatility}[normalized_variable]
+    nearest = min(range(len(axis_values)), key=lambda i: abs(axis_values[i] - base_axis_value))
+    axis_values[nearest] = base_axis_value
+    axis_values.sort()
 
     rows: list[dict[str, Any]] = []
 

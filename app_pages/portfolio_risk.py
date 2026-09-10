@@ -29,7 +29,7 @@ def _format_percent(value: float) -> str:
 
 
 def _format_number(value: float) -> str:
-    return f"{value:,.2f}"
+    return "N/A" if pd.isna(value) else f"{value:,.2f}"
 
 
 def render() -> None:
@@ -51,7 +51,11 @@ def render() -> None:
     )
 
     if uploaded_file is not None:
-        price_df = pd.read_csv(uploaded_file)
+        try:
+            price_df = pd.read_csv(uploaded_file)
+        except (ValueError, UnicodeError) as exc:
+            st.error(f"Cannot read price CSV: {exc}")
+            return
         st.info("Using uploaded price dataset.")
     else:
         price_df = build_sample_price_data()
@@ -191,7 +195,7 @@ def render() -> None:
 
     st.subheader("Portfolio Weights")
 
-    st.caption("Weights are normalized automatically if they do not sum exactly to 100%.")
+    st.caption("Long-only weights are normalized to 100%. Returns assume rebalancing to these weights each observation; use prices adjusted for distributions for total-return analysis.")
 
     default_weight = 100.0 / len(assets)
     weight_inputs = {}
@@ -270,7 +274,7 @@ def render() -> None:
             ),
         }
     )
-    risk_contribution_df = calculate_risk_contribution(returns_df, weights)
+    risk_contribution_df = calculate_risk_contribution(returns_df, weights, periods_per_year=int(periods_per_year))
     stress_df = calculate_stress_scenario_table(weights)
     correlation_matrix = calculate_correlation_matrix(returns_df)
     commentary = generate_portfolio_risk_commentary(
@@ -488,6 +492,11 @@ def render() -> None:
 
 
     st.subheader("R Portfolio Analytics Companion")
+    st.info(
+        "Separate static sample analysis: the R companion uses data/portfolio_returns_sample.csv, "
+        "equal weights, 252 periods/year and a 2% risk-free rate. It does not use the uploaded "
+        "prices, weights or frequency selected above. Re-run the R script to regenerate its outputs."
+    )
 
     r_output_dir = Path("r_analytics/outputs")
 

@@ -105,6 +105,8 @@ def _render_rates_bond_market_snapshot() -> None:
             return
 
         treasury_payload = payload.get("treasury_curve", {})
+        if treasury_payload.get("status") == "sample_fallback":
+            st.warning("Public Treasury data is unavailable. The curve and desk read below use a synthetic sample, not current market observations.")
         curve = treasury_payload.get("curve", {})
         spreads = treasury_payload.get("spreads_bps", {})
 
@@ -158,6 +160,7 @@ def _render_rates_bond_market_snapshot() -> None:
             st.markdown(f"- {line}")
 
         bond_proxy_payload = payload.get("bond_etf_proxies", {})
+        st.caption("ETF prices use the provider's Close field without dividend adjustment; changes exclude cash distributions. The observation date/time is the provider bar time; timestamp_utc is retrieval time.")
 
         if bond_proxy_payload:
             st.markdown("**Bond ETF Proxy Snapshot**")
@@ -180,7 +183,7 @@ def _render_rates_bond_market_snapshot() -> None:
             f"Rates source: {treasury_payload.get('source')} | "
             f"Rates mode: {treasury_payload.get('data_mode')} | "
             f"As of: {treasury_payload.get('as_of_date')} | "
-            f"Updated: {treasury_payload.get('timestamp_utc')}"
+            f"Retrieved: {treasury_payload.get('timestamp_utc')}"
         )
         st.caption(payload.get("disclaimer", ""))
 
@@ -208,7 +211,11 @@ def render() -> None:
     )
 
     if uploaded_file is not None:
-        bonds = pd.read_csv(uploaded_file)
+        try:
+            bonds = pd.read_csv(uploaded_file)
+        except (ValueError, UnicodeError) as exc:
+            st.error(f"Cannot read bond CSV: {exc}")
+            return
         st.info("Using uploaded portfolio.")
     else:
         bonds = load_bond_data("data/sample_bonds.csv")

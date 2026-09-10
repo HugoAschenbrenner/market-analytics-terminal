@@ -103,7 +103,10 @@ def load_bond_data(path: str | Path = "data/sample_bonds.csv") -> pd.DataFrame:
 def _to_timestamp(value) -> pd.Timestamp:
     """Convert a date-like value to pandas Timestamp."""
 
-    return pd.to_datetime(value)
+    parsed = pd.to_datetime(value)
+    if pd.isna(parsed):
+        raise ValueError("Bond dates must be valid and non-missing.")
+    return parsed
 
 
 def years_to_maturity(maturity_date, valuation_date: Optional[date] = None) -> float:
@@ -374,6 +377,8 @@ def _normalize_when_issued_policy(
 def _validate_coupon_frequency(
     frequency: int,
 ) -> int:
+    if not np.isfinite(float(frequency)) or float(frequency) != int(frequency):
+        raise ValueError("Coupon frequency must be an integer.")
     resolved = int(frequency)
     if resolved <= 0 or 12 % resolved != 0:
         raise ValueError(
@@ -394,10 +399,15 @@ def _thirty_360_us_year_fraction(
             "Day-count end date cannot precede start date."
         )
 
-    d1 = min(int(start.day), 30)
+    d1 = int(start.day)
     d2 = int(end.day)
-    if d1 == 30:
-        d2 = min(d2, 30)
+    if start.month == 2 and start.is_month_end:
+        if end.month == 2 and end.is_month_end:
+            d2 = 30
+        d1 = 30
+    if d2 == 31 and d1 >= 30:
+        d2 = 30
+    d1 = min(d1, 30)
 
     numerator = (
         (int(end.year) - int(start.year)) * 360
@@ -432,7 +442,15 @@ def calculate_day_count_year_fraction(
     if resolved == "ACT/365F":
         return elapsed_days / 365.0
 
-    return elapsed_days / 365.25
+    # Calendar ACT/ACT (ISDA) for this date-only helper. Bond cashflows
+    # use coupon-reference ACT/ACT (ICMA) below, not a 365.25-day proxy.
+    fraction = 0.0
+    cursor = start
+    while cursor < end:
+        boundary = min(end, pd.Timestamp(year=cursor.year + 1, month=1, day=1))
+        fraction += (boundary - cursor).days / (366.0 if cursor.is_leap_year else 365.0)
+        cursor = boundary
+    return float(fraction)
 
 
 def validate_bond_contract_dates(
@@ -469,6 +487,37 @@ def validate_bond_contract_dates(
     return "Active"
 
 
+def _reference_coupon_grid(start_date, maturity_date, frequency: int) -> pd.DatetimeIndex:
+    """Unadjusted maturity-anchored grid including the boundary before start.
+
+    Preserve the maturity day (and month-end convention) on every date;
+    repeated subtraction from February would otherwise drift the schedule.
+    """
+    start = _to_timestamp(start_date).normalize()
+    maturity = _to_timestamp(maturity_date).normalize()
+    months = 12 // _validate_coupon_frequency(frequency)
+    dates = [maturity]
+    offset = 1
+    while dates[-1] > start:
+        current = maturity - pd.DateOffset(months=offset * months)
+        if maturity.is_month_end:
+            current = current + pd.offsets.MonthEnd(0)
+        dates.append(current.normalize())
+        offset += 1
+    return pd.DatetimeIndex(dates[::-1])
+
+
+def _coupon_reference_periods(start, end, reference_grid: pd.DatetimeIndex) -> float:
+    """Elapsed regular coupon periods, with partial periods on actual days."""
+    total = 0.0
+    for left, right in zip(reference_grid[:-1], reference_grid[1:]):
+        overlap_start = max(pd.Timestamp(start), left)
+        overlap_end = min(pd.Timestamp(end), right)
+        if overlap_end > overlap_start:
+            total += (overlap_end - overlap_start).days / (right - left).days
+    return float(total)
+
+
 def build_contractual_coupon_schedule(
     issue_date,
     maturity_date,
@@ -485,20 +534,8 @@ def build_contractual_coupon_schedule(
             "Bond issue date must be strictly before maturity date."
         )
 
-    months_per_coupon = int(12 / resolved_frequency)
-    payment_dates: list[pd.Timestamp] = []
-    current = maturity
-
-    while current > issue:
-        payment_dates.append(current)
-        current = (
-            current
-            - pd.DateOffset(months=months_per_coupon)
-        ).normalize()
-
-    schedule = pd.DatetimeIndex(
-        sorted(set(payment_dates))
-    )
+    reference_grid = _reference_coupon_grid(issue, maturity, resolved_frequency)
+    schedule = reference_grid[reference_grid > issue]
 
     if len(schedule) == 0 or schedule[-1] != maturity:
         raise RuntimeError(
@@ -573,8 +610,11 @@ def calculate_contractual_accrued_interest_per_100(
         return 0.0
 
     if convention == "ACT/ACT":
+        reference_grid = _reference_coupon_grid(issue, maturity, resolved_frequency)
+        next_index = reference_grid.get_loc(next_coupon)
+        reference_start = reference_grid[next_index - 1]
         period_days = float(
-            (next_coupon - previous_coupon).days
+            (next_coupon - reference_start).days
         )
         elapsed_days = float(
             (valuation - previous_coupon).days
@@ -613,6 +653,7 @@ def _coupon_cashflow_per_100(
     issue_date,
     payment_date,
     day_count_convention: str,
+    reference_period_start=None,
 ) -> float:
     issue = _to_timestamp(issue_date).normalize()
     payment = _to_timestamp(payment_date).normalize()
@@ -624,7 +665,7 @@ def _coupon_cashflow_per_100(
     )
     months_per_coupon = int(12 / resolved_frequency)
 
-    regular_period_start = (
+    regular_period_start = _to_timestamp(reference_period_start) if reference_period_start is not None else (
         payment
         - pd.DateOffset(months=months_per_coupon)
     ).normalize()
@@ -693,6 +734,9 @@ def build_remaining_contractual_cashflows(
             "No contractual cashflows remain after valuation date."
         )
 
+    reference_grid = _reference_coupon_grid(
+        min(_to_timestamp(issue_date).normalize(), valuation), maturity, resolved_frequency
+    )
     cashflows = np.array(
         [
             _coupon_cashflow_per_100(
@@ -701,6 +745,7 @@ def build_remaining_contractual_cashflows(
                 issue_date=issue_date,
                 payment_date=payment_date,
                 day_count_convention=convention,
+                reference_period_start=reference_grid[reference_grid.get_loc(payment_date) - 1],
             )
             for payment_date in remaining_dates
         ],
@@ -710,7 +755,8 @@ def build_remaining_contractual_cashflows(
 
     discount_exponents = np.array(
         [
-            calculate_day_count_year_fraction(
+            _coupon_reference_periods(valuation, payment_date, reference_grid)
+            if convention == "ACT/ACT" else calculate_day_count_year_fraction(
                 valuation,
                 payment_date,
                 convention,
@@ -1271,6 +1317,13 @@ def calculate_bond_risk_metrics(
         )
 
     df = bonds.copy()
+    missing = set(REQUIRED_BOND_COLUMNS) - set(df.columns)
+    if missing:
+        raise ValueError(f"Missing required bond columns: {sorted(missing)}")
+    if df.empty:
+        raise ValueError("Bond data cannot be empty.")
+    if df[REQUIRED_BOND_COLUMNS].isna().any().any():
+        raise ValueError("Bond data contains missing required values.")
     output_rows: list[dict] = []
 
     for _, source_row in df.iterrows():
@@ -1283,7 +1336,7 @@ def calculate_bond_risk_metrics(
             row["maturity_date"]
         ).normalize()
         frequency = _validate_coupon_frequency(
-            int(row["frequency"])
+            row["frequency"]
         )
         day_count = _normalize_day_count_convention(
             row.get(

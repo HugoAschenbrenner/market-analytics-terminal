@@ -20,6 +20,7 @@ signal.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import math
 from typing import Any
 
 import pandas as pd
@@ -87,6 +88,12 @@ def classify_risk_score(score: float) -> str:
 
 def validate_cross_asset_inputs(inputs: CrossAssetRiskInputs) -> None:
     """Validate the common-NAV and non-overlapping-sleeve contract."""
+
+    for name, value in asdict(inputs).items():
+        if name != "base_currency" and not math.isfinite(float(value)):
+            raise ValueError(f"{name} must be finite.")
+    if inputs.portfolio_cvar_95 < inputs.portfolio_var_95:
+        raise ValueError("Portfolio CVaR cannot be smaller than VaR at the same confidence and horizon.")
 
     if not inputs.base_currency or not inputs.base_currency.strip():
         raise ValueError("Base currency must be provided.")

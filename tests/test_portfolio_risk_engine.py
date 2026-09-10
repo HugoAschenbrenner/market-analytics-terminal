@@ -137,14 +137,14 @@ def test_annualized_volatility_is_positive_for_variable_returns():
     assert annualized_vol > 0
 
 
-def test_sharpe_ratio_zero_when_volatility_zero():
+def test_sharpe_ratio_undefined_when_volatility_zero():
     sharpe = calculate_sharpe_ratio(
         annualized_return=0.10,
         annualized_volatility=0.0,
         risk_free_rate=0.02,
     )
 
-    assert sharpe == 0.0
+    assert pd.isna(sharpe)
 
 
 def test_portfolio_risk_summary_returns_valid_metrics():

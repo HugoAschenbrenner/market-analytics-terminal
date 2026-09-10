@@ -43,10 +43,10 @@ def test_interactive_options_greeks_lab_anchor_point_has_no_duplicate_column_ren
     assert "anchor_y" in page
 
 
-def test_interactive_options_greeks_metric_cards_use_selected_curve_anchor():
+def test_interactive_options_greeks_metric_cards_use_exact_inputs():
     page = Path("app_pages/structured_products.py").read_text()
 
-    assert "anchor_row = selected_curve.loc[anchor_idx]" in page
-    assert 'interactive_theoretical_value = float(anchor_row["price"])' in page
-    assert 'interactive_delta = float(anchor_row["delta"])' in page
+    assert 'outputs = payload["snapshot"]["outputs"]' in page
+    assert 'interactive_theoretical_value = float(outputs["price"])' in page
+    assert 'interactive_delta = float(outputs["delta"])' in page
     assert "selected_x=selected_axis_value" in page

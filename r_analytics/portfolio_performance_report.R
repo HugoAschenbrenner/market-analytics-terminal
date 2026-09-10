@@ -9,10 +9,18 @@ if (!dir.exists(output_dir)) {
 
 returns_df <- read.csv(input_path)
 returns_df$date <- as.Date(returns_df$date)
+if (anyNA(returns_df$date) || anyDuplicated(returns_df$date)) {
+  stop("Sample return dates must be valid and unique.")
+}
+returns_df <- returns_df[order(returns_df$date), ]
 
 asset_columns <- setdiff(names(returns_df), "date")
 returns_matrix <- as.matrix(returns_df[, asset_columns])
 mode(returns_matrix) <- "numeric"
+if (ncol(returns_matrix) == 0 || nrow(returns_matrix) < 2 ||
+    any(!is.finite(returns_matrix)) || any(returns_matrix < -1)) {
+  stop("Sample returns must contain at least two observations of finite simple returns >= -100%.")
+}
 
 weights <- rep(1 / length(asset_columns), length(asset_columns))
 portfolio_returns <- as.numeric(returns_matrix %*% weights)
@@ -24,17 +32,18 @@ annualized_return <- mean(portfolio_returns, na.rm = TRUE) * periods_per_year
 annualized_volatility <- sd(portfolio_returns, na.rm = TRUE) * sqrt(periods_per_year)
 
 if (annualized_volatility == 0) {
-  sharpe_ratio <- 0
+  sharpe_ratio <- NA_real_
 } else {
   sharpe_ratio <- (annualized_return - risk_free_rate) / annualized_volatility
 }
 
 cumulative_index <- cumprod(1 + portfolio_returns)
-running_max <- cummax(cumulative_index)
+running_max <- cummax(c(1, cumulative_index))[-1]
 drawdown <- cumulative_index / running_max - 1
 
-historical_var_95 <- max(0, -as.numeric(quantile(portfolio_returns, probs = 0.05, na.rm = TRUE)))
-tail_returns <- portfolio_returns[portfolio_returns <= -historical_var_95]
+tail_cutoff <- as.numeric(quantile(portfolio_returns, probs = 0.05, na.rm = TRUE))
+historical_var_95 <- max(0, -tail_cutoff)
+tail_returns <- portfolio_returns[portfolio_returns <= tail_cutoff]
 
 if (length(tail_returns) == 0) {
   historical_cvar_95 <- historical_var_95
@@ -95,7 +104,7 @@ for (i in seq_along(portfolio_returns)) {
     if (!is.na(window_vol) && window_vol != 0) {
       rolling_sharpe[i] <- (window_return - risk_free_rate) / window_vol
     } else {
-      rolling_sharpe[i] <- 0
+      rolling_sharpe[i] <- NA_real_
     }
   }
 }

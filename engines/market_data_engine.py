@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+from copy import deepcopy
+import math
 import time
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -18,7 +20,7 @@ import pandas as pd
 
 
 DEFAULT_SOURCE = "yfinance"
-DATA_MODE = "near-live / delayed public data"
+DATA_MODE = "historical / delayed public data"
 DEFAULT_CACHE_TTL_SECONDS = 60
 DISCLAIMER = (
     "Free/public market data adapter for educational and portfolio-demo use only. "
@@ -43,6 +45,9 @@ class MarketQuote:
     status: str
     disclaimer: str
     error: Optional[str] = None
+    observation_date: Optional[str] = None
+    observation_timestamp: Optional[str] = None
+    price_basis: str = "Close (not dividend-adjusted)"
 
 
 def utc_timestamp() -> str:
@@ -111,9 +116,10 @@ def build_quote_from_history(
             )
         )
 
-    closes = pd.to_numeric(history["Close"], errors="coerce").dropna()
+    ordered_history = history.sort_index() if isinstance(history.index, pd.DatetimeIndex) else history
+    closes = pd.to_numeric(ordered_history["Close"], errors="coerce")
 
-    if closes.empty:
+    if closes.empty or not math.isfinite(float(closes.iloc[-1])) or float(closes.iloc[-1]) <= 0:
         return asdict(
             MarketQuote(
                 symbol=clean_symbol,
@@ -132,9 +138,11 @@ def build_quote_from_history(
 
     if len(closes) >= 2:
         previous_price = float(closes.iloc[-2])
-        change_pct = ((last_price / previous_price) - 1.0) * 100 if previous_price else None
+        change_pct = ((last_price / previous_price) - 1.0) * 100 if math.isfinite(previous_price) and previous_price > 0 else None
     else:
-        change_pct = 0.0
+        change_pct = None
+
+    observation = closes.index[-1] if isinstance(closes.index, pd.DatetimeIndex) else None
 
     return asdict(
         MarketQuote(
@@ -147,6 +155,8 @@ def build_quote_from_history(
             timestamp_utc=utc_timestamp(),
             status="ok",
             disclaimer=DISCLAIMER,
+            observation_date=observation.date().isoformat() if observation is not None else None,
+            observation_timestamp=observation.isoformat() if observation is not None else None,
         )
     )
 
@@ -206,8 +216,8 @@ def fetch_yfinance_quotes(
         and not force_refresh
         and now - float(cached["cache_timestamp"]) <= cache_ttl_seconds
     ):
-        payload = dict(cached["payload"])
-        payload["status"] = "cached"
+        payload = deepcopy(cached["payload"])
+        payload["cache_status"] = "cached"
         return payload
 
     try:
@@ -227,12 +237,13 @@ def fetch_yfinance_quotes(
         "disclaimer": DISCLAIMER,
         "error": None,
         "quotes": {},
+        "cache_status": "fresh",
     }
 
     for symbol in normalized:
         try:
             ticker = yf.Ticker(symbol)
-            history = ticker.history(period=period, interval=interval)
+            history = ticker.history(period=period, interval=interval, auto_adjust=False)
 
             currency = None
             try:
@@ -261,11 +272,13 @@ def fetch_yfinance_quotes(
                 )
             )
 
-    _quote_cache[cache_key] = {"cache_timestamp": now, "payload": payload}
+    valid_count = sum(quote["status"] == "ok" for quote in payload["quotes"].values())
+    payload["status"] = "ok" if valid_count == len(normalized) else ("partial" if valid_count else "unavailable")
+    _quote_cache[cache_key] = {"cache_timestamp": now, "payload": deepcopy(payload)}
     return payload
 
 
-def build_market_snapshot(symbols: Optional[Iterable[str]] = None) -> Dict[str, Any]:
+def build_market_snapshot(symbols: Optional[Iterable[str]] = None, force_refresh: bool = False) -> Dict[str, Any]:
     """Build the optional market snapshot payload for Streamlit display."""
     watchlist = default_watchlist() if symbols is None else normalize_symbols(symbols)
-    return fetch_yfinance_quotes(watchlist)
+    return fetch_yfinance_quotes(watchlist, force_refresh=force_refresh)

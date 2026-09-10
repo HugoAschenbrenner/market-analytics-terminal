@@ -60,7 +60,7 @@ def _as_positive_tuple(values: Iterable[float], field_name: str) -> tuple[float,
     if not cleaned:
         raise ValueError(f"{field_name} cannot be empty.")
 
-    if any(value <= 0 for value in cleaned):
+    if any(not np.isfinite(value) or value <= 0 for value in cleaned):
         raise ValueError(f"All {field_name} values must be strictly positive.")
 
     return cleaned
@@ -83,8 +83,8 @@ def validate_valuation_inputs(
     seed: Optional[int] = 42,
 ) -> AutocallableValuationInputs:
     """Validate and normalize autocallable valuation inputs."""
-    initial_spots_tuple = _as_positive_tuple(initial_spots or (100.0,), "initial_spots")
-    volatilities_tuple = _as_positive_tuple(volatilities or (0.20,), "volatilities")
+    initial_spots_tuple = _as_positive_tuple((100.0,) if initial_spots is None else initial_spots, "initial_spots")
+    volatilities_tuple = _as_positive_tuple((0.20,) if volatilities is None else volatilities, "volatilities")
 
     if len(initial_spots_tuple) != len(volatilities_tuple):
         raise ValueError("initial_spots and volatilities must have the same length.")
@@ -100,6 +100,13 @@ def validate_valuation_inputs(
     risk_free_rate = float(risk_free_rate)
     dividend_yield = float(dividend_yield)
     simulations = int(simulations)
+
+    if not all(np.isfinite(value) for value in (notional, correlation, maturity_years, autocall_barrier,
+                                               coupon_barrier, protection_barrier, coupon_rate,
+                                               risk_free_rate, dividend_yield)):
+        raise ValueError("Valuation inputs must be finite.")
+    if protection_barrier > 1:
+        raise ValueError("protection_barrier cannot exceed 100% of initial value.")
 
     if notional <= 0:
         raise ValueError("notional must be strictly positive.")
@@ -334,7 +341,11 @@ def evaluate_autocallable_cashflows(
     if paths.ndim != 3:
         raise ValueError("performance_paths must have shape simulations x observations x assets.")
 
-    simulation_count, observation_count, _ = paths.shape
+    simulation_count, observation_count, asset_count = paths.shape
+    if simulation_count == 0 or asset_count != len(inputs.initial_spots):
+        raise ValueError("performance_paths must contain simulations and match the input asset count.")
+    if not np.isfinite(paths).all() or (paths < 0).any():
+        raise ValueError("Performance ratios must be finite and non-negative.")
     observation_times = build_observation_times(inputs)
 
     if observation_count != len(observation_times):
@@ -429,7 +440,7 @@ def summarize_autocallable_cashflows(
         "p05_payoff": round(float(cashflows["payoff"].quantile(0.05)), 6),
         "p50_payoff": round(float(cashflows["payoff"].quantile(0.50)), 6),
         "p95_payoff": round(float(cashflows["payoff"].quantile(0.95)), 6),
-        "simulations": int(inputs.simulations),
+        "simulations": int(len(cashflows)),
         "asset_count": len(inputs.initial_spots),
     }
 
@@ -563,11 +574,15 @@ def build_valuation_sensitivity_table(
 
     rows: List[Dict[str, Any]] = []
 
+    asset_count = len(base_inputs.initial_spots)
+    minimum_corr = max(-0.95, -1.0 / (asset_count - 1) + 1e-6) if asset_count > 1 else -0.95
+
     for vol_move in vol_moves:
         shocked_vols = tuple(max(vol + float(vol_move), 0.0001) for vol in base_inputs.volatilities)
 
         for corr_move in corr_moves:
-            shocked_corr = min(max(base_inputs.correlation + float(corr_move), -0.95), 0.95)
+            requested_corr = base_inputs.correlation + float(corr_move)
+            shocked_corr = min(max(requested_corr, minimum_corr), 0.95)
 
             shocked_inputs = replace(
                 base_inputs,
@@ -584,6 +599,9 @@ def build_valuation_sensitivity_table(
                     "scenario": f"Vol {vol_move * 100:+.0f} pts, Corr {corr_move:+.2f}",
                     "avg_volatility": round(float(np.mean(shocked_vols)), 6),
                     "correlation": round(shocked_corr, 6),
+                    "requested_correlation": requested_corr,
+                    "correlation_clipped": not np.isclose(shocked_corr, requested_corr, rtol=0, atol=1e-12),
+                    "applied_volatility_shock": float(np.mean(shocked_vols) - np.mean(base_inputs.volatilities)),
                     "fair_value_pct_notional": summary["fair_value_pct_notional"],
                     "autocall_probability": summary["autocall_probability"],
                     "barrier_breach_probability": summary["protection_barrier_breach_probability"],

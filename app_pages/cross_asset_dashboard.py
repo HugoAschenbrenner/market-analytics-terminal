@@ -63,6 +63,9 @@ def _market_snapshot_to_dataframe(payload: dict) -> pd.DataFrame:
                     "timestamp_utc",
                     payload.get("timestamp_utc"),
                 ),
+                "observation_date": quote.get("observation_date"),
+                "observation_timestamp": quote.get("observation_timestamp"),
+                "price_basis": quote.get("price_basis"),
             }
         )
 
@@ -77,6 +80,9 @@ def _market_snapshot_to_dataframe(payload: dict) -> pd.DataFrame:
             "source",
             "data_mode",
             "timestamp_utc",
+            "observation_date",
+            "observation_timestamp",
+            "price_basis",
         ],
     )
 
@@ -128,7 +134,7 @@ def _render_market_data_snapshot() -> None:
             with st.spinner("Fetching public market data..."):
                 st.session_state[
                     "market_data_snapshot_payload"
-                ] = build_market_snapshot(symbols)
+                ] = build_market_snapshot(symbols, force_refresh=True)
 
         payload = st.session_state.get(
             "market_data_snapshot_payload"
@@ -141,6 +147,9 @@ def _render_market_data_snapshot() -> None:
             return
 
         snapshot_df = _market_snapshot_to_dataframe(payload)
+        st.caption("Prices use the provider's Close field without dividend adjustment; change is the price move between the last two bars, excluding cash distributions. Observation date/time belongs to the provider bar; timestamp_utc is retrieval time, not a live price timestamp.")
+        if payload.get("status") in {"partial", "unavailable", "dependency_missing"}:
+            st.warning("Some requested quotes are unavailable. See each row's status; missing data is not a zero price or return.")
         if snapshot_df.empty:
             st.warning("No market data returned for the selected watchlist.")
             return
@@ -164,7 +173,7 @@ def _render_market_data_snapshot() -> None:
         st.caption(
             f"Source: {payload.get('source')} | "
             f"Mode: {payload.get('data_mode')} | "
-            f"Updated: {payload.get('timestamp_utc')}"
+            f"Retrieved: {payload.get('timestamp_utc')}"
         )
         st.caption(payload.get("disclaimer", ""))
 

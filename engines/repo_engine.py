@@ -141,6 +141,9 @@ def validate_repo_inputs(
 ) -> None:
     """Validate core repo inputs."""
 
+    if not all(math.isfinite(float(value)) for value in (collateral_market_value, haircut, repo_rate, day_count_basis)):
+        raise ValueError("Repo inputs must be finite.")
+
     if collateral_market_value <= 0:
         raise ValueError("Collateral market value must be positive.")
 
@@ -162,6 +165,9 @@ def validate_margin_inputs(
     new_haircut: float,
 ) -> None:
     """Validate margin analytics inputs."""
+
+    if not all(math.isfinite(float(value)) for value in (collateral_market_value, cash_amount, original_haircut, new_haircut)):
+        raise ValueError("Margin inputs must be finite.")
 
     if collateral_market_value <= 0:
         raise ValueError("Collateral market value must be positive.")
@@ -481,6 +487,8 @@ def calculate_accrued_repurchase_price(
 ) -> tuple[int, float, float]:
     """Accrue the repo cash exposure to the contractual margin date."""
     cash = _validate_non_negative_amount(cash_amount, "Cash amount")
+    if not math.isfinite(float(repo_rate)) or not math.isfinite(float(day_count_basis)):
+        raise ValueError("Repo rate and day-count basis must be finite.")
     if day_count_basis <= 0:
         raise ValueError("Day-count basis must be positive.")
     start = _to_date(start_date)
@@ -545,7 +553,7 @@ def calculate_contractual_variation_margin(
         rounding_increment,
         "Rounding increment",
     )
-    if contractual_haircut < 0 or contractual_haircut >= 1:
+    if not math.isfinite(float(contractual_haircut)) or contractual_haircut < 0 or contractual_haircut >= 1:
         raise ValueError("Contractual haircut must be between 0 and 1.")
     resolved_currency = str(currency).strip().upper()
     if not resolved_currency:
@@ -625,7 +633,9 @@ def calculate_contractual_variation_margin(
         rounding_method=method,
         threshold_adjusted_gap=float(threshold_adjusted_gap),
         contractual_margin_transfer=float(executable_transfer),
-        collateral_transfer_amount=float(abs(executable_transfer)),
+        # The signed VM is cash-equivalent exposure; securities transferred
+        # must have sufficient dirty market value after the same haircut.
+        collateral_transfer_amount=float(abs(executable_transfer) / (1.0 - contractual_haircut)),
         margin_transfer_required=bool(transfer_required),
         transfer_direction=transfer_direction,
         contractual_haircut_reset_applied=False,
@@ -659,7 +669,7 @@ def calculate_refinancing_haircut_stress(
         (contractual_haircut, "Contractual haircut"),
         (refinancing_haircut, "Refinancing haircut"),
     ]:
-        if haircut_value < 0 or haircut_value >= 1:
+        if not math.isfinite(float(haircut_value)) or haircut_value < 0 or haircut_value >= 1:
             raise ValueError(f"{label} must be between 0 and 1.")
     shock = float(collateral_price_shock)
     if not math.isfinite(shock) or shock <= -1:
@@ -795,8 +805,9 @@ def generate_contractual_margin_commentary(
     if result.margin_transfer_required:
         comments.append(
             f"{result.transfer_direction}: "
-            f"{result.collateral_transfer_amount:,.0f} after threshold, "
-            f"MTA and {result.rounding_method.lower()} rounding."
+            f"{result.collateral_transfer_amount:,.0f} in dirty market value, "
+            f"covering {abs(result.contractual_margin_transfer):,.0f} in cash-equivalent VM "
+            f"after threshold, MTA and {result.rounding_method.lower()} rounding."
         )
     else:
         comments.append(

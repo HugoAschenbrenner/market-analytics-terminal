@@ -84,8 +84,8 @@ def test_classify_curve_regime():
 def test_build_sample_treasury_curve_payload_is_transparent():
     payload = build_sample_treasury_curve_payload(error="network down")
 
-    assert payload["source"] == "U.S. Treasury"
-    assert payload["data_mode"] == TREASURY_DATA_MODE
+    assert payload["source"] == "Synthetic sample Treasury curve"
+    assert "synthetic sample" in payload["data_mode"]
     assert payload["status"] == "sample_fallback"
     assert payload["as_of_date"] == "sample"
     assert "2s10s_bps" in payload["spreads_bps"]

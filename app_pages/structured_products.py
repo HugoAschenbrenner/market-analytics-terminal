@@ -286,6 +286,7 @@ def _render_structured_products_valuation_proxy() -> None:
         st.caption(
             "Simplified valuation proxy for autocallable structures. It estimates expected discounted payoff, "
             "autocall probability, final protection loss risk at maturity, and expected maturity under transparent Monte Carlo assumptions."
+            " This is a separate redemption-only coupon contract: accumulated annual coupons are paid at autocall or qualifying maturity, with no interim Phoenix coupons. It does not price the Athena/Phoenix terms below."
         )
 
         c1, c2, c3 = st.columns(3)
@@ -355,7 +356,7 @@ def _render_structured_products_valuation_proxy() -> None:
             protection_barrier_pct = st.number_input(
                 "Protection barrier",
                 min_value=10.0,
-                max_value=150.0,
+                max_value=100.0,
                 value=60.0,
                 step=5.0,
                 key="valuation_proxy_protection_barrier_pct",
@@ -418,6 +419,12 @@ def _render_structured_products_valuation_proxy() -> None:
                 help="Runs additional Monte Carlo scenarios. Keep off for faster demo.",
             )
 
+        current_valuation_form = (notional, asset_count, initial_spots_text, volatilities_text,
+                                  maturity_years, observations_per_year, autocall_barrier_pct,
+                                  coupon_barrier_pct, protection_barrier_pct, coupon_rate_pct,
+                                  risk_free_rate_pct, dividend_yield_pct, correlation, simulations,
+                                  run_sensitivity)
+
         refresh = st.button(
             "Run valuation proxy",
             key="run_structured_products_valuation_proxy",
@@ -477,6 +484,7 @@ def _render_structured_products_valuation_proxy() -> None:
                     )
                     sensitivity_df = build_valuation_sensitivity_table(sensitivity_inputs)
 
+                st.session_state["structured_products_valuation_proxy_form"] = current_valuation_form
                 st.session_state["structured_products_valuation_proxy_snapshot"] = snapshot
                 st.session_state["structured_products_valuation_proxy_sensitivity"] = sensitivity_df
 
@@ -488,6 +496,10 @@ def _render_structured_products_valuation_proxy() -> None:
 
         if snapshot is None:
             st.info("Click Run valuation proxy to calculate the simplified autocallable valuation metrics.")
+            return
+
+        if st.session_state.get("structured_products_valuation_proxy_form") != current_valuation_form:
+            st.warning("Inputs changed since the last valuation. Run valuation proxy again to refresh the results.")
             return
 
         summary = snapshot["summary"]
@@ -825,34 +837,16 @@ def _render_interactive_options_greeks_lab() -> None:
             points=81,
         )
 
-        snapshot = payload["snapshot"]
-
-        greeks_payload = snapshot.get("greeks", snapshot)
-        interactive_theoretical_value = float(
-            snapshot.get(
-                "price",
-                snapshot.get("theoretical_value", snapshot.get("value", 0.0)),
-            )
-        )
-        interactive_intrinsic_value = float(
-            snapshot.get("intrinsic_value", snapshot.get("intrinsic", 0.0))
-        )
-        interactive_time_value = float(
-            snapshot.get(
-                "time_value",
-                max(interactive_theoretical_value - interactive_intrinsic_value, 0.0),
-            )
-        )
-
-        interactive_delta = float(greeks_payload.get("delta", 0.0))
-        interactive_gamma = float(greeks_payload.get("gamma", 0.0))
-        interactive_vega_1pct = float(greeks_payload.get("vega_1pct", 0.0))
-        interactive_theta_daily = float(
-            greeks_payload.get("theta_daily", greeks_payload.get("theta_day", 0.0))
-        )
-        interactive_rho_1pct = float(greeks_payload.get("rho_1pct", 0.0))
+        outputs = payload["snapshot"]["outputs"]
+        interactive_theoretical_value = float(outputs["price"])
+        interactive_intrinsic_value = float(outputs["intrinsic_value"])
+        interactive_time_value = float(outputs["time_value"])
+        interactive_delta = float(outputs["delta"])
+        interactive_gamma = float(outputs["gamma"])
+        interactive_vega_1pct = float(outputs["vega_1pct"])
+        interactive_theta_daily = float(outputs["theta_daily"])
+        interactive_rho_1pct = float(outputs["rho_1pct"])
         selected_curve = payload["curves"][selected_axis]
-
         selected_axis_value = {
             "Spot": interactive_spot,
             "Strike": interactive_strike,
@@ -860,26 +854,6 @@ def _render_interactive_options_greeks_lab() -> None:
             "Volatility": interactive_volatility_pct / 100.0,
             "Rate": interactive_rate_pct / 100.0,
         }[selected_axis]
-
-        anchor_idx = int((selected_curve["axis_value"] - selected_axis_value).abs().idxmin())
-        anchor_row = selected_curve.loc[anchor_idx]
-
-        interactive_theoretical_value = float(anchor_row["price"])
-        interactive_delta = float(anchor_row["delta"])
-        interactive_gamma = float(anchor_row["gamma"])
-        interactive_vega_1pct = float(anchor_row["vega_1pct"])
-        interactive_theta_daily = float(anchor_row["theta_daily"])
-        interactive_rho_1pct = float(anchor_row["rho_1pct"])
-
-        if interactive_option_type == "Call":
-            interactive_intrinsic_value = max(interactive_spot - interactive_strike, 0.0)
-        else:
-            interactive_intrinsic_value = max(interactive_strike - interactive_spot, 0.0)
-
-        interactive_time_value = max(
-            interactive_theoretical_value - interactive_intrinsic_value,
-            0.0,
-        )
 
         tangent = build_local_tangent_line(
             selected_curve,
@@ -899,6 +873,7 @@ def _render_interactive_options_greeks_lab() -> None:
         m6.metric("Rho / 1 rate pt", f"{interactive_rho_1pct:.4f}")
         m7.metric("Intrinsic value", f"{interactive_intrinsic_value:.4f}")
         m8.metric("Time value", f"{interactive_time_value:.4f}")
+        st.caption("Time value = European option value − immediate intrinsic value; it can be negative because exercise is restricted to expiry.")
 
         chart_df = selected_curve[["axis_value", "price"]].copy()
         tangent_df = tangent[["axis_value", "tangent_value"]].copy()
