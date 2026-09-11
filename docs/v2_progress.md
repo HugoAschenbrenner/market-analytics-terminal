@@ -46,3 +46,9 @@ Completed: sample/EWMA/Ledoit–Wolf covariance (transparent NumPy implementatio
 Completed: nested rates views, DV01-neutral 2s10s/5s30s steepeners/flatteners and butterfly, CIP forwards/cross-rates/swap points, Garman–Kohlhagen pricing and domestic/foreign Greeks, importer/exporter hedge comparisons including financed option premium and valid zero-cost collars. Low-level BSM prices now retain floating-point precision; display snapshots still round for presentation.
 
 447 tests passed. Coverage includes all FX tabs in EN/FR, rates tabs, put–call parity, all GK Greeks against finite differences, forward identities, protected client proceeds and neutral curve-trade exposures. The two initially failing FX gamma checks exposed premature price rounding and pass after correcting the pricing primitive.
+
+## Phase 5 — Derivatives
+
+Completed: BSM formulas with units/interpretation, analytical Vanna/Volga/Charm, bounded IV bisection, chart/heatmap Greek exploration, explicit synthetic smile/term/surface and FX RR/BF conventions, shared-position P&L attribution with full repricing residual, and self-financing option/straddle delta-hedging simulation including entry/rebalance/liquidation costs and cash interest. Risk Lab also consumes the P&L explain component. Selected book options supply contractual inputs.
+
+480 tests passed, including 33 new engine/UI tests: Call/Put advanced Greek finite differences across spot/time/dividend cases, IV recovery including near expiry, price bounds, P&L reconciliation, and pathwise hedging cash-account identities. EN/FR derivatives tabs render successfully. Browser inspection confirmed nested tabs, chart layout and P&L view; moved the option selector above the tabs for visibility. Synthetic surfaces are explicitly not fitted or guaranteed arbitrage-free.

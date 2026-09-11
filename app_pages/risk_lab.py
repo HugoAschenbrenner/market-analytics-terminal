@@ -80,6 +80,13 @@ def render(state):
             fig.add_scatter(x=bt.index[bt.exceedance],y=bt.loc[bt.exceedance,'pnl'],mode='markers',name=t('exceedances'))
             chart(fig.update_layout(title=t('exceedances'),xaxis_title=t('date'),yaxis_title=t('pnl')),height=350)
             st.caption(t('risk.synthetic'));view_data(bt);formula_panel('risk.method')
+            with st.expander(t('pnl_explain')):
+                from components.option_risk import render_explain
+                options=risk['marks'].query("asset_class=='Option'")
+                if not options.empty:
+                    selected=st.selectbox(t('option.select'),options.id.tolist(),key='risk_option')
+                    render_explain(options.set_index('id').loc[selected],state,prefix='risk_explain')
+                else:st.info(t('option.none'))
 
 def render_scenarios(state):
     selected=st.selectbox(t('scenario'),[s.name for s in PRESETS]+['custom'],format_func=lambda x,lang=state.ui.language:t(x,lang),key='scenario_select')
