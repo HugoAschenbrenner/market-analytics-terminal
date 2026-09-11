@@ -28,3 +28,9 @@ Intentional test migrations: seven duplicate/source-only tests requiring the pre
 - Equity options use audited European BSM with shared underlying spot and currency rate; contract volatility and strike belong to the position.
 - Repo cash is a liability deducted from NAV; matching proceeds must be booked in cash. Liquidity is separate from economic P&L.
 - Demo data is synthetic, explicitly labelled. Public observations must carry their own date/source and cannot be presented as live data by inference.
+
+## Phase 2 — Overview and Markets
+
+Completed: automatic cached market context, per-series source/observation dates, latest/1W/1M US and ECB curve overlays, curve-change bars and spreads, DV01/CS01 charts, shared-book ES and exposures, hypothetical scenario bars with separate liquidity, numerical risk insights. The source status may be mixed and never relabels stale public observations as fresh. Portfolio risk history is explicitly synthetic and separate from public context.
+
+Validation after resume: 410 tests passed; real Yahoo quote and ECB curve reads succeeded. FRED timed out within its bounded request window; the US curve was visibly labelled SYNTHETIC. The standard certifi trust bundle resolved the local ECB certificate-chain issue without disabling verification. Browser inspection confirmed the overview, market strip and dated source labels. Economic P&L reconciles by factor/position; liquidity-only stress does not enter P&L. Scenario and covariance detail are expanded in Phase 3.
