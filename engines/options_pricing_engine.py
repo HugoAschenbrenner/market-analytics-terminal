@@ -220,7 +220,9 @@ def black_scholes_price(
     else:
         price = discounted_strike * norm_cdf(-d2) - discounted_spot * norm_cdf(-d1)
 
-    return round(float(price), 10)
+    # Preserve precision for low-priced FX options, implied volatility and bumps.
+    # Rounding belongs in snapshots and presentation, not the pricing primitive.
+    return float(price)
 
 
 def black_scholes_greeks(

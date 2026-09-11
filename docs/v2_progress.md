@@ -40,3 +40,9 @@ Validation after resume: 410 tests passed; real Yahoo quote and ECB curve reads 
 Completed: sample/EWMA/Ledoit–Wolf covariance (transparent NumPy implementation), historical and Gaussian VaR/ES, marginal/component/incremental VaR, annual/rolling volatility, drawdown, correlations and rolling correlation, gross concentration diagnostics, prior-window VaR exceedances, custom factor and maturity shocks, scenario waterfalls/heatmaps, curve PCA, cashflow key-rate DV01, carry/roll proxies and full price–yield plots.
 
 429 tests passed, including all risk tabs in EN/FR, 100-column covariance PSD, constant cash risk, Ledoit–Wolf fourth-moment reference, marginal VaR finite differences, component reconciliation, no-look-ahead validation and key-rate/parallel-DV01 reconciliation. The Risk Lab was inspected in the browser. The 97.5% ES setting is explicitly educational/FRTB-inspired without a regulatory claim. All P&L histories remain visibly synthetic unless user data is supplied; public curves retain separate provenance.
+
+## Phase 4 — Rates trades and FX client hedges
+
+Completed: nested rates views, DV01-neutral 2s10s/5s30s steepeners/flatteners and butterfly, CIP forwards/cross-rates/swap points, Garman–Kohlhagen pricing and domestic/foreign Greeks, importer/exporter hedge comparisons including financed option premium and valid zero-cost collars. Low-level BSM prices now retain floating-point precision; display snapshots still round for presentation.
+
+447 tests passed. Coverage includes all FX tabs in EN/FR, rates tabs, put–call parity, all GK Greeks against finite differences, forward identities, protected client proceeds and neutral curve-trade exposures. The two initially failing FX gamma checks exposed premature price rounding and pass after correcting the pricing primitive.
