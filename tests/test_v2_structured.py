@@ -49,3 +49,20 @@ def test_shared_note_mark_scenario_and_probabilities_reconcile():
     result=evaluate_scenario(marks,state.market,state.book,DeskScenario('custom',correlation=.1))
     assert result['by_factor'].sum()==pytest.approx(result['pnl'])
     assert result['pnl']!=0
+
+@pytest.mark.parametrize('lang',['en','fr'])
+@pytest.mark.parametrize('sub',['product','risk','simulation','advanced'])
+def test_structured_workspace_tabs(lang,sub):
+    from pathlib import Path
+    from streamlit.testing.v1 import AppTest
+    from core.models import TerminalState
+    from core.state import demo_book
+    from core.i18n import TRANSLATIONS
+    state=TerminalState(demo_book('structured'));state.ui.language=lang
+    app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30)
+    app.session_state['terminal']=state;app.query_params.update(page='derivatives',lang=lang)
+    app.session_state['derivative_tabs']=TRANSLATIONS[lang]['structured'];app.session_state['structured_tabs']=TRANSLATIONS[lang][sub]
+    app.run()
+    assert not app.exception
+    assert not app.error
+    assert len(app.get('plotly_chart'))>0

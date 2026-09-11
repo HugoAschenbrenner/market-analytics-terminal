@@ -73,4 +73,8 @@ def get_state():
         state.ui.language = st.query_params.get("lang", "en") if st.query_params.get("lang", "en") in ("en", "fr") else "en"
         state.ui.theme = st.query_params.get("theme", "dark") if st.query_params.get("theme", "dark") in ("dark", "light") else "dark"
         st.session_state.terminal = state
-    return st.session_state.terminal
+    state = st.session_state.terminal
+    # Preserve books in already-open sessions across compatible app upgrades.
+    for name in ("structured_terms", "financing_terms", "lending_terms"):
+        if not hasattr(state.book, name):setattr(state.book, name, {})
+    return state

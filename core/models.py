@@ -30,6 +30,8 @@ class PositionBook:
     repo_days: int = 30
     collateral_id: str = ""
     structured_terms: dict = field(default_factory=dict)
+    financing_terms: dict = field(default_factory=dict)
+    lending_terms: dict = field(default_factory=dict)
 
 @dataclass
 class RiskState:

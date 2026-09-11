@@ -58,3 +58,9 @@ Completed: BSM formulas with units/interpretation, analytical Vanna/Volga/Charm,
 Vectorized Athena cash flows match the audited valuation engine, including stub periods; Phoenix coupon memory matches audited deterministic payoffs. Fixed initial fixings are preserved under current-spot bumps. Common-seed Delta by underlying, parallel Vega, Rho and correlation risk now feed shared marks and synthetic risk history. Cross-asset structured stresses use sequential full Monte Carlo repricing instead of hardcoded coefficients. Probabilities come from the same model valuation.
 
 485 tests passed, including five new structured regressions and all existing tests. This engine checkpoint is saved independently before completing the new structured/financing interfaces.
+
+## Phase 6b — Structured and financing workspaces
+
+Completed: Product/Risk/Simulation/Advanced structured tabs with shared editable contracts, barrier distances, model probabilities, separate path/payoff/coupon/loss/autocall distributions and three controlled repricing heatmaps. Repo, securities lending and collateral tabs now consume audited contractual engines; price/haircut margin curves and rate/maturity funding curves replace long default tables. Book cash shortfall is distinguished from lost refinancing capacity. Cash and non-cash lending inputs enforce their distinct revenue conventions. Open-session schema upgrades preserve existing books.
+
+501 tests passed. All structured and financing tabs render in EN/FR, funding-capacity versus actual borrowing is tested, and session migration preserves positions. Browser inspection found and resolved the open-session field migration issue, and confirmed the nested product and financing layouts. Superseded page modules are removed in the final integration cleanup, after their export/R references are migrated.
