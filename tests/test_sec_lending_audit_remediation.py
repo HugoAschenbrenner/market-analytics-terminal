@@ -42,27 +42,8 @@ def test_default_audit_examples_are_separate_paths():
     assert cash.borrow_fee_amount == 0.0
 
 
-def test_ui_exposes_collateral_type_and_perspective():
-    page = Path(
-        "app_pages/repo_sec_lending.py"
-    ).read_text()
-
-    assert '"Collateral type"' in page
-    assert '"Revenue perspective"' in page
-    assert '"Cash reinvestment yield (%)"' in page
-    assert '"Non-cash borrow fee rate (%)"' in page
-    assert "effective_borrow_fee_rate" in page
-    assert "effective_reinvestment_yield" in page
 
 
-def test_ui_states_mutually_exclusive_revenue_paths():
-    page = Path(
-        "app_pages/repo_sec_lending.py"
-    ).read_text()
-
-    assert "The two revenue conventions are mutually exclusive" in page
-    assert "Rebate and reinvestment yield are never applied" in page
-    assert "Borrow fee is never applied" in page
 
 
 def test_engine_and_report_remove_hybrid_formula():

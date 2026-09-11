@@ -126,12 +126,7 @@ def test_currency_bucket_and_scenario_totals_use_base_currency():
 
 
 def test_ui_and_report_expose_currency_contract():
-    page = Path("app_pages/fixed_income.py").read_text()
     report = Path("reports/excel_exporter.py").read_text()
 
-    assert "Currency Translation Contract" in page
-    assert "Portfolio base currency" in page
-    assert "market_value_base" in page
-    assert "dv01_base" in page
     assert "Currency_Exposure" in report
     assert "FX-to-base" in report

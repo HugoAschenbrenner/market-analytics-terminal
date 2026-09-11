@@ -72,3 +72,9 @@ Equity positions now explicitly choose shared-market or book-input marks; demo e
 Unified Excel reports include executive metrics, positions, reconciled risk/stress/contributions/Greeks, full bond calculation fields, structured contract/probability/risk, financing and source timestamps. Four focused report scopes remain alongside the four audited exporter APIs. Formula execution is disabled for cell text. The R companion is a technical expander, explicitly separate from the live book.
 
 510 tests passed, including report reopening and NAV/source checks, formula-injection protection, explicit mark selection and unit validation. The 100-asset fixture now explicitly uses book-input marks for its synthetic tickers instead of requesting nonexistent public quotes.
+
+## Phase 7b — Retire superseded presentation
+
+Removed seven inactive legacy page/theme modules after their financial engines, reports and R companion were preserved or migrated. Removed 46 obsolete formatting/source-only/page tests; retained mixed-file financial-engine and Excel assertions. The complete migration ledger is in `docs/v2_test_migration.md`.
+
+464 tests passed after retirement (down from 510 solely because the obsolete presentation contracts were deliberately removed). No runtime references to retired modules remain; five stable workspaces and old URL aliases remain tested. This checkpoint was reconstructed after interruption and its remote predecessor verified at `1213e0c72b553c21ea91ab8d79df9f7812face86`.

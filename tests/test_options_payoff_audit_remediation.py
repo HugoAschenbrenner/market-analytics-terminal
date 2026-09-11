@@ -148,20 +148,3 @@ def test_negative_underlying_scenario_is_rejected():
             legs=legs,
             scenario_moves=[-1.1],
         )
-
-
-def test_straddle_ui_exposes_separate_premiums():
-    page = Path("app_pages/structured_products.py").read_text()
-
-    assert "def _strategy_requires_second_premium" in page
-    assert 'return "ATM strike", "Call premium"' in page
-    assert (
-        'return "ATM strike (same as first leg)", "Put premium"'
-        in page
-    )
-    assert (
-        "requires_second_premium = "
-        "_strategy_requires_second_premium(strategy)"
-        in page
-    )
-    assert "disabled=not requires_second_premium" in page

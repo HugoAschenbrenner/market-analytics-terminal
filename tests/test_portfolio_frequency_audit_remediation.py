@@ -249,20 +249,3 @@ def test_frequency_override_contract():
         )
         == 26
     )
-
-
-def test_portfolio_ui_exposes_frequency_and_horizon():
-    page = Path(
-        "app_pages/portfolio_risk.py"
-    ).read_text()
-
-    assert "Frequency & Data Quality Contract" in page
-    assert "Annualization frequency" in page
-    assert "Historical VaR / CVaR horizon" in page
-    assert "Arithmetic Ann. Return" in page
-    assert "Geometric CAGR" in page
-    assert (
-        "periods_per_year=int(periods_per_year)"
-        in page
-    )
-    assert "var_horizon_periods=int(" in page

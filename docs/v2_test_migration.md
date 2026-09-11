@@ -1,0 +1,52 @@
+# V2 test migration ledger
+
+Financial engines and the four legacy Excel exporters retain their tests. The following assertions described the deliberately superseded six-page presentation; executable bilingual V2 workspace, state, engine and report tests replace them. Removed legacy monthly-page, flat-price-page and stale-button-result tests are covered by preserved frequency/zero-risk engine tests and new shared-state regression tests.
+
+- test_black_scholes_pricer_ui.py::test_format_pricer_number_handles_numbers_strings_and_none — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_black_scholes_pricer_ui.py::test_bsm_outputs_to_dataframe_contains_pricing_metrics — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_black_scholes_pricer_ui.py::test_bsm_greeks_to_dataframe_contains_greeks — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_structured_products_valuation_proxy_ui.py::test_parse_float_list_validates_length_and_positive_values — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_structured_products_valuation_proxy_ui.py::test_format_probability — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_structured_products_valuation_proxy_ui.py::test_format_money_value — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_structured_products_valuation_proxy_ui.py::test_event_breakdown_to_dataframe — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_options_payoff_lab_ui.py::test_strategy_requires_second_leg — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_options_payoff_lab_ui.py::test_first_leg_labels_are_contextual — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_options_payoff_lab_ui.py::test_second_leg_labels_are_contextual — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_options_payoff_lab_ui.py::test_format_breakevens — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_options_payoff_lab_ui.py::test_format_optional_value — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_options_payoff_lab_ui.py::test_build_options_payoff_figure_returns_plotly_figure — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_fixed_income_rates_snapshot_ui.py::test_parse_bond_proxy_watchlist_text_normalizes_and_deduplicates — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_fixed_income_rates_snapshot_ui.py::test_format_optional_number_handles_valid_number — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_fixed_income_rates_snapshot_ui.py::test_format_optional_number_handles_missing_value — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_cross_asset_market_data_snapshot_ui.py::test_parse_watchlist_text_normalizes_symbols — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_cross_asset_market_data_snapshot_ui.py::test_market_snapshot_to_dataframe_returns_expected_table — obsolete page formatting/helper contract, replaced by V2 rendering/engine tests
+- test_home_executive_demo_layer.py::test_home_contains_executive_demo_layer — old page source assertion replaced by V2 contract tests
+- test_home_executive_demo_layer.py::test_home_executive_layer_preserves_ownership_and_data_policy — old page source assertion replaced by V2 contract tests
+- test_home_executive_demo_layer.py::test_home_executive_layer_has_risk_questions — old page source assertion replaced by V2 contract tests
+- test_home_executive_demo_layer.py::test_home_executive_insights_link_to_modules — old page source assertion replaced by V2 contract tests
+- test_fixed_income_credit_spread_audit_remediation.py::test_ui_and_excel_expose_credit_spread_contract — retained report/engine assertions; retired old page assertions
+- test_portfolio_frequency_audit_remediation.py::test_portfolio_ui_exposes_frequency_and_horizon — old page source assertion replaced by V2 contract tests
+- test_fixed_income_price_yield_schedule_audit_remediation.py::test_ui_and_excel_expose_price_yield_schedule_contract — retained report/engine assertions; retired old page assertions
+- test_sec_lending_audit_remediation.py::test_ui_exposes_collateral_type_and_perspective — old page source assertion replaced by V2 contract tests
+- test_sec_lending_audit_remediation.py::test_ui_states_mutually_exclusive_revenue_paths — old page source assertion replaced by V2 contract tests
+- test_r_streamlit_integration.py::test_portfolio_risk_page_contains_r_companion_section — old page source assertion replaced by V2 contract tests
+- test_r_streamlit_integration.py::test_r_output_references_exist_in_page — old page source assertion replaced by V2 contract tests
+- test_r_streamlit_integration.py::test_portfolio_risk_page_imports_pathlib — old page source assertion replaced by V2 contract tests
+- test_fixed_income_currency_audit_remediation.py::test_ui_and_report_expose_currency_contract — retained report/engine assertions; retired old page assertions
+- test_home_page_status.py::test_home_page_has_no_placeholder_statuses — old page source assertion replaced by V2 contract tests
+- test_home_page_status.py::test_home_page_mentions_completed_modules — old page source assertion replaced by V2 contract tests
+- test_interactive_options_greeks_ui.py::test_interactive_options_greeks_lab_is_rendered_after_black_scholes — old page source assertion replaced by V2 contract tests
+- test_interactive_options_greeks_ui.py::test_interactive_options_greeks_lab_uses_curve_engine — old page source assertion replaced by V2 contract tests
+- test_interactive_options_greeks_ui.py::test_interactive_options_greeks_lab_has_no_unsafe_snapshot_price_access — old page source assertion replaced by V2 contract tests
+- test_interactive_options_greeks_ui.py::test_interactive_options_greeks_lab_anchor_point_has_no_duplicate_column_rename — old page source assertion replaced by V2 contract tests
+- test_interactive_options_greeks_ui.py::test_interactive_options_greeks_metric_cards_use_exact_inputs — old page source assertion replaced by V2 contract tests
+- test_repo_contractual_margin_audit_remediation.py::test_ui_and_excel_separate_contractual_vm_from_refinancing — retained report/engine assertions; retired old page assertions
+- test_premium_ui_polish.py::test_theme_file_exists_and_contains_global_styles — old page source assertion replaced by V2 contract tests
+- test_sidebar_link_styling.py::test_sidebar_links_have_strong_css_reset — old page source assertion replaced by V2 contract tests
+- test_fixed_income_full_value_audit_remediation.py::test_ui_and_methodology_expose_full_value_contract — retained report/engine assertions; retired old page assertions
+- test_project_ownership.py::test_home_page_contains_project_ownership_layer — old page source assertion replaced by V2 contract tests
+- test_project_ownership.py::test_home_page_contains_data_policy — old page source assertion replaced by V2 contract tests
+- test_project_ownership.py::test_home_page_uses_implemented_status_instead_of_live — old page source assertion replaced by V2 contract tests
+- test_cross_asset_aggregation_audit_remediation.py::test_ui_exposes_common_nav_and_separate_liquidity_contract — old page source assertion replaced by V2 contract tests
+- test_options_payoff_audit_remediation.py::test_straddle_ui_exposes_separate_premiums — old page source assertion replaced by V2 contract tests
+- test_structured_products_audit_remediation.py::test_ui_uses_final_fixing_wording — old page source assertion replaced by V2 contract tests

@@ -251,17 +251,10 @@ def test_explicit_credit_eligibility_override_is_respected():
 
 
 def test_ui_and_excel_expose_credit_spread_contract():
-    page = Path(
-        "app_pages/fixed_income.py"
-    ).read_text()
     report = Path(
         "reports/excel_exporter.py"
     ).read_text()
 
-    assert "Credit Spread Risk Contract" in page
-    assert "Credit-Eligible Bonds" in page
-    assert "Rates-Only / Sovereign Bonds" in page
-    assert "credit_spread_shocks_bps" in page
     assert "Credit_Spread_Exposure" in report
     assert "sovereign and rates-only" in report
     assert "parallel-spread proxy" in report

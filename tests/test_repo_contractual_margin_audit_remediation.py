@@ -200,13 +200,7 @@ def test_refinancing_stress_table_never_labels_liquidity_as_vm():
 
 
 def test_ui_and_excel_separate_contractual_vm_from_refinancing():
-    page = Path("app_pages/repo_sec_lending.py").read_text()
     report = Path("reports/excel_exporter.py").read_text()
-    assert "Contractual Variation Margin" in page
-    assert "Accrued Repurchase Price" in page
-    assert "Current dirty collateral value" in page
-    assert "Refinancing / Re-roll Haircut Stress" in page
-    assert "Contractual Margin Call?" in page
     assert "Contractual_VM" in report
     assert "Refinancing_Stress" in report
     assert "excluded from contractual variation margin" in report

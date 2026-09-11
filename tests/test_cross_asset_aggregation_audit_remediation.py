@@ -136,20 +136,3 @@ def test_old_dimensionally_invalid_columns_are_removed():
     assert "total_proxy_impact_pct" not in stress_df.columns
     assert "economic_pnl_amount" in stress_df.columns
     assert "economic_pnl_pct_nav" in stress_df.columns
-
-
-def test_ui_exposes_common_nav_and_separate_liquidity_contract():
-    page = Path(
-        "app_pages/cross_asset_dashboard.py"
-    ).read_text()
-
-    assert "Common NAV & Sleeve Contract" in page
-    assert "Common portfolio NAV" in page
-    assert "Non-overlapping sleeve notionals" in page
-    assert "Economic P&L / Common NAV" in page
-    assert "Separate Financing Liquidity Requirement" in page
-    assert "not economic P&L" in page
-    assert "Manual/sample input mode" in page
-    assert "Heuristic Demo Score" in page
-    assert "Input Snapshot" in page
-    assert "Output Summary" in page

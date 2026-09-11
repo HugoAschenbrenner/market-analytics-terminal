@@ -237,18 +237,10 @@ def test_sample_portfolio_exposes_schedule_and_reconciliation_fields():
 
 
 def test_ui_and_excel_expose_price_yield_schedule_contract():
-    page = Path(
-        "app_pages/fixed_income.py"
-    ).read_text()
     report = Path(
         "reports/excel_exporter.py"
     ).read_text()
 
-    assert "Bond Pricing & Schedule Contract" in page
-    assert "Price / YTM reconciliation mode" in page
-    assert "When-issued position policy" in page
-    assert "dirty_price_reconciliation_error" in page
-    assert "pricing_yield_used" in page
 
     assert "previous_coupon_date" in report
     assert "pricing_mode" in report

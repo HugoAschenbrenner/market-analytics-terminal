@@ -240,13 +240,7 @@ def test_excel_exposes_clean_full_and_accrued_values():
 
 
 def test_ui_and_methodology_expose_full_value_contract():
-    page = Path("app_pages/fixed_income.py").read_text()
     report = Path("reports/excel_exporter.py").read_text()
 
-    assert "Clean Market Value" in page
-    assert "Full Market Value" in page
-    assert "Accrued Interest" in page
-    assert "DV01 and scenario P&L use full value" in page
-    assert "full_market_value_base" in page
     assert "Total Full Market Value in Base Currency" in report
     assert "DV01 and duration/convexity scenario P&L use full market value" in report

@@ -142,16 +142,3 @@ def test_underlying_can_reach_exactly_zero():
     assert result.redemption_amount == pytest.approx(0.0)
     assert result.capital_pnl == pytest.approx(-1000.0)
     assert result.total_payoff == pytest.approx(0.0)
-
-
-def test_ui_uses_final_fixing_wording():
-    page = Path(
-        "app_pages/structured_products.py"
-    ).read_text()
-
-    assert "Final Protection Loss Probability" in page
-    assert "Final Protection Loss Prob." in page
-    assert "final_protection_loss_probability" in page
-    assert "autocall barrier ≥ coupon barrier" in page
-    assert "min_value=-100.0" in page
-    assert "min_value=-99.0" not in page
