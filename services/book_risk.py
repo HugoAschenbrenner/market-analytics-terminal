@@ -33,12 +33,8 @@ def book_risk(state):
     value=nav(state,marks)
     total=pnl.sum(axis=1)
     returns=total/value
-    quantile=total.quantile(1-state.risk.confidence)
-    var=max(0.,-quantile)
-    es=max(0.,-total[total<=quantile].mean())
-    covariance=pnl.cov().to_numpy()
-    sigma=np.sqrt(max(0.,covariance.sum()))
-    contrib=covariance.sum(axis=1)/sigma if sigma else np.zeros(len(marks))
-    return dict(marks=marks,pnl=pnl,total=total,nav=value,returns=returns,var=var,es=es,
-                volatility=float(returns.std()*np.sqrt(252)),drawdown=calculate_drawdown_series(returns),
-                contributions=pd.DataFrame({'id':pnl.columns,'contribution':contrib*np.sqrt(252)/value}))
+    from engines.risk_factor_engine import risk_statistics
+    statistics=risk_statistics(pnl,state.risk.confidence,state.risk.horizon,state.risk.estimator,marks.quantity.to_numpy())
+    statistics['contributions']['contribution']*=np.sqrt(252)/value
+    return dict(marks=marks,pnl=pnl,total=total,nav=value,returns=returns,
+                volatility=float(statistics['sigma']/value*np.sqrt(252)),drawdown=calculate_drawdown_series(returns),**statistics)

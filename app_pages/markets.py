@@ -32,6 +32,13 @@ def render(state):
                 a,b=st.columns(2)
                 with a: chart(px.bar(bonds,x='maturity',y='dv01',color='ticker',title=t('curve.bucket'),labels={'maturity':t('tenor'),'dv01':t('dv01')}))
                 with b: chart(px.bar(bonds,x='ticker',y='cs01',title=t('cs01'),labels={'ticker':t('position'),'cs01':t('cs01')}))
+                from engines.rates_tools_engine import carry_roll,yield_price_curve
+                estimates=carry_roll(bonds,state.market.curves)
+                kpis([('carry',float(estimates.carry.sum())),('roll',float(estimates['roll'].sum()))])
+                selected=st.selectbox(t('position'),bonds.id.tolist(),key='convexity_bond')
+                curve=yield_price_curve(bonds.set_index('id').loc[selected],state)
+                chart(px.line(curve,x='yield',y='price',title=t('bond.convexity'),labels={'yield':t('yield'),'price':t('value')}))
+                formula_panel('carry.method')
                 view_data(bonds)
             formula_panel('rates.method')
     if tabs[1].open:
