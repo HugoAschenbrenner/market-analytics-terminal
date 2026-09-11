@@ -48,9 +48,20 @@ def evaluate_scenario(marks,market,book,scenario):
             final=price(r.spot*(1+scenario.equity),max(.0001,r.volatility+scenario.volatility),rate+rates/1e4)
             factors.update(equity=spot-base,volatility=vol-spot,rates=final-vol)
         elif r.asset_class=='Structured':
-            # Explicit linear proxy until controlled MC bump risk is requested.
-            factors.update(equity=r.market_value*.55*scenario.equity,volatility=-r.market_value*.2*scenario.volatility,
-                           correlation=r.market_value*.04*scenario.correlation)
+            from dataclasses import replace
+            from services.structured import contract_for
+            from engines.structured_risk_engine import value_note
+            inputs,ratios,product,memory,_=contract_for(r._asdict(),market,book.structured_terms)
+            scale=r.quantity*r.multiplier*market.fx[r.currency]/market.fx[book.base_currency]
+            def val(i,rr):return value_note(i,tuple(rr),product,memory)['summary']['value']*scale
+            base=val(inputs,ratios);shocked=tuple(x*(1+scenario.equity) for x in ratios)
+            spot=val(inputs,shocked)
+            vi=replace(inputs,volatilities=tuple(max(.001,v+scenario.volatility) for v in inputs.volatilities))
+            vol=val(vi,shocked);ri=replace(vi,risk_free_rate=vi.risk_free_rate+rates/1e4);rate_value=val(ri,shocked)
+            lower=-1/(len(ratios)-1)+.0001 if len(ratios)>1 else -.99
+            ci=replace(ri,correlation=float(np.clip(ri.correlation+scenario.correlation,lower,.9999)))
+            final=val(ci,shocked)
+            factors.update(equity=spot-base,volatility=vol-spot,rates=rate_value-vol,correlation=final-rate_value)
         if r.currency!=book.base_currency:
             factors['fx']=(r.market_value+sum(factors.values()))*scenario.fx
         rows.append({'id':r.id,'asset_class':r.asset_class,**factors,'pnl':sum(factors.values())})

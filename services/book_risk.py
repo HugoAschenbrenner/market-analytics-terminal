@@ -22,7 +22,7 @@ def synthetic_pnl_history(marks,base_currency="USD"):
         if row.asset_class=='Equity': pnl=row.market_value*eq
         elif row.asset_class=='Bond': pnl=-row.dv01*rate-row.cs01*factors[:,4]*3
         elif row.asset_class=='Option': pnl=row.delta_cash*eq+.5*row.gamma*(row.spot*eq)**2+row.vega*vol
-        elif row.asset_class=='Structured': pnl=row.market_value*(.55*eq-.002*vol)
+        elif row.asset_class=='Structured': pnl=row.delta_cash*eq+row.vega*vol+row.rho*rate/100+row.correlation_1pct*factors[:,4]
         if row.currency!=base_currency: pnl+=row.market_value*fx
         data[row.id]=pnl
     return pd.DataFrame(data,index=pd.bdate_range(end='2026-09-09',periods=756))

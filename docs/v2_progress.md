@@ -52,3 +52,9 @@ Completed: nested rates views, DV01-neutral 2s10s/5s30s steepeners/flatteners an
 Completed: BSM formulas with units/interpretation, analytical Vanna/Volga/Charm, bounded IV bisection, chart/heatmap Greek exploration, explicit synthetic smile/term/surface and FX RR/BF conventions, shared-position P&L attribution with full repricing residual, and self-financing option/straddle delta-hedging simulation including entry/rebalance/liquidation costs and cash interest. Risk Lab also consumes the P&L explain component. Selected book options supply contractual inputs.
 
 480 tests passed, including 33 new engine/UI tests: Call/Put advanced Greek finite differences across spot/time/dividend cases, IV recovery including near expiry, price bounds, P&L reconciliation, and pathwise hedging cash-account identities. EN/FR derivatives tabs render successfully. Browser inspection confirmed nested tabs, chart layout and P&L view; moved the option selector above the tabs for visibility. Synthetic surfaces are explicitly not fitted or guaranteed arbitrage-free.
+
+## Phase 6a — Shared structured-product risk engine
+
+Vectorized Athena cash flows match the audited valuation engine, including stub periods; Phoenix coupon memory matches audited deterministic payoffs. Fixed initial fixings are preserved under current-spot bumps. Common-seed Delta by underlying, parallel Vega, Rho and correlation risk now feed shared marks and synthetic risk history. Cross-asset structured stresses use sequential full Monte Carlo repricing instead of hardcoded coefficients. Probabilities come from the same model valuation.
+
+485 tests passed, including five new structured regressions and all existing tests. This engine checkpoint is saved independently before completing the new structured/financing interfaces.

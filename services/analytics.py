@@ -8,7 +8,7 @@ from engines import fixed_income_engine as fi
 from engines.options_pricing_engine import black_scholes_price, black_scholes_greeks
 
 @st.cache_data(show_spinner=False, max_entries=32)
-def calculate_positions(positions, market, valuation_date):
+def calculate_positions(positions, market, valuation_date, contracts=None):
     frame = validate_book(positions)
     rows = []
     for row in frame.to_dict('records'):
@@ -38,6 +38,11 @@ def calculate_positions(positions, market, valuation_date):
             result.update(spot=spot, delta=g['delta']*units, delta_cash=g['delta']*units*spot,
                           gamma=g['gamma']*units, vega=g['vega_1pct']*units,
                           theta=g['theta_daily']*units, rho=g['rho_1pct']*units)
+        elif row['asset_class'] == 'Structured':
+            from services.structured import note_value
+            valuation,risk=note_value(row,market,contracts or {})
+            price=risk['value']
+            result.update(delta_cash=risk['delta_cash']*units,vega=risk['vega']*units,rho=risk['rho']*units,correlation_1pct=risk['correlation_1pct']*units,autocall_probability=valuation['summary']['autocall_probability'],loss_probability=valuation['summary']['loss_probability'])
         elif row['asset_class'] == 'Equity':
             result.update(delta=units, delta_cash=units*price)
         result.update(mark=price, market_value=price*units)
@@ -45,10 +50,11 @@ def calculate_positions(positions, market, valuation_date):
     return pd.DataFrame(rows)
 
 def marked_positions(state):
-    frame = calculate_positions(state.book.positions, state.market, state.valuation_date)
+    frame = calculate_positions(state.book.positions, state.market, state.valuation_date, state.book.structured_terms)
     fx = frame.currency.map(state.market.fx) / state.market.fx[state.book.base_currency]
     for col in ('market_value','dv01','cs01','delta_cash','gamma','vega','theta','rho'):
         frame[col] *= fx
+    if 'correlation_1pct' in frame:frame['correlation_1pct'] *= fx
     if frame.weight.notna().any():
         values = frame.market_value
         if values.sum() <= 0 or not np.allclose(frame.weight, values/values.sum(), atol=1e-5):

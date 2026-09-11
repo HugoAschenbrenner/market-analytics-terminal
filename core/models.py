@@ -29,6 +29,7 @@ class PositionBook:
     repo_haircut: float = .10
     repo_days: int = 30
     collateral_id: str = ""
+    structured_terms: dict = field(default_factory=dict)
 
 @dataclass
 class RiskState:
