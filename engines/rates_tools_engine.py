@@ -24,7 +24,9 @@ def key_rate_ladder(bonds,state):
 def carry_roll(bonds,curves,horizon=.25):
     rows=[]
     for row in bonds.itertuples():
-        curve=curves['EUR' if row.currency=='EUR' else 'USD']['history'].iloc[-1]
+        if row.currency not in curves:
+            rows.append({'id':row.id,'carry':row.market_value*row.pricing_yield*horizon,'roll':np.nan});continue
+        curve=curves[row.currency]['history'].iloc[-1]
         roll_bps=(np.interp(max(.01,row.maturity-horizon),curve.index,curve.values)-np.interp(row.maturity,curve.index,curve.values))*100
         rows.append({'id':row.id,'carry':row.market_value*row.pricing_yield*horizon,'roll':-row.dv01*roll_bps})
     return pd.DataFrame(rows)

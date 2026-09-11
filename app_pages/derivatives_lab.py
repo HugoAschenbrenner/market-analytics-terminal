@@ -8,7 +8,7 @@ from components.structured_workspace import render_structured
 def render(state):
     options=marked_positions(state).query("asset_class=='Option'")
     row=None
-    if not options.empty:
+    if not options.empty and st.session_state.get('derivative_tabs') != t('structured'):
         selected=st.selectbox(t('option.select'),options.id.tolist(),key='book_option')
         row=options.set_index('id').loc[selected]
     tabs=st.tabs([t(k) for k in ['vanilla','greeks','volatility','structured']],key='derivative_tabs',on_change='rerun')

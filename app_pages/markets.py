@@ -28,5 +28,5 @@ def render(state):
         with tabs[2]:
             market_strip(state)
             frame=pd.DataFrame([dict(ticker=k,**v) for k,v in state.market.provenance.items() if k in ['SPY','QQQ','VIX']])
-            chart(px.bar(frame,x='ticker',y='change',title=t('equity_vol'),labels={'ticker':t('position'),'change':t('exposure')}))
+            chart(px.bar(frame.assign(change=frame.change*100),x='ticker',y='change',title=t('quote.change'),labels={'ticker':t('position'),'change':t('quote.change')}))
             formula_panel('quote.method');view_data(frame)

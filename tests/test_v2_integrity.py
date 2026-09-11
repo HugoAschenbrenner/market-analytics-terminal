@@ -26,3 +26,11 @@ def test_demo_repo_cash_proceeds_are_booked_and_greek_units_are_comparable():
     assert nav(s,m)==pytest.approx(m.market_value.sum()-150000)
     row=m.query("asset_class=='Option'").iloc[0]
     assert row.gamma_cash_1pct==pytest.approx(.5*row.gamma*(row.spot*.01)**2)
+
+
+def test_base_currency_change_converts_financing_without_changing_economics():
+    from core.state import change_base_currency
+    s=TerminalState(demo_book());s.book.financing_terms={'threshold':100.}
+    usd=nav(s,marked_positions(s));change_base_currency(s,'EUR')
+    assert nav(s,marked_positions(s))==pytest.approx(usd/s.market.fx['EUR'])
+    assert s.book.financing_terms['threshold']==pytest.approx(100/s.market.fx['EUR'])

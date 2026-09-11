@@ -72,7 +72,7 @@ def fetch_quote(symbol):
     prior=prices[-2] if len(prices)>1 else None
     change=(latest/float(prior)-1) if prior is not None and np.isfinite(prior) and prior>0 else None
     return {'price':latest,'change':change,'source':'PUBLIC','provider':'Yahoo Finance',
-            'as_of':datetime.fromtimestamp(result['timestamp'][-1],timezone.utc).isoformat(),'basis':'close'}
+            'as_of':datetime.fromtimestamp(result['timestamp'][-1],timezone.utc).isoformat(),'basis':'daily_bar_last'}
 
 @st.cache_data(ttl=900,show_spinner=False,max_entries=4)
 def load_public_context(refresh=0):
@@ -103,7 +103,7 @@ def ensure_market(state,refresh=False):
         previous=state.market.provenance.get(ticker,{})
         observation=previous if previous.get('source')=='USER INPUT' else public.get(('quote',ticker))
         if observation is None:
-            observation=state.market.provenance.get(ticker,{'price':value,'change':None,'source':'SYNTHETIC','provider':'demo','as_of':'2026-09-09','basis':'close'})
+            observation=state.market.provenance.get(ticker,{'price':value,'change':None,'source':'SYNTHETIC','provider':'demo','as_of':'2026-09-09','basis':'daily_bar_last'})
         state.market.provenance[ticker]=observation
         state.market.spots[ticker]=observation['price']
     state.market.fx.update(EUR=state.market.spots['EURUSD'],GBP=state.market.spots['GBPUSD'],JPY=1/state.market.spots['USDJPY'])

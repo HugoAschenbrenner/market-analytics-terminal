@@ -78,3 +78,9 @@ Unified Excel reports include executive metrics, positions, reconciled risk/stre
 Removed seven inactive legacy page/theme modules after their financial engines, reports and R companion were preserved or migrated. Removed 46 obsolete formatting/source-only/page tests; retained mixed-file financial-engine and Excel assertions. The complete migration ledger is in `docs/v2_test_migration.md`.
 
 464 tests passed after retirement (down from 510 solely because the obsolete presentation contracts were deliberately removed). No runtime references to retired modules remain; five stable workspaces and old URL aliases remain tested. This checkpoint was reconstructed after interruption and its remote predecessor verified at `1213e0c72b553c21ea91ab8d79df9f7812face86`.
+
+## Phase 7c — Final interaction and presentation checks
+
+Compact header/market strip, wrapped KPI labels, centralized editor/asset-class translations, selectable risk diagnostics and persistent custom scenarios. Base-currency changes convert repo liabilities and monetary margin terms rather than relabelling their amounts. Light-mode verification exposed Streamlit overriding Plotly colors; explicit figure theming now preserves readable chart labels and navigation in both modes. Public quote basis explicitly identifies potentially unfinished daily bars. Roll-down does not silently substitute a USD curve for unsupported currencies. Scenario methodology now reflects the implemented Monte Carlo repricing.
+
+471 tests passed, including literal translation-key coverage, custom-scenario navigation persistence, all Greek heatmaps and financing numeraire invariance. Light and dark browser views were inspected; remaining work is final documentation/screenshots and overall regression/remote verification.

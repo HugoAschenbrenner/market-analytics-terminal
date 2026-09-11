@@ -41,18 +41,20 @@ def render(state):
                 fig.add_vline(x=-risk['es'],line_color='#ff6b7b',annotation_text='ES')
                 chart(fig.update_layout(title=t('distribution'),xaxis_title=t('pnl'),yaxis_title=t('observations')))
             with b: chart(px.bar(risk['contributions'],x='id',y='component_var',title=t('component_var'),labels={'id':t('position'),'component_var':t('component_var')}))
+            diagnostic=st.segmented_control(t('diagnostics'),['rolling','correlation'],default='rolling',required=True,format_func=lambda k,lang=state.ui.language:t(k,lang),key='risk_diagnostic')
             a,b=st.columns(2)
-            with a:
-                chart(go.Figure(go.Scatter(x=risk['returns'].index,y=risk['returns'].rolling(60).std()*np.sqrt(252))).update_layout(title=t('rolling_vol'),xaxis_title=t('date'),yaxis_title=t('volatility')))
-                chart(go.Figure(go.Scatter(x=risk['drawdown'].index,y=risk['drawdown'],fill='tozeroy')).update_layout(title=t('drawdown'),xaxis_title=t('date'),yaxis_title=t('drawdown')))
-            with b:
-                chart(px.imshow(risk['pnl'].corr(),color_continuous_scale='RdBu',zmin=-1,zmax=1,title=t('correlation')))
-                active=risk['pnl'].columns[risk['pnl'].std()>0].tolist()
-                if len(active)>=2:
-                    pair=st.multiselect(t('rolling_corr'),active,default=active[:2],max_selections=2)
-                    if len(pair)==2:
-                        corr=risk['pnl'][pair[0]].rolling(60).corr(risk['pnl'][pair[1]])
-                        chart(go.Figure(go.Scatter(x=corr.index,y=corr)).update_layout(title=t('rolling_corr'),xaxis_title=t('date'),yaxis_title=t('correlation')))
+            if diagnostic=='rolling':
+                with a:chart(go.Figure(go.Scatter(x=risk['returns'].index,y=risk['returns'].rolling(60).std()*np.sqrt(252))).update_layout(title=t('rolling_vol'),xaxis_title=t('date'),yaxis_title=t('volatility')))
+                with b:chart(go.Figure(go.Scatter(x=risk['drawdown'].index,y=risk['drawdown'],fill='tozeroy')).update_layout(title=t('drawdown'),xaxis_title=t('date'),yaxis_title=t('drawdown')))
+            else:
+                with a:chart(px.imshow(risk['pnl'].corr(),color_continuous_scale='RdBu',zmin=-1,zmax=1,title=t('correlation')))
+                with b:
+                    active=risk['pnl'].columns[risk['pnl'].std()>0].tolist()
+                    if len(active)>=2:
+                        pair=st.multiselect(t('rolling_corr'),active,default=active[:2],max_selections=2)
+                        if len(pair)==2:
+                            corr=risk['pnl'][pair[0]].rolling(60).corr(risk['pnl'][pair[1]])
+                            chart(go.Figure(go.Scatter(x=corr.index,y=corr)).update_layout(title=t('rolling_corr'),xaxis_title=t('date'),yaxis_title=t('correlation')))
             view_data(risk['contributions']);formula_panel('risk.method',[r'\mathrm{VaR}_\alpha=z_\alpha\sqrt{w^\top\Sigma w}',r'\mathrm{CVaR}_i=w_i z_\alpha\frac{(\Sigma w)_i}{\sqrt{w^\top\Sigma w}}'])
     if tabs[2].open:
         with tabs[2]:
@@ -91,23 +93,25 @@ def render(state):
                 else:st.info(t('option.none'))
 
 def render_scenarios(state):
-    selected=st.selectbox(t('scenario'),[s.name for s in PRESETS]+['custom'],format_func=lambda x,lang=state.ui.language:t(x,lang),key='scenario_select')
+    choices=[s.name for s in PRESETS]+['custom']
+    saved=state.scenario.shocks
+    selected=st.selectbox(t('scenario'),choices,index=choices.index(state.scenario.name),format_func=lambda x,lang=state.ui.language:t(x,lang),key='scenario_select')
     state.scenario.name=selected
     if selected=='custom':
         a,b,c=st.columns(3)
-        eq=a.slider(t('equity'),-50.,50.,-10.)/100
-        fx=b.slider(t('fx'),-40.,40.,0.)/100
-        rate=c.slider(t('rate_shock'),-200.,300.,0.)
+        eq=a.slider(t('equity'),-50.,50.,float(saved.get('equity',-.1)*100))/100
+        fx=b.slider(t('fx'),-40.,40.,float(saved.get('fx',0.)*100))/100
+        rate=c.slider(t('rate_shock'),-200.,300.,float(saved.get('rates',(0.,)*5)[0]))
         a,b,c=st.columns(3)
-        credit=a.slider(t('credit'),-100.,500.,50.)
-        vol=b.slider(t('volatility'),-15.,50.,5.)/100
-        corr=c.slider(t('correlation'),-.8,.8,0.)
+        credit=a.slider(t('credit'),-100.,500.,float(saved.get('credit',50.)))
+        vol=b.slider(t('volatility'),-15.,50.,float(saved.get('volatility',.05)*100))/100
+        corr=c.slider(t('correlation'),-.8,.8,float(saved.get('correlation',0.)))
         a,b=st.columns(2)
-        haircut=a.slider(t('haircut'),-10.,80.,5.)/100
-        collateral=b.slider(t('collateral_shock'),-80.,30.,-10.)/100
+        haircut=a.slider(t('haircut'),-10.,80.,float(saved.get('haircut',.05)*100))/100
+        collateral=b.slider(t('collateral_shock'),-80.,30.,float(saved.get('collateral',-.1)*100))/100
         rates=(rate,)*5
-        if st.checkbox(t('nonparallel')):
-            rates=tuple(col.number_input(f'{year}Y / bp',value=float(rate),min_value=-500.,max_value=1000.,key=f'curve_shock_{year}') for col,year in zip(st.columns(5),[1,2,5,10,30]))
+        if st.checkbox(t('nonparallel'),value=len(set(saved.get('rates',(0.,)*5)))>1):
+            rates=tuple(col.number_input(f'{year}Y / bp',value=float(saved.get('rates',(rate,)*5)[[1,2,5,10,30].index(year)]),min_value=-500.,max_value=1000.,key=f'curve_shock_{year}') for col,year in zip(st.columns(5),[1,2,5,10,30]))
         scenario=DeskScenario('custom',eq,fx,rates,credit,vol,corr,haircut,collateral)
     else:scenario=next(s for s in PRESETS if s.name==selected)
     marks=book_risk(state)['marks'];result=evaluate_scenario(marks,state.market,state.book,scenario)

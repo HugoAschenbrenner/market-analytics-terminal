@@ -88,3 +88,14 @@ def get_state():
     for name in ("structured_terms", "financing_terms", "lending_terms"):
         if not hasattr(state.book, name):setattr(state.book, name, {})
     return state
+
+
+def change_base_currency(state, currency):
+    if currency not in CURRENCIES:raise ValueError('book.currency')
+    conversion=state.market.fx[state.book.base_currency]/state.market.fx[currency]
+    state.book.repo_cash*=conversion
+    for key in ['threshold','mta','rounding']:
+        if key in state.book.financing_terms:state.book.financing_terms[key]*=conversion
+    for key in ['security_market_value','other_costs']:
+        if key in state.book.lending_terms:state.book.lending_terms[key]*=conversion
+    state.book.base_currency=currency;state.book.revision+=1;state.risk.results.clear()

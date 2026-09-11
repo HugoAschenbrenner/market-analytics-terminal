@@ -15,5 +15,9 @@ def style_figure(fig, theme="dark", height=290):
     return fig
 
 def chart(fig, key=None, height=290):
-    st.plotly_chart(style_figure(fig, get_state().ui.theme, height), width="stretch", key=key,
+    from core.i18n import t
+    from core.models import ASSET_CLASSES
+    for trace in fig.data:
+        if trace.name in ASSET_CLASSES:trace.name=t(trace.name)
+    st.plotly_chart(style_figure(fig, get_state().ui.theme, height), width="stretch", key=key, theme=None,
                     config={"displayModeBar":False})

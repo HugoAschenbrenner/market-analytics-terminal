@@ -7,7 +7,7 @@ PAGES = ("overview", "markets", "risk", "derivatives", "financing")
 ALIASES = {"home":"overview", "cross-asset-dashboard":"overview", "fixed-income-risk":"markets", "portfolio-risk":"risk", "structured-products":"derivatives", "repo-sec-lending":"financing"}
 
 def global_header(state):
-    brand, language, theme, status = st.columns([6,1,1.5,2])
+    brand, language, theme, status = st.columns([4,1,1,2])
     with brand:
         st.markdown(f'<div class="desk-brand">{t("brand")}</div>', unsafe_allow_html=True)
         st.caption(t("subtitle"))
@@ -29,7 +29,7 @@ def global_header(state):
         state.ui.page = selected
         st.query_params["page"] = selected
         st.rerun()
-    st.title(t("nav." + state.ui.page))
+    st.markdown(f'<div class="workspace-title">{t("nav." + state.ui.page)}</div>',unsafe_allow_html=True)
 
 def footer():
     with st.expander(t("about")):
