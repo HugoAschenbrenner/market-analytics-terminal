@@ -32,6 +32,6 @@ def render(state):
     insights=[t('insight.concentration',asset=largest.ticker,weight=abs(largest.market_value)/gross),t('insight.stress',scenario=t(worst.scenario),loss=worst.pnl/risk['nav'])]
     total_dv=frame.dv01.abs().sum()
     if total_dv: insights.append(t('insight.dv01',share=frame.loc[frame.maturity>=10,'dv01'].abs().sum()/total_dv))
-    if (frame.asset_class=='Option').any(): insights.append(t('insight.gamma',gamma=frame.gamma.sum()))
+    if (frame.asset_class=='Option').any(): insights.append(t('insight.gamma',gamma=frame.gamma_cash_1pct.sum()))
     for insight in insights: st.markdown(f'<div class="risk-line">{html.escape(insight)}</div>',unsafe_allow_html=True)
     view_data(frame)

@@ -23,6 +23,11 @@ def render_fx(state):
             state.market.fx[foreign]=s*state.market.fx[domestic]
             usd=state.market.fx['USD'];state.market.fx={k:v/usd for k,v in state.market.fx.items()}
             state.market.rates.update({domestic:dr,foreign:fr});state.market.revision+=1
+            from datetime import datetime,timezone
+            for ticker,value in {'EURUSD':state.market.fx['EUR'],'GBPUSD':state.market.fx['GBP'],'USDJPY':1/state.market.fx['JPY']}.items():
+                state.market.spots[ticker]=value
+                state.market.provenance[ticker]=dict(price=value,change=None,source='USER INPUT',provider='user',as_of=datetime.now(timezone.utc).isoformat(),basis='input')
+            state.market.source='MIXED'
             spot,rd,rf=s,dr,fr
     tabs=st.tabs([t('fx.forwards'),t('fx.options'),t('fx.hedge')],key='fx_tabs',on_change='rerun')
     if tabs[0].open:

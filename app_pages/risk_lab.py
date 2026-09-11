@@ -74,6 +74,8 @@ def render(state):
         with tabs[3]: render_scenarios(state)
     if tabs[4].open:
         with tabs[4]:
+            from components.r_companion import render_r_companion
+            render_r_companion()
             risk=book_risk(state);bt=backtest_var(risk['total'],state.risk.confidence)
             fig=go.Figure(go.Scatter(x=bt.index,y=bt.pnl,name=t('pnl')))
             fig.add_scatter(x=bt.index,y=-bt['var'],name='VaR')

@@ -16,4 +16,6 @@ try:
     PAGES[state.ui.page].render(state)
 except (ValueError,KeyError,TypeError) as exc:
     st.error(error_message(exc))
+from components.report_download import render_reports
+render_reports(state)
 footer()

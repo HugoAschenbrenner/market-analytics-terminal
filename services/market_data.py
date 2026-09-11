@@ -100,7 +100,8 @@ def ensure_market(state,refresh=False):
         state.market.curves[currency]=result
     defaults={'SPY':550.,'QQQ':475.,'VIX':20.,'EURUSD':1.10,'GBPUSD':1.28,'USDJPY':147.}
     for ticker,value in defaults.items():
-        observation=public.get(('quote',ticker))
+        previous=state.market.provenance.get(ticker,{})
+        observation=previous if previous.get('source')=='USER INPUT' else public.get(('quote',ticker))
         if observation is None:
             observation=state.market.provenance.get(ticker,{'price':value,'change':None,'source':'SYNTHETIC','provider':'demo','as_of':'2026-09-09','basis':'close'})
         state.market.provenance[ticker]=observation

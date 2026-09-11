@@ -15,6 +15,12 @@ def calculate_positions(positions, market, valuation_date, contracts=None):
         result = dict(row, market_value=0., dv01=0., cs01=0., delta=0., delta_cash=0., gamma=0., vega=0., theta=0., rho=0., duration=0., convexity=0.)
         units = row['quantity'] * row['multiplier']
         price = row['price']
+        result['mark_source']='USER INPUT'
+        if row['asset_class']=='Equity' and row['mark_mode']=='Market':
+            if row['ticker'] not in market.spots:raise ValueError('book.underlying')
+            price=market.spots[row['ticker']]
+            result['mark_source']=market.provenance.get(row['ticker'],{}).get('source','SYNTHETIC')
+        if row['asset_class'] in ['Option','Structured']:result['mark_source']='MODEL'
         if row['asset_class'] == 'Bond' and row['quantity'] != 0:
             contract = dict(bond_id=row['id'], issuer=row['ticker'], currency=row['currency'], coupon_rate=row['coupon'],
                 issue_date=valuation_date-timedelta(days=366), maturity_date=valuation_date+timedelta(days=round(365*row['maturity'])),
@@ -22,6 +28,7 @@ def calculate_positions(positions, market, valuation_date, contracts=None):
                 rating='A' if row['sleeve']=='Credit' else 'AAA', sector='Corporate' if row['sleeve']=='Credit' else 'Government',
                 spread_bps=100 if row['sleeve']=='Credit' else 0, curve_bucket=f"{row['maturity']:g}Y")
             r = fi.calculate_bond_risk_metrics(pd.DataFrame([contract]), valuation_date).iloc[0]
+            result.update(r.to_dict())
             sign = np.sign(row['quantity'])
             price = r.dirty_price
             result.update(dv01=sign*r.dv01, cs01=sign*r.cs01, duration=r.modified_duration, convexity=r.convexity,
@@ -55,6 +62,7 @@ def marked_positions(state):
     for col in ('market_value','dv01','cs01','delta_cash','gamma','vega','theta','rho'):
         frame[col] *= fx
     if 'correlation_1pct' in frame:frame['correlation_1pct'] *= fx
+    frame['gamma_cash_1pct']=.5*frame.gamma*frame.get('spot',pd.Series(0.,index=frame.index)).fillna(0.)**2*.0001
     if frame.weight.notna().any():
         values = frame.market_value
         if values.sum() <= 0 or not np.allclose(frame.weight, values/values.sum(), atol=1e-5):

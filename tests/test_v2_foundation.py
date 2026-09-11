@@ -24,7 +24,7 @@ def test_translation_catalog_is_complete_and_formats_match():
 def test_100_asset_book_and_theme_invariance():
     state=TerminalState(demo_book())
     row=state.book.positions.query("asset_class == 'Equity'").iloc[0]
-    frame=pd.DataFrame([dict(row,id=f'asset-{i}',ticker=f'EQ{i}') for i in range(100)])
+    frame=pd.DataFrame([dict(row,id=f'asset-{i}',ticker=f'EQ{i}',mark_mode='Book') for i in range(100)])
     replace_book(state,frame)
     dark=marked_positions(state)
     state.ui.theme='light'; state.ui.language='fr'
