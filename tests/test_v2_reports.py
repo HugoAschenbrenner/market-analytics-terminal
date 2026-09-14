@@ -25,3 +25,28 @@ def test_export_protects_formula_cells_and_does_not_mutate_book():
     assert any(c.value=='=1+2' and c.data_type=='s' for row in wb['Positions'] for c in row)
     assert state.book.positions.equals(before.positions)
     assert report_tables(state)['Risk_Metrics'].set_index('metric').loc['horizon_observations','value']==state.risk.horizon
+
+
+def test_report_invalid_nav_is_recoverable_in_the_ui():
+    from streamlit.testing.v1 import AppTest
+    from core.i18n import t
+
+    app = AppTest.from_string('''
+import streamlit as st
+from core.models import TerminalState
+from core.state import demo_book
+from components.report_download import render_reports
+if 'book_state' not in st.session_state:
+    state = TerminalState(demo_book())
+    state.book.repo_cash = 1e12
+    st.session_state.book_state = state
+render_reports(st.session_state.book_state)
+''').run()
+    app.button[0].click().run()
+    assert not app.exception
+    assert app.error[0].value == t('book.nav', 'en')
+    assert not app.get('download_button')
+    app.session_state['book_state'].book.repo_cash = 0.
+    app.button[0].click().run()
+    assert not app.exception and not app.error
+    assert len(app.get('download_button')) == 1
