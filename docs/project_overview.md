@@ -1,78 +1,27 @@
 # Project Overview
 
-The Market Analytics Terminal is designed as a practical multi-asset analytics platform.
+The Market Analytics Terminal V2 connects market context, positions, risk, scenarios and hedge expressions through one shared application state. Five workspaces replace the earlier independent pages: Desk Overview, Markets, Risk Lab, Derivatives Lab and Financing.
 
-The design principle is simple:
+## State and calculation flow
 
-Build tools that are useful to a desk, not just technically impressive demos.
+`core/models.py` defines MarketState, PositionBook, RiskState, ScenarioState and UIState inside TerminalState. `core/state.py` loads one of four demo books, validates optional CSV/editor inputs, migrates open sessions and converts monetary financing terms when the base currency changes. Quantities drive exposure; optional weights must reconcile to marked positions before financing liabilities.
 
-The project covers six main market/risk areas:
+`services/market_data.py` populates dated public context with bounded requests and explicit fallback. `services/analytics.py` marks the book once through cached audited bond/option and structured engines, then translates monetary exposures into the base currency. Overview, Risk Lab, scenarios and Excel reports consume these same marks and contract terms. Language/theme never change financial inputs.
 
-1. Fixed Income Risk
-2. Repo & Securities Lending
-3. Options payoff and Black-Scholes pricing
-4. Structured Products and autocallable valuation proxies
-5. Portfolio Risk
-6. Cross-Asset Dashboard synthesis
+`services/book_risk.py` applies deterministic synthetic factor observations to current signed exposures. `engines/risk_factor_engine.py` calculates covariance and risk decomposition; `engines/desk_scenario_engine.py` aggregates economic stress separately from financing liquidity. `services/structured.py` connects shared note contracts to controlled Monte Carlo revaluation. `services/financing.py` connects the book's borrowing/collateral to contractual repo logic.
 
-It also includes an R analytics companion for portfolio reporting.
+## Presentation
 
----
+`components/global_header.py` owns stable routes, EN/FR and light/dark controls. `core/i18n.py`, `core/theme.py` and `core/charting.py` centralize text and styling. Five small `app_pages/` entry points select lazy tabs; reusable components contain detailed rates, FX, options, structured and financing workflows. Dataframes are reserved for editing or expandable calculation details.
 
-## Workflow Philosophy
+The Overview starts with dated market context, six KPIs and a chart grid. Its commentary comes from calculated concentration, scenario and Greek exposure. Markets translates rates/FX views into trade and hedge expressions. Risk Lab edits the same book and compares losses. Derivatives explains nonlinear exposures. Financing shows their collateral and cash implications.
 
-Each module follows the same workflow:
+## Reporting and performance
 
-Input → Calculation → Scenario Analysis → Interpretation → Export
+`reports/desk_report.py` builds unified or focused workbooks with marks, risk, scenarios, contracts, sources and methodology. `reports/excel_exporter.py` retains all four audited legacy APIs. Text cells do not execute Excel formulas. The R companion remains a reproducible technical report on a separate bundled return sample; it does not duplicate the live desk charts.
 
-This mirrors real desk behavior more closely than a static calculator.
+Market data has a 15-minute cache. Marks and synthetic observations are cached; Monte Carlo uses vectorized operations, deterministic seeds, bounded caches and lazy advanced tabs. A local cold calculation for 100 equity positions and 756 observations took 0.8312 seconds, excluding imports and public network fetches. This is an observed benchmark, not a latency guarantee for 100 complex notes.
 
-A sales, trader, structurer, PM, or risk analyst rarely needs only one number. They need:
+## Scope and evidence
 
-- drivers
-- sensitivities
-- scenarios
-- downside cases
-- clean exports
-- client/desk explanations
-
----
-
-## Design Choices
-
-### Python for the Main Terminal
-
-Python is used for:
-
-- analytics engines
-- Streamlit interface
-- scenario calculations
-- Excel exports
-- automated tests
-
-### R for Portfolio Analytics
-
-R is used as a companion layer for:
-
-- portfolio performance reporting
-- rolling risk metrics
-- drawdown analytics
-- monthly returns
-- correlation diagnostics
-
-This avoids duplicating every Python module in R and keeps R where it is most credible.
-
-
----
-
-## Professional Demo Angle
-
-The strongest demo path is not to present the app as a single calculator. It should be presented as a workflow:
-
-1. Market/risk input
-2. Analytics engine
-3. Scenario or sensitivity analysis
-4. Desk interpretation
-5. Export or dashboard synthesis
-
-This is closer to how a sales, structuring, trading, portfolio or risk team would discuss a problem than a static academic model.
+All seven implementation phases are recorded in [checkpoint history](v2_progress.md). [Requirement coverage](v2_completion.md) maps the 36-section brief to code and tests. [Technical validation](technical_validation.md) distinguishes financial identities, finite-difference checks, deterministic proxy tests and external data limitations. Higher-complexity calibrated models remain deferred as requested.

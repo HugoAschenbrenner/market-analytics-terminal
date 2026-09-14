@@ -1,292 +1,97 @@
 # Market Analytics Terminal
 
+A Python/R Sales & Trading and cross-asset risk workstation by Hugo Aschenbrenner. One shared book connects **Market → Position → Risk → Scenario → Hedge → Decision** across five workspaces, with English/French and light/dark controls throughout.
 
-## Live Demo
+This branch contains V2. The [hosted terminal](https://market-analytics-terminal.streamlit.app/) is a separate deployment and may still show the earlier version until this branch is merged and deployed. Screenshots below show the local V2 build.
 
-[Open the Market Analytics Terminal](https://market-analytics-terminal.streamlit.app/)
+The terminal opens with a usable demo portfolio. Public market context carries observation dates and source labels; portfolio risk history and volatility surfaces are explicitly synthetic. These are educational analytics, not executable quotes, issuer valuations or regulatory risk measures.
 
-A Python/R multi-asset analytics project built by Hugo Aschenbrenner, covering fixed income risk, repo and securities lending, structured products, portfolio risk, and cross-asset stress dashboards.
+## A 90-second demonstration
 
+1. **Desk Overview:** identify the loaded book, NAV, Expected Shortfall, DV01, Vega, worst scenario and financing liquidity. Read the numerical risk insights below the chart grid.
+2. **Markets:** inspect dated US/euro curves and book sensitivities; express a view with a DV01-neutral curve trade, or compare forward, option and collar hedges for a corporate FX exposure.
+3. **Risk Lab:** edit the shared book, select a covariance estimator, inspect Component VaR and apply a cross-asset stress. Economic losses and liquidity needs remain separate.
+4. **Derivatives Lab:** explain option P&L with Greeks and full repricing, simulate delta hedging, or inspect Athena/Phoenix worst-of valuation and Monte Carlo risk.
+5. **Financing:** inspect contractual repo margin, securities-lending economics and refinancing capacity. Prepare a unified or focused Excel report from any workspace.
 
-A multi-asset desk utility platform built with Python, Streamlit, and R.
+Select Multi-Asset Balanced, Rates & FX Macro, Equity Options Book or Structured Products / Hedged Book. CSV import is optional under **Load custom book**; the editable book supports 100 positions. Language, theme and book selections persist within the session. Links can specify `?page=overview&lang=en&theme=dark`.
 
-The objective is not to build a generic student calculator. The objective is to build a practical analytics terminal that converts market, portfolio, trade, and product inputs into outputs a sales, trader, structurer, portfolio manager, or risk analyst can actually discuss:
+## Workspaces and analytics
 
-- risk summaries
-- scenario analysis
-- stress tests
-- payoff explainers
-- margin analytics
-- portfolio diagnostics
-- Excel reports
-- R-generated performance analytics
+- **Desk Overview:** shared marked NAV and risk KPIs, yield curves, risk contributions, scenario P&L and calculated concentration/Greek insights.
+- **Markets — Fixed Income Risk and FX:** audited clean/dirty bond valuation, ACT/ACT schedules, duration/convexity, DV01/CS01, key-rate ladders, carry/roll estimates, curve overlays and trade builders. FX includes covered interest parity, cross-rates, swap points, Garman–Kohlhagen Greeks and client hedge comparisons.
+- **Risk Lab — Portfolio Risk:** sample, EWMA and Ledoit–Wolf covariance; historical/Gaussian VaR and ES; marginal/component/incremental risk; rolling diagnostics, drawdown and exceedances; curve PCA; coherent equity/FX/rates/credit/volatility/correlation stresses.
+- **Derivatives Lab — Structured Products and options:** BSM, bounded implied-volatility inversion, analytical Vanna/Volga/Charm, curves/heatmaps, synthetic volatility surfaces, P&L attribution and self-financing hedging simulation. Athena/Phoenix contracts share controlled Monte Carlo valuation, probabilities and bump risk with the rest of the book.
+- **Financing — Repo & Securities Lending:** contractual cash flows and margin with threshold/MTA/rounding, cash/non-cash lending economics, collateral shocks and haircut-dependent refinancing capacity.
+- **R Portfolio Analytics Companion:** reproducible CSV/PNG reporting and Python/R parity checks, available as a technical expander in Risk Lab. Its bundled dataset is separate from the current book.
 
-This project uses simplified, proxy-based analytics for demonstration. Outputs should not be treated as investment advice, executable quotes, issuer pricing, or production risk measures.
-
----
-
-
----
+Charts and headline metrics lead each workflow. Detailed data, formulas, assumptions and reports are collapsible. The four original Excel exporter APIs and audited financial engines remain available alongside the unified V2 report.
 
 ## Demo Screenshots
 
-### Home — Multi-Asset Desk Utility Platform
+Local V2 captures; displayed public observations are dated snapshots, not current quotations.
 
-![Home](docs/screenshots/01_home.png)
+### Desk Overview — light
 
-### Fixed Income Risk — Duration, DV01, Curve Shocks and Rates Snapshot
+![V2 Desk Overview in light mode](docs/screenshots/v2_overview_light.jpg)
 
-![Fixed Income Risk](docs/screenshots/02_fixed_income_risk.png)
+### Markets — dark
 
-### Repo & Securities Lending — Financing, Haircuts and Margin Stress
+![V2 Markets in dark mode](docs/screenshots/v2_markets_dark.jpg)
 
-![Repo and Securities Lending](docs/screenshots/03_repo_sec_lending.png)
+### Risk Lab — light
 
-### Structured Products — Options Payoff, Black-Scholes Greeks and Autocallable Valuation Proxy
+![V2 Risk Lab in light mode](docs/screenshots/v2_risk_light.jpg)
 
-![Structured Products](docs/screenshots/04_structured_products.png)
+### Derivatives Lab — dark
 
-### Portfolio Risk — VaR, CVaR, Drawdown and Risk Contribution
+![V2 Derivatives Lab in dark mode](docs/screenshots/v2_derivatives_dark.jpg)
 
-![Portfolio Risk](docs/screenshots/05_portfolio_risk.png)
+### Financing — French, dark
 
-### Cross-Asset Dashboard — Rates, Financing, Structured Products and Portfolio Risk Synthesis
+![V2 Financing in French and dark mode](docs/screenshots/v2_financing_fr_dark.jpg)
 
-![Cross-Asset Dashboard](docs/screenshots/06_cross_asset_dashboard.png)
+## Run locally
 
----
+Python 3.11+ is recommended; this revision was validated with Python 3.12 and Streamlit 1.63.0. R is optional for the terminal itself and required to regenerate companion outputs and execute R parity checks.
 
-## How to Demo the Project in 90 Seconds
-
-1. Start on the Home page to show the project scope and ownership layer.
-2. Open Fixed Income Risk to show DV01, duration/convexity and curve-shock interpretation.
-3. Open Repo & Securities Lending to show collateral, haircut and margin-call mechanics.
-4. Open Structured Products to show the full chain: options payoff, Black-Scholes pricing/Greeks, autocallable valuation proxy and payoff simulation.
-5. Open Portfolio Risk to show VaR, CVaR, drawdown and risk contribution.
-6. Finish on Cross-Asset Dashboard to show how the modules connect into a manager-style risk synthesis.
-
-The intended message is simple: the terminal does not claim to replace bank systems; it demonstrates market logic, scenario thinking, risk decomposition, reporting discipline and desk-style interpretation.
-
-
-## Core Modules
-
-### 1. Fixed Income Risk
-
-Bond portfolio analytics:
-
-- clean / dirty price handling
-- accrued interest proxy
-- modified duration
-- convexity
-- DV01
-- bucket risk decomposition
-- curve shock scenarios
-- simple hedge approximation
-- Excel risk report
-
-### 2. Repo & Securities Lending
-
-Financing and collateral analytics:
-
-- repo cash amount
-- repo interest
-- repurchase amount
-- haircut sensitivity
-- collateral shock
-- margin deficit / surplus
-- margin call logic
-- securities lending borrow fee
-- rebate amount
-- collateralization rate
-- specialness indicator
-- financing and margin Excel report
-
-### 3. Structured Products and Options
-
-Autocallable and options analytics:
-
-- Options Payoff Lab for vanilla options and classic option strategies
-- Black-Scholes-Merton theoretical option pricer
-- Greeks: delta, gamma, vega, theta, and rho
-- Athena and Phoenix deterministic payoff logic
-- memory coupon and coupon barrier logic
-- autocall condition and protection barrier logic
-- worst-of basket analytics
-- path simulation payoff proxy
-- autocall probability and barrier breach probability
-- autocallable Monte Carlo valuation proxy
-- expected discounted payoff and PV as percentage of notional
-- volatility / correlation sensitivity
-- structured products Excel report
-
-### 4. Portfolio Risk
-
-Portfolio and risk analytics:
-
-- asset weights
-- portfolio returns
-- annualized return
-- annualized volatility
-- Sharpe ratio
-- max drawdown
-- historical VaR / CVaR
-- correlation matrix
-- covariance-based risk contribution
-- predefined stress scenarios
-- portfolio risk Excel report
-
-### 5. R Portfolio Analytics Companion
-
-R companion layer for buy-side style analytics:
-
-- performance summary
-- rolling volatility
-- rolling Sharpe
-- drawdown series
-- monthly returns
-- correlation matrix
-- R-generated charts
-- outputs displayed inside Streamlit
-
----
-
-## Tech Stack
-
-Python:
-
-- Streamlit
-- pandas
-- numpy
-- scipy
-- plotly
-- openpyxl
-- xlsxwriter
-- pytest
-
-R:
-
-- Base R implementation
-- CSV output generation
-- PNG chart generation
-- portfolio analytics companion workflow
-
----
-
-## Project Structure
-
-market-analytics-terminal/
-│
-├── app.py
-├── app_pages/
-│   ├── home.py
-│   ├── fixed_income.py
-│   ├── repo_sec_lending.py
-│   ├── structured_products.py
-│   ├── portfolio_risk.py
-│   └── cross_asset_dashboard.py
-│
-├── engines/
-│   ├── fixed_income_engine.py
-│   ├── repo_engine.py
-│   ├── sec_lending_engine.py
-│   ├── market_data_engine.py
-│   ├── rates_market_data_engine.py
-│   ├── options_payoff_engine.py
-│   ├── options_pricing_engine.py
-│   ├── structured_products_valuation_engine.py
-│   ├── cross_asset_dashboard_engine.py
-│   ├── structured_products_engine.py
-│   ├── portfolio_risk_engine.py
-│   └── scenario_engine.py
-│
-├── reports/
-│   └── excel_exporter.py
-│
-├── r_analytics/
-│   ├── portfolio_performance_report.R
-│   ├── README.md
-│   └── outputs/
-│
-├── data/
-│   ├── sample_bonds.csv
-│   └── portfolio_returns_sample.csv
-│
-├── docs/
-│   ├── project_overview.md
-│   ├── technical_validation.md
-│   └── cv_positioning.md
-│
-└── tests/
-
----
-
-## How to Run
-
-Create and activate a virtual environment:
-
+```sh
 python3 -m venv .venv
 source .venv/bin/activate
-
-Install requirements:
-
 python -m pip install -r requirements.txt
-
-Run the app:
-
 python -m streamlit run app.py
+```
 
-Run the R analytics companion:
+No API key is required. The market service automatically requests public context, caches it for 15 minutes and falls back to dated cached or labelled synthetic series when a provider is unavailable. An offline session remains usable.
 
-Rscript r_analytics/portfolio_performance_report.R
-
-Run the full test suite:
-
+```sh
 python -m pytest -q
+python -m compileall -q app.py core components app_pages services engines reports
+Rscript r_analytics/portfolio_performance_report.R
+```
 
----
+UI tests use deterministic offline market fixtures. Public adapter tests cover parsing, dates and failures; a passing suite does not promise continuing provider availability.
 
-## Audit and Test Coverage
+## Architecture
 
-See [September 2026 audit](docs/audit_2026_09_10.md) for verified defects, corrections, validation evidence and remaining model limits.
+```text
+app.py                 session initialization and workspace routing
+core/                  typed state, book validation, i18n, semantic themes
+components/            shared controls, charts, formulas and nested workflows
+app_pages/             overview, markets, risk_lab, derivatives_lab, financing
+services/              market adapters, shared marks, risk and financing
+engines/               audited pricing, payoff, risk and scenario calculations
+reports/               unified V2 report and preserved Excel exporters
+r_analytics/           standalone report, CSV/PNG outputs
+tests/                financial, state, UI, report and R regression coverage
+```
 
-The project includes automated regression tests covering:
+See [project architecture](docs/project_overview.md), [financial conventions and validation](docs/technical_validation.md), [V2 requirement completion](docs/v2_completion.md), [checkpoint history](docs/v2_progress.md), [test migration ledger](docs/v2_test_migration.md) and the [original audit](docs/audit_2026_09_10.md). Interview wording is in [CV positioning](docs/cv_positioning.md).
 
-- fixed income analytics
-- repo and securities lending
-- Excel report generation
-- structured product payoff logic
-- worst-of basket analytics
-- Monte Carlo simulation outputs
-- portfolio risk analytics
-- R analytics structure
-- Streamlit integration checks
+## Data and model boundaries
 
----
+Yahoo daily bars may contain an unfinished session. FRED Treasury and ECB euro-area curves have different construction and publication calendars; the latest retrieval time is not an observation date. PUBLIC, SYNTHETIC and USER INPUT provenance remains visible, with MODEL identifying calculated marks.
 
-## Why This Project Matters
+V2 portfolio return/risk history is a deterministic 756-observation scenario sample applied to current exposures, **not historical performance or a backtest of a traded strategy**. Its ES view at 97.5% is educational/FRTB-inspired, without regulatory compliance. Bond schedules in the simplified editor assume semiannual coupons and inferred dates; the underlying audited engine supports fuller contractual inputs. Equity book options use European BSM with zero dividend yield; FX options are priced in the dedicated GK workspace rather than accepted as equity options in the book.
 
-A basic pricer shows that someone can code a formula.
-
-This project is different because it focuses on desk workflow:
-
-1. Inputs are converted into interpretable risk outputs.
-2. Outputs are linked to sales/trading/risk use cases.
-3. Scenario analysis is prioritized over static valuation.
-4. Excel reports are generated because desks still use Excel heavily.
-5. R is used where it is credible: portfolio analytics and reporting.
-6. Each module is tested, modular, and documented.
-
----
-
-## Important Limitations
-
-This project is not:
-
-- bank-grade pricing
-- live market data infrastructure
-- a trading bot
-- investment advice
-- a production risk system
-- a replacement for Bloomberg, Murex, Sophis, or internal desk tools
-
-It is a transparent educational and portfolio project designed to demonstrate market understanding, technical execution, and practical desk workflow thinking.
+Synthetic volatility surfaces are not calibrated or guaranteed arbitrage-free. Monte Carlo structured prices and sensitivities have sampling error and omit issuer credit, funding, transaction costs and model calibration. Curve trades, carry/roll and hedges are analytical approximations. The [validation document](docs/technical_validation.md) specifies units, signs, assumptions and tests so these limits remain reviewable.

@@ -12,7 +12,7 @@ Shared typed MarketState, PositionBook, RiskState, ScenarioState and UIState; fo
 
 Intentional test migrations: seven duplicate/source-only tests requiring the previous sidebar links were replaced by executable navigation/state tests. Ownership and global-style assertions now point to centralized components. Audited financial-engine and export assertions remain. Legacy page modules are temporarily retained solely while their deeper workflows migrate in phases 2–6; they are not routes and will be removed after replacements are validated.
 
-## Remaining phases
+## Implementation sequence (completed)
 
 2. Overview and Markets: automatic public context with provenance/fallback, US/ECB curves and history, rates charts, shared calculated risk KPIs.
 3. Risk: covariance estimators, historical/parametric VaR and ES, component/marginal/incremental risk, rolling diagnostics, coherent scenarios, curve PCA.
@@ -83,4 +83,11 @@ Removed seven inactive legacy page/theme modules after their financial engines, 
 
 Compact header/market strip, wrapped KPI labels, centralized editor/asset-class translations, selectable risk diagnostics and persistent custom scenarios. Base-currency changes convert repo liabilities and monetary margin terms rather than relabelling their amounts. Light-mode verification exposed Streamlit overriding Plotly colors; explicit figure theming now preserves readable chart labels and navigation in both modes. Public quote basis explicitly identifies potentially unfinished daily bars. Roll-down does not silently substitute a USD curve for unsupported currencies. Scenario methodology now reflects the implemented Monte Carlo repricing.
 
-471 tests passed, including literal translation-key coverage, custom-scenario navigation persistence, all Greek heatmaps and financing numeraire invariance. Light and dark browser views were inspected; remaining work is final documentation/screenshots and overall regression/remote verification.
+471 tests passed, including literal translation-key coverage, custom-scenario navigation persistence, all Greek heatmaps and financing numeraire invariance. Light and dark browser views were inspected; final documentation/screenshots and overall regression/remote verification are recorded below.
+
+
+## Phase 7d — Documentation and final handoff
+
+Reconstructed the working tree and verified remote `32a349b` before continuing. Consolidated the translation catalog without changing its values; replaced outdated six-page README/architecture/interview/R documentation with the five-workspace V2 flow, explicit financial conventions and a 36-section requirement completion record. Screenshot assertions now target actual V2 JPEG captures; historical screenshots remain as prior-version assets. Regenerated R charts were visually inspected. Final regression, compilation, report and remote checks complete this unit.
+
+Final validation on 14 September 2026: 472 tests passed in 28.81 seconds (no failures/skips); Python compilation, whitespace checks and standalone R generation passed. A report preparation error for invalid NAV now remains recoverable in the UI, with successful export after correcting the liability tested; checkpoint `098bb06` was committed/pushed separately. The translation reformat preserves all 394 key values. Final V2 screenshots were recaptured after identifying incomplete draft captures.

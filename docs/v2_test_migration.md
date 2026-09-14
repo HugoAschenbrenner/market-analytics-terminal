@@ -50,3 +50,5 @@ Financial engines and the four legacy Excel exporters retain their tests. The fo
 - test_cross_asset_aggregation_audit_remediation.py::test_ui_exposes_common_nav_and_separate_liquidity_contract — old page source assertion replaced by V2 contract tests
 - test_options_payoff_audit_remediation.py::test_straddle_ui_exposes_separate_premiums — old page source assertion replaced by V2 contract tests
 - test_structured_products_audit_remediation.py::test_ui_uses_final_fixing_wording — old page source assertion replaced by V2 contract tests
+
+The final README screenshot contract now requires the five V2 workspace captures (including light/dark and French), with image decoding/MIME checks. The former six-page screenshot path assertions were deliberately updated; the historical image files were retained.

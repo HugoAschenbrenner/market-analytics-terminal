@@ -1,28 +1,24 @@
 # R Portfolio Analytics Companion
 
-This folder contains the R analytics layer for the Market Analytics Terminal.
+The standalone base-R report reads `data/portfolio_returns_sample.csv` and writes reproducible performance, rolling-risk, drawdown, monthly-return and correlation outputs. Risk Lab exposes its CSV downloads in a technical expander. These outputs describe the bundled sample, not the current shared PositionBook; duplicate R charts are kept out of the main terminal workflow.
 
-Purpose:
-- Generate buy-side style portfolio analytics.
-- Produce CSV and PNG outputs.
-- Later, Python Streamlit will read and display those outputs.
+Run from the repository root with R installed:
 
-Run from the project root:
-
+```sh
 Rscript r_analytics/portfolio_performance_report.R
+```
 
-Input:
-data/portfolio_returns_sample.csv
+Outputs in `r_analytics/outputs/`:
 
-Outputs:
-r_analytics/outputs/performance_summary.csv
-r_analytics/outputs/rolling_risk_metrics.csv
-r_analytics/outputs/drawdown_series.csv
-r_analytics/outputs/monthly_returns.csv
-r_analytics/outputs/correlation_matrix.csv
-r_analytics/outputs/cumulative_performance.png
-r_analytics/outputs/drawdown_chart.png
-r_analytics/outputs/rolling_volatility.png
+- `performance_summary.csv`
+- `rolling_risk_metrics.csv`
+- `drawdown_series.csv`
+- `monthly_returns.csv`
+- `correlation_matrix.csv`
+- `cumulative_performance.png`
+- `drawdown_chart.png`
+- `rolling_volatility.png`
 
-Limitation:
-This is a simplified analytics companion, not a production risk engine.
+The R implementation uses 252 daily observations per year and a 63-observation rolling window. Drawdown includes initial capital as a possible high-water mark. Python/R parity and generated-output checks run in the Python suite; install R to execute the parity checks rather than skip them. PNG byte output can vary slightly across graphics/font environments even when the CSV values agree.
+
+This companion demonstrates reproducible analytics and interoperability; it is not a production portfolio risk service.

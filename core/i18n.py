@@ -1,81 +1,623 @@
-"""Single translation catalog. Stable codes are kept separate from visible labels."""
-STRINGS = {
- "workspaces": ("Workspaces", "Espaces de travail"),
- "book.nav": ("Net asset value must be positive after financing liabilities.", "La valeur liquidative doit être positive après dettes de financement."),
- "nav.overview": ("Desk Overview", "Vue du desk"), "nav.markets": ("Markets", "Marchés"),
- "nav.risk": ("Risk Lab", "Laboratoire de risque"), "nav.derivatives": ("Derivatives Lab", "Dérivés"), "nav.financing": ("Financing", "Financement"),
- "brand": ("MARKET ANALYTICS / DESK", "MARKET ANALYTICS / DESK"),
- "subtitle": ("Market → Position → Risk → Scenario → Hedge → Decision", "Marché → Position → Risque → Scénario → Couverture → Décision"),
- "language": ("Language", "Langue"), "theme": ("Theme", "Thème"), "dark": ("Dark", "Sombre"), "light": ("Light", "Clair"),
- "status": ("Market context", "Contexte de marché"), "SYNTHETIC": ("SYNTHETIC", "SYNTHÉTIQUE"), "PUBLIC": ("PUBLIC", "PUBLIC"), "USER INPUT": ("USER INPUT", "SAISIE UTILISATEUR"),
- "book": ("Position book", "Portefeuille"), "book.selector": ("Demo book", "Portefeuille démo"),
- "book.balanced": ("Multi-Asset Balanced", "Multi-actifs équilibré"), "book.macro": ("Rates & FX Macro", "Macro Taux & Change"),
- "book.options": ("Equity Options Book", "Options actions"), "book.structured": ("Structured / Hedged Book", "Structurés / Couverture"),
- "book.edit": ("Edit book", "Modifier le portefeuille"), "book.load": ("Load custom book", "Charger un portefeuille"),
- "book.apply": ("Apply positions", "Appliquer les positions"), "book.csv": ("Import CSV", "Importer CSV"),
- "book.template": ("Download current book CSV", "Télécharger le portefeuille CSV"), "book.saved": ("Book updated across all workspaces.", "Portefeuille mis à jour dans tous les espaces."),
- "book.note": ("Quantities determine exposures. Options are marked from shared market inputs; bonds use quoted clean price. Optional weights must reconcile to calculated NAV. Up to 1,000 positions.", "Les quantités déterminent les expositions. Options valorisées avec les données partagées ; obligations au prix pied de coupon saisi. Les poids facultatifs doivent correspondre à la VL calculée. Jusqu’à 1 000 positions."),
- "book.missing_columns": ("Required columns: id, ticker, asset_class, currency, quantity, price.", "Colonnes requises : id, ticker, asset_class, currency, quantity, price."),
- "book.row_count": ("The book must contain 1–1,000 positions.", "Le portefeuille doit contenir de 1 à 1 000 positions."),
- "book.missing_values": ("Required fields cannot be empty.", "Les champs requis ne peuvent pas être vides."),
- "book.duplicates": ("Position identifiers must be unique; tickers may repeat for separate contracts.", "Les identifiants doivent être uniques ; un ticker peut désigner plusieurs contrats."),
- "book.asset_class": ("Unsupported asset class.", "Classe d’actifs non prise en charge."), "book.currency": ("Unsupported currency.", "Devise non prise en charge."),
- "book.numeric": ("Numeric fields must be finite numbers.", "Les champs numériques doivent contenir des nombres finis."),
- "book.positive": ("Prices, multipliers, maturities, strikes and volatilities must be positive.", "Prix, multiplicateurs, maturités, strikes et volatilités doivent être positifs."),
- "book.option_type": ("Option type must be Call or Put.", "Le type d’option doit être Call ou Put."),
- "book.weights": ("Optional weights must be complete, sum to 1, and match quantity-based exposures.", "Les poids facultatifs doivent être complets, totaliser 1 et correspondre aux quantités."),
- "book.underlying": ("An option underlying is missing from shared market inputs.", "Un sous-jacent d’option est absent des données de marché partagées."),
- "error": ("Calculation could not be completed. Check the inputs.", "Calcul impossible. Vérifiez les paramètres."),
- "data": ("View data", "Voir les données"), "details": ("Calculation details", "Détails du calcul"), "methodology": ("Methodology & formulas", "Méthodologie & formules"),
- "about": ("Build & assumptions", "Projet & hypothèses"),
- "disclaimer": ("Educational / proxy analytics. Hypothetical scenarios, not forecasts. No regulatory compliance or bank-grade pricing claim.", "Analyses pédagogiques / approximatives. Scénarios hypothétiques, pas des prévisions. Aucune conformité réglementaire ni valorisation bancaire revendiquée."),
- "author": ("Built by Hugo Aschenbrenner · SKEMA MSc Financial Markets & Investments", "Créé par Hugo Aschenbrenner · SKEMA MSc Financial Markets & Investments"),
- "nav": ("NAV", "VL"), "gross": ("Gross exposure", "Exposition brute"), "dv01": ("Net DV01 / bp", "DV01 nette / pb"),
- "delta": ("Delta · spot units", "Delta · unités spot"), "delta_cash": ("Delta equivalent", "Équivalent Delta"), "gamma": ("Gamma", "Gamma"), "vega": ("Vega / vol pt", "Vega / point de vol"),
- "value": ("Value", "Valeur"), "exposure": ("Exposure", "Exposition"), "asset_class": ("Asset class", "Classe d’actifs"),
- "position": ("Position", "Position"), "currency": ("Currency", "Devise"), "base_currency": ("Base currency", "Devise de référence"),
- "concentration": ("Book concentration", "Concentration du portefeuille"), "risk_contribution": ("Volatility contribution", "Contribution à la volatilité"),
- "top_risks": ("Top risks · calculated from this book", "Risques majeurs · calculés sur ce portefeuille"),
- "insight.concentration": ("{asset} represents {weight:.1%} of gross exposure.", "{asset} représente {weight:.1%} de l’exposition brute."),
- "insight.dv01": ("{share:.1%} of absolute DV01 sits at 10 years or longer.", "{share:.1%} de la DV01 absolue est située à 10 ans ou plus."),
- "insight.gamma": ("Net Gamma is {gamma:,.1f}; Delta changes by this amount per 1-unit spot move.", "Gamma net : {gamma:,.1f} ; variation du Delta pour un mouvement de spot de 1 unité."),
- "insight.fx": ("{share:.1%} of gross exposure is outside {currency}.", "{share:.1%} de l’exposition brute est hors {currency}."),
- "rates": ("Rates & Credit", "Taux & Crédit"), "fx": ("FX", "Change"), "equity_vol": ("Equity & Volatility", "Actions & Volatilité"),
- "curve": ("Yield curves", "Courbes de taux"), "tenor": ("Maturity (years)", "Maturité (années)"), "yield": ("Yield (%)", "Taux (%)"),
- "spot": ("Spot", "Spot"), "rate": ("Rate (%)", "Taux (%)"), "vol": ("Volatility (%)", "Volatilité (%)"),
- "book_exposure": ("Book & Exposure", "Positions & Expositions"), "risk_var": ("VaR / Expected Shortfall", "VaR / Perte moyenne extrême"),
- "factor": ("Factor Risk", "Risque factoriel"), "stress": ("Stress & Scenario", "Stress & Scénarios"), "validation": ("Validation / P&L Explain", "Validation / Explication du P&L"),
- "vanilla": ("Vanilla Options", "Options vanilles"), "greeks": ("Greeks", "Sensibilités"), "volatility": ("Volatility", "Volatilité"), "structured": ("Structured Products", "Produits structurés"),
- "repo": ("Repo", "Repo"), "lending": ("Securities Lending", "Prêt de titres"), "collateral": ("Collateral & Margin", "Collatéral & Marge"),
- "option.select": ("Book option", "Option du portefeuille"), "option.none": ("Select the Equity Options demo book or add an option in Risk Lab.", "Choisissez la démo Options actions ou ajoutez une option dans Risque."),
- "option.price": ("Theoretical price", "Prix théorique"), "option.type": ("Option type", "Type d’option"), "strike": ("Strike", "Strike"), "maturity": ("Maturity (years)", "Maturité (années)"),
- "option.method": ("European BSM. Continuous rates and dividend yields; volatility in annual decimal units. Vega and Rho per percentage point; Theta per calendar day. No smile or liquidity model.", "BSM européen. Taux et dividendes continus ; volatilité annuelle décimale. Vega et Rho par point de pourcentage ; Theta par jour calendaire. Sans smile ni liquidité."),
- "financing.none": ("Select a bond as collateral and set the shared repo terms below.", "Sélectionnez une obligation en collatéral et les conditions du repo ci-dessous."),
- "financing.cash": ("Repo cash liability", "Dette de financement repo"), "financing.rate": ("Repo rate (%)", "Taux repo (%)"), "financing.haircut": ("Contractual haircut (%)", "Décote contractuelle (%)"), "financing.days": ("Tenor (days)", "Durée (jours)"),
- "financing.cost": ("Funding interest", "Intérêts de financement"), "financing.margin": ("Cash-equivalent margin", "Marge en équivalent cash"),
- "financing.method": ("Repo interest is simple ACT/360. Repo cash is a liability deducted from NAV; record its cash proceeds as a cash position. Contractual margin uses the original haircut. Refinancing haircut stress is separate from economic P&L.", "Intérêt repo simple ACT/360. La dette repo est déduite de la VL ; comptabilisez les fonds reçus en position cash. La marge contractuelle utilise la décote initiale. Le stress de refinancement est distinct du P&L économique."),
-}
-STRINGS.update({'MIXED': ('PUBLIC / SYNTHETIC', 'PUBLIC / SYNTHÉTIQUE'), 'constant_maturity': ('par / constant maturity', 'pair / maturité constante'), 'zero_coupon': ('zero coupon', 'zéro coupon'), 'latest': ('Latest', 'Dernière'), 'week': ('1W', '1 sem.'), 'month': ('1M', '1 mois'), 'refresh': ('Refresh context', 'Actualiser le contexte'), 'risk.synthetic': ('Risk history is a deterministic synthetic sample, revalued using this book’s current exposures. It is separate from public market context.', 'Historique de risque synthétique déterministe, revalorisé avec les expositions actuelles. Il est distinct du contexte public de marché.'), 'var': ('Historical VaR', 'VaR historique'), 'es': ('Expected Shortfall', 'Perte moyenne extrême'), 'worst_loss': ('Worst scenario P&L', 'P&L du pire scénario'), 'liquidity': ('Financing liquidity', 'Liquidité de financement'), 'pnl': ('Economic P&L', 'P&L économique'), 'scenario': ('Scenario', 'Scénario'), 'risk_off': ('Risk-Off', 'Aversion au risque'), 'rates_selloff': ('Rates Selloff', 'Hausse des taux'), 'bull_steepener': ('Bull Steepener', 'Pentification haussière'), 'credit_shock': ('Credit Shock', 'Choc de crédit'), 'vol_spike': ('Volatility Spike', 'Pic de volatilité'), 'usd_shock': ('FX / USD Shock', 'Choc de change / USD'), 'correlation_breakdown': ('Correlation Breakdown', 'Rupture de corrélation'), 'custom': ('Custom', 'Personnalisé'), 'insight.stress': ('The largest scenario loss is {scenario}: {loss:.2%} of NAV.', 'La plus forte perte est {scenario} : {loss:.2%} de la VL.'), 'curve.change': ('Curve changes (bp)', 'Variations de courbe (pb)'), 'curve.regime': ('Curve regime', 'Régime de courbe'), 'curve.normal': ('Upward sloping', 'Croissante'), 'curve.inverted': ('Inverted', 'Inversée'), 'rates.method': ('US constant-maturity par yields and ECB AAA zero-coupon yields have different bases. Overlays use the last available observation on or before each lookback date. No interpolation is presented as an observed rate. Public rates are context; contract pricing inputs remain explicit.', 'Les taux US à maturité constante et les taux zéro-coupon AAA BCE ont des bases différentes. Comparaison avec la dernière observation disponible avant la date cible. Aucune interpolation n’est présentée comme observée. Les taux publics fournissent le contexte ; les hypothèses contractuelles restent explicites.'), 'quote.method': ('Provider Close prices exclude cash distributions. Observation dates are shown per series; the header time is retrieval time. Missing observations fall back to clearly labelled synthetic data or preserve a dated cached observation.', 'Les prix Close excluent les distributions. Chaque série indique sa date ; l’heure en haut correspond à la récupération. En cas d’absence, recours explicite au synthétique ou maintien d’une observation datée en cache.'), 'cs01': ('CS01 / bp', 'CS01 / pb'), 'curve.bucket': ('Maturity DV01 ladder', 'Échelle de DV01 par maturité'), 'bond.convexity': ('Price–yield convexity', 'Convexité prix–taux'), 'carry': ('3M carry estimate', 'Portage estimé 3 mois'), 'roll': ('3M roll-down estimate', 'Roll-down estimé 3 mois'), 'retrieved': ('Retrieved', 'Récupéré')})
+"""Central EN/FR catalog. Stable calculation identifiers never depend on language."""
 
-STRINGS.update({'covariance': ('Covariance estimator', 'Estimateur de covariance'), 'sample': ('Sample covariance', 'Covariance empirique'), 'ewma': ('EWMA · λ = 0.94', 'EWMA · λ = 0,94'), 'ledoit_wolf': ('Ledoit–Wolf shrinkage', 'Régularisation Ledoit–Wolf'), 'confidence': ('Confidence level', 'Niveau de confiance'), 'horizon': ('Horizon (business days)', 'Horizon (jours ouvrés)'), 'parametric_var': ('Parametric VaR', 'VaR paramétrique'), 'parametric_es': ('Gaussian ES', 'ES gaussienne'), 'component_var': ('Component VaR', 'VaR par composante'), 'marginal_var_per_unit': ('Marginal VaR / quantity unit', 'VaR marginale / unité'), 'incremental_var': ('Incremental VaR (position removal)', 'VaR incrémentale (retrait de position)'), 'distribution': ('P&L distribution', 'Distribution du P&L'), 'observations': ('Observations', 'Observations'), 'drawdown': ('Drawdown', 'Perte depuis le sommet'), 'rolling_vol': ('60-day rolling volatility', 'Volatilité glissante 60 jours'), 'correlation': ('Correlation', 'Corrélation'), 'rolling_corr': ('60-day rolling correlation', 'Corrélation glissante 60 jours'), 'date': ('Date', 'Date'), 'exceedances': ('Out-of-sample VaR exceedances', 'Dépassements de VaR hors échantillon'), 'risk.method': ('Historical VaR/ES use overlapping sums of fixed-book daily P&L. Gaussian VaR assumes zero mean and square-root-of-time scaling. Component VaR sums to Gaussian VaR; marginal VaR is per additional quantity unit; incremental VaR compares with removing a position. EWMA uses normalized exponentially decaying weights and a weighted-mean unbiased covariance. Ledoit–Wolf targets a scaled identity on stochastic columns; deterministic cash columns remain zero-risk. The 97.5% ES view is FRTB-inspired, not regulatory FRTB compliance.', 'VaR/ES historiques : sommes glissantes du P&L journalier à positions fixes. VaR gaussienne : moyenne nulle et racine du temps. La somme des composantes égale la VaR gaussienne ; marginale par unité supplémentaire ; incrémentale par retrait. EWMA : pondérations exponentielles normalisées et covariance centrée corrigée. Ledoit–Wolf : cible identité sur les colonnes stochastiques ; cash déterministe sans risque. Vue ES 97,5 % inspirée de FRTB, sans conformité réglementaire.'), 'pca': ('Curve PCA · level / slope / curvature', 'ACP de courbe · niveau / pente / courbure'), 'loadings': ('Factor loadings', 'Chargements factoriels'), 'explained': ('Variance explained', 'Variance expliquée'), 'factor_exposure': ('P&L for a +1σ factor move', 'P&L pour un mouvement factoriel de +1σ'), 'pca.method': ('PCA uses centered daily yield changes in basis points, not yield levels. Components are ordered by sample variance; level/slope/curvature are interpretations, not guaranteed shapes. Signs are fixed for reproducibility. Exposures use cashflow key-rate bumps in the selected currency, translated to the book base. Flat-YTM key-rate discounting is a proxy, not a calibrated zero curve.', 'ACP sur variations journalières de taux centrées en points de base. Composantes triées par variance ; niveau/pente/courbure sont des interprétations, pas des formes garanties. Signes fixés. Expositions par chocs de taux clés dans la devise choisie, converties en devise de référence. Actualisation par YTM plat approximative, sans courbe zéro calibrée.'), 'scenario.method': ('Hypothetical severe scenarios, not forecasts. Bonds use duration/convexity and credit-spread risk; options use full BSM repricing with ordered spot → volatility → rates attribution. FX is applied last to non-base-currency values. Structured products use a labelled linear proxy unless controlled Monte Carlo risk is requested. Financing shortfalls are separate liquidity amounts, never added to economic P&L.', 'Scénarios sévères hypothétiques, pas des prévisions. Obligations : duration/convexité et crédit ; options : revalorisation BSM avec attribution ordonnée spot → volatilité → taux. Change appliqué en dernier hors devise de référence. Produits structurés : approximation linéaire explicite, sauf calcul Monte-Carlo contrôlé. Les besoins de financement restent distincts du P&L économique.'), 'equity': ('Equity spot', 'Spot actions'), 'credit': ('Credit spreads (bp)', 'Spreads de crédit (pb)'), 'rate_shock': ('Parallel rates (bp)', 'Choc parallèle (pb)'), 'haircut': ('Refinancing haircut change (pp)', 'Variation décote de refinancement (pp)'), 'collateral_shock': ('Collateral price shock (%)', 'Choc prix du collatéral (%)'), 'factor_pnl': ('P&L by risk factor', 'P&L par facteur'), 'carry.method': ('Three-month carry is current dirty value × quoted YTM × 0.25. Roll-down uses duration and the unchanged contextual curve slope. These are estimates, excluding financing, FX, default and transaction costs.', 'Portage trimestriel : valeur coupon couru inclus × YTM × 0,25. Roll-down par duration et pente de courbe inchangée. Estimations hors financement, change, défaut et coûts de transaction.')})
-
-STRINGS.update({'ann_vol': ('Annualized volatility', 'Volatilité annualisée'), 'hhi': ('Gross concentration HHI', 'Concentration brute HHI'), 'effective_assets': ('Effective asset count', 'Nombre effectif de positions'), 'nonparallel': ('Set shocks by maturity', 'Chocs par maturité')})
-
-STRINGS.update({'fx.forwards': ('Forwards & swaps', 'Forwards & swaps'), 'fx.options': ('FX options', 'Options de change'), 'fx.hedge': ('Client Hedge Builder', 'Couverture client'), 'foreign': ('Foreign currency', 'Devise étrangère'), 'domestic': ('Domestic currency', 'Devise domestique'), 'forward': ('Forward', 'Forward'), 'forward_points': ('Forward points (pips)', 'Points de terme (pips)'), 'carry_fx': ('Forward carry', 'Portage à terme'), 'swap_points': ('3M → maturity swap points', 'Points de swap 3 mois → échéance'), 'foreign_rate': ('Foreign rate (%)', 'Taux étranger (%)'), 'domestic_rate': ('Domestic rate (%)', 'Taux domestique (%)'), 'notional': ('Foreign-currency notional', 'Nominal en devise étrangère'), 'client': ('Corporate exposure', 'Exposition entreprise'), 'exporter': ('Exporter · receives foreign currency', 'Exportateur · encaisse une devise étrangère'), 'importer': ('Importer · pays foreign currency', 'Importateur · paie une devise étrangère'), 'protected_rate': ('Protected rate, after premium carry', 'Taux protégé, après coût de prime'), 'upfront_premium': ('Upfront premium (domestic)', 'Prime initiale (devise domestique)'), 'breakeven': ('Break-even vs unhedged', 'Seuil vs absence de couverture'), 'participation_limit': ('Participation cap / floor', 'Plafond / plancher de participation'), 'unhedged': ('Unhedged', 'Sans couverture'), 'option': ('Vanilla option', 'Option vanille'), 'collar': ('Zero-cost collar', 'Tunnel à coût nul'), 'proceeds': ('Domestic cash flow at maturity', 'Flux en devise domestique à échéance'), 'strategy': ('Strategy', 'Stratégie'), 'collar.unavailable': ('No valid zero-cost collar for these inputs.', 'Pas de tunnel à coût nul valide pour ces paramètres.'), 'fx.method': ('S is domestic currency per unit of foreign currency. Rates are continuous; T uses years. F = S exp[(rd − rf)T]. Points use 0.0001, or 0.01 when domestic currency is JPY. Cross-rates share one USD numeraire. Quotes and model inputs are separate, explicitly editable assumptions.', 'S représente la devise domestique par unité étrangère. Taux continus ; T en années. F = S exp[(rd − rf)T]. Pip de 0,0001, ou 0,01 pour le JPY domestique. Taux croisés via un numéraire USD unique. Cotations et hypothèses de modèle restent explicites et modifiables.'), 'gk.method': ('Garman–Kohlhagen is European BSM with foreign rate replacing dividend yield. Price/premium is in domestic currency per foreign unit. Delta is spot Delta, not premium-adjusted. Vega and each rate sensitivity are per percentage point; Theta is per calendar day.', 'Garman–Kohlhagen correspond à BSM européen avec le taux étranger en dividende. Prime en devise domestique par unité étrangère. Delta spot, non ajusté de prime. Vega et sensibilités de taux par point de pourcentage ; Theta par jour calendaire.'), 'hedge.method': ('Positive cash flows are exporter receipts; negative flows are importer payments. Premiums are paid today and financed at the domestic rate to maturity. The forward locks a rate; the bought option preserves favorable spot participation after premium. A model zero-cost collar caps that participation; bid/ask, credit and transaction costs are excluded. Collar break-even versus unhedged is the entire strike interval. These are contract comparisons, not executable quotes.', 'Flux positifs : recettes exportateur ; négatifs : paiements importateur. Primes payées aujourd’hui et capitalisées au taux domestique. Le forward fixe le taux ; l’option préserve la participation favorable après prime. Le tunnel à coût nul théorique limite cette participation ; hors bid/ask, crédit et frais. Son seuil d’égalité est tout l’intervalle des strikes. Comparaisons contractuelles, non cotations exécutables.'), 'foreign_rho': ('Foreign Rho / rate pt', 'Rho étranger / point de taux'), 'domestic_rho': ('Domestic Rho / rate pt', 'Rho domestique / point de taux'), 'theta': ('Theta / day', 'Theta / jour'), 'curve_trade': ('Curve Trade Builder', 'Construction de trades de courbe'), 'trade_structure': ('Trade structure', 'Structure du trade'), 'steepener': ('Steepener', 'Pentification'), 'flattener': ('Flattener', 'Aplatissement'), 'butterfly': ('Butterfly', 'Papillon'), 'parallel': ('Parallel shift', 'Choc parallèle'), 'curvature': ('Curvature', 'Courbure'), 'curve_trade.method': ('Reference par-coupon bonds use the contextual curve yield and the audited coupon engine. Two-leg trades are DV01-neutral; butterflies also neutralize a linear maturity tilt using wing DV01 weights. Scenario P&L is first-order DV01, excluding carry, convexity and execution costs. Positive nominal is long.', 'Obligations de référence au pair valorisées avec le taux de courbe et le moteur de coupons audité. Deux jambes neutres en DV01 ; papillons également neutres à une pente linéaire grâce aux poids des ailes. P&L de premier ordre hors portage, convexité et frais. Nominal positif : position longue.'), 'market.inputs': ('Shared market assumptions', 'Hypothèses de marché partagées')})
-
-STRINGS.update({'Call': ('Call', 'Call'), 'Put': ('Put', 'Put'), 'Straddle': ('Straddle', 'Straddle'), 'iv.bounds': ('Price violates European option bounds or volatility inputs are invalid.', 'Prix hors bornes européennes ou volatilités invalides.'), 'iv.convergence': ('Implied volatility could not be bracketed reliably.', 'Volatilité implicite impossible à encadrer de façon fiable.'), 'explain.invalid': ('The time shock must leave positive maturity and a valid option.', 'Le choc temporel doit préserver une maturité et une option valides.'), 'hedge.invalid': ('Invalid hedging path or simulation inputs.', 'Trajectoire ou paramètres de couverture invalides.'), 'iv.solver': ('Implied-volatility solver', 'Solveur de volatilité implicite'), 'observed.price': ('Observed premium per unit', 'Prime observée par unité'), 'implied.vol': ('Implied volatility (%)', 'Volatilité implicite (%)'), 'realized.vol': ('Realized path volatility (%)', 'Volatilité réalisée du chemin (%)'), 'iv.method': ('Bisection within European no-arbitrage bounds. At the discounted intrinsic bound IV is zero; at the upper bound no finite IV exists. Near expiry/deep moneyness can make IV weakly identifiable.', 'Dichotomie dans les bornes européennes sans arbitrage. IV nulle à la borne intrinsèque actualisée ; aucune IV finie à la borne supérieure. Identification fragile à échéance courte ou loin du strike.'), 'advanced': ('Advanced', 'Avancé'), 'pnl_explain': ('Option P&L Explain', 'Explication du P&L option'), 'elapsed': ('Elapsed calendar days', 'Jours calendaires écoulés'), 'shock.vol': ('Volatility shock (points)', 'Choc de volatilité (points)'), 'vanna': ('Vanna / decimal vol', 'Vanna / vol décimale'), 'volga': ('Volga / decimal vol²', 'Volga / vol décimale²'), 'charm': ('Charm / calendar year', 'Charm / année calendaire'), 'residual': ('Residual', 'Résiduel'), 'total': ('Total', 'Total'), 'full_reprice': ('Full repricing', 'Revalorisation complète'), 'approximation': ('Greek approximation', 'Approximation par sensibilités'), 'explain.method': ('Signed book position P&L in base currency. Vega/Rho are converted from per-point to decimal derivatives. Theta uses elapsed ACT/365 days. Vanna and Volga add second-order vol effects; residual includes omitted cross terms and higher orders. Fixed dividend yield, no trading or funding cash flows.', 'P&L signé en devise de référence. Vega/Rho convertis des points en dérivées décimales. Theta en jours ACT/365 écoulés. Vanna/Volga ajoutent les effets vol d’ordre deux ; résiduel incluant termes croisés omis et ordres supérieurs. Dividende fixe, sans transactions ni financement.'), 'hedge.sim': ('Delta Hedging / Gamma Scalping', 'Couverture Delta / Gamma scalping'), 'hedge.instrument': ('Long instrument · one unit', 'Instrument acheté · une unité'), 'realized.assumed': ('Simulated path volatility (%)', 'Volatilité du chemin simulé (%)'), 'hedge.frequency': ('Rebalance every N observations', 'Rééquilibrage toutes les N observations'), 'cost.bps': ('Cost per traded notional (bp)', 'Frais par montant négocié (pb)'), 'hedge.view': ('Hedging view', 'Vue couverture'), 'hedge.components': ('Hedged P&L decomposition', 'Décomposition du P&L couvert'), 'hedge.path': ('Simulated spot and hedge', 'Spot simulé et couverture'), 'delta_hedge': ('Hedge shares', 'Quantité de couverture'), 'option_pnl': ('Option P&L', 'P&L option'), 'hedge_pnl': ('Hedge P&L', 'P&L couverture'), 'funding': ('Cash financing', 'Financement cash'), 'costs': ('Transaction costs', 'Frais de transaction'), 'component': ('Component', 'Composante'), 'hedge.error': ('Terminal hedge error / unit', 'Erreur finale de couverture / unité'), 'hedge.sim.method': ('SYNTHETIC: seeded GBM with 252 observations over the selected contract life (not necessarily daily). Long one option or straddle, short its current BSM delta; constant implied vol. Cash earns/pays the model rate. Costs apply at inception, rebalances and terminal liquidation. Total = option P&L + hedge P&L + cash financing − costs. It is a path-dependent teaching simulation, not a trading backtest.', 'SYNTHÉTIQUE : GBM déterministe, 252 observations sur la durée du contrat (pas nécessairement quotidiennes). Achat d’une option/straddle et vente du delta BSM courant ; vol implicite constante. Cash rémunéré/financé au taux du modèle. Frais initiaux, rééquilibrages et liquidation inclus. Total = P&L option + couverture + financement − frais. Simulation pédagogique dépendante du chemin, pas un backtest.'), 'option.units': ('European BSM per underlying unit, constant rates/volatility, continuous dividend yield q=0 for book equity options. Delta is price change per spot unit; Gamma is Delta change per spot unit; Vega is price change per volatility point, Rho per rate point, Theta per elapsed calendar day. Formulas below show unscaled decimal/year derivatives. Contract quantities are applied in book risk and P&L Explain.', 'BSM européen par unité, taux/volatilité constants, dividende continu q=0 pour les options actions du book. Delta : variation du prix par unité spot ; Gamma : variation du Delta ; Vega : prix par point de vol ; Rho : prix par point de taux ; Theta : prix par jour écoulé. Formules ci-dessous en dérivées décimales/annuelles. Quantités appliquées au risque et au P&L du portefeuille.'), 'advanced.method': ('Per-option-unit analytical derivatives. Vanna = ∂²V/∂S∂σ, Volga = ∂²V/∂σ² with σ in decimals; Charm = −∂Delta/∂T (calendar time passing), per year. Divide Charm by 365 for a one-day local approximation. Finite-difference regression tests cross-check both Calls and Puts.', 'Dérivées analytiques par unité d’option. Vanna = ∂²V/∂S∂σ, Volga = ∂²V/∂σ², σ décimale ; Charm = −∂Delta/∂T (temps écoulé), par année. Diviser Charm par 365 pour l’approximation locale quotidienne. Tests par différences finies pour Calls et Puts.'), 'intrinsic': ('Terminal intrinsic value', 'Valeur intrinsèque finale'), 'greeks.view': ('Sensitivity view', 'Vue sensibilités'), 'vega_1pct': ('Vega vs spot', 'Vega selon le spot'), 'theta_daily': ('Theta vs remaining time', 'Theta selon le temps restant'), 'price_surface': ('Price × spot / volatility', 'Prix × spot / volatilité'), 'gamma_surface': ('Gamma × spot / maturity', 'Gamma × spot / maturité'), 'vega_surface': ('Vega × spot / maturity', 'Vega × spot / maturité'), 'skew': ('Log-moneyness skew', 'Pente en log-moneyness'), 'vol.term': ('Volatility term structure', 'Structure par terme de volatilité'), 'vol.view': ('Volatility view', 'Vue volatilité'), 'vol.surface': ('Synthetic volatility surface', 'Surface de volatilité synthétique'), 'vol.smile': ('Synthetic volatility smile', 'Smile de volatilité synthétique'), 'fx.quotes': ('FX volatility quotations', 'Cotations de volatilité FX'), 'moneyness': ('Strike / forward', 'Strike / forward'), 'vol.method': ('SYNTHETIC surface centered on the selected option IV; stylized log-moneyness skew/curvature and maturity slope, not fitted or guaranteed arbitrage-free. Do not use it as an executable option chain. FX RR = 25Δ call vol − put vol; BF = their average − ATM vol (simple smile-butterfly convention, not a market-strangle quote). Spot deltas are unadjusted for premium. Realized versus implied comparison appears in the hedging simulator.', 'Surface SYNTHÉTIQUE centrée sur l’IV de l’option ; pente/courbure stylisées, non calibrées ni garanties sans arbitrage. Pas une chaîne d’options négociable. RR FX = vol Call 25Δ − vol Put ; BF = moyenne − ATM (convention smile simple, pas un strangle de marché). Deltas spot non ajustés de prime. Comparaison réalisée/implicite dans le simulateur de couverture.')})
-
-STRINGS.update({'structured.invalid': ('Invalid structured-product contract, barriers or paths.', 'Contrat structuré, barrières ou trajectoires invalides.'), 'structured.none': ('Select the Structured / Hedged demo book or add a structured position.', 'Choisissez le portefeuille Structurés / Couverture ou ajoutez une position structurée.'), 'structured.select': ('Structured book position', 'Position structurée du portefeuille'), 'structured.terms': ('Shared contract terms', 'Conditions contractuelles partagées'), 'product': ('Product', 'Produit'), 'risk': ('Risk', 'Risque'), 'simulation': ('Simulation', 'Simulation'), 'memory': ('Coupon memory', 'Mémoire des coupons'), 'simulations': ('Monte Carlo paths', 'Trajectoires Monte Carlo'), 'autocall_barrier': ('Autocall barrier', 'Barrière de rappel'), 'coupon_barrier': ('Coupon barrier', 'Barrière de coupon'), 'protection_barrier': ('Protection barrier', 'Barrière de protection'), 'coupon_rate': ('Annual coupon (%)', 'Coupon annuel (%)'), 'observations_year': ('Observations / year', 'Observations / an'), 'underlyings': ('Basket underlyings', 'Sous-jacents du panier'), 'underlying': ('Underlying', 'Sous-jacent'), 'fixing': ('Initial fixing', 'Fixing initial'), 'vol.decimal': ('Annual volatility (decimal)', 'Volatilité annuelle (décimale)'), 'structured.payoff': ('Payoff on constant observation paths', 'Paiement sur trajectoires constantes aux observations'), 'fixing.percent': ('Performance / initial fixing (%)', 'Performance / fixing initial (%)'), 'fixing.points': ('Percentage points of initial fixing', 'Points de pourcentage du fixing initial'), 'payoff': ('Total payoff', 'Paiement total'), 'proxy_value': ('Model value / 100 nominal', 'Valeur modèle / 100 nominal'), 'mc_error': ('Monte Carlo standard error', 'Erreur standard Monte Carlo'), 'barrier.distances': ('Current distance above barriers', 'Distance actuelle au-dessus des barrières'), 'barrier': ('Barrier', 'Barrière'), 'mc.delta': ('Monte Carlo Delta / underlying', 'Delta Monte Carlo / sous-jacent'), 'autocall_probability': ('Autocall probability', 'Probabilité de rappel'), 'loss_probability': ('Capital loss probability', 'Probabilité de perte en capital'), 'coupon_probability': ('Coupon payment probability', 'Probabilité de paiement de coupon'), 'expected_maturity': ('Expected life (years)', 'Durée de vie attendue (années)'), 'corr_risk': ('Correlation risk / point', 'Risque de corrélation / point'), 'simulation.view': ('Simulation view', 'Vue simulation'), 'autocall.time': ('Unconditional autocall-time probabilities', 'Probabilités inconditionnelles de date de rappel'), 'fan': ('Worst-of path quantiles', 'Quantiles du chemin worst-of'), 'coupon_paid': ('Coupons paid', 'Coupons payés'), 'capital_loss': ('Capital loss distribution', 'Distribution des pertes en capital'), 'probability': ('Probability', 'Probabilité'), 'sensitivity.grid': ('Sensitivity grid', 'Grille de sensibilité'), 'spot_vol': ('Spot × volatility · value change', 'Spot × volatilité · variation de valeur'), 'spot_corr': ('Spot × correlation · value change', 'Spot × corrélation · variation de valeur'), 'vol_corr': ('Volatility × correlation · value change', 'Volatilité × corrélation · variation de valeur'), 'structured.method': ('Risk-neutral GBM / constant-correlation Monte Carlo proxy, deterministic common seed. Fixed contractual initial fixings; maturity is remaining life for a new contract with no accrued coupon memory. Discrete autocall/coupon observations and final-only protection. Athena accrues coupons to redemption; Phoenix pays conditional periodic coupons with optional memory, discounting each cash flow at its payment date. No issuer credit, liquidity, stochastic volatility or calibration. Delta bumps each current spot ±1%; Vega is per parallel volatility point, Rho per rate point, correlation risk per correlation point. Discontinuous barriers make bump results noisy even with common random numbers. All product Greeks are per 100 nominal; book quantities scale them. The payoff diagram uses a constant level at every observation, not a unique terminal payoff for path-dependent contracts.', 'Proxy Monte Carlo GBM risque-neutre à corrélation constante, graine commune déterministe. Fixings contractuels initiaux fixes ; durée restante d’un nouveau contrat sans mémoire de coupon déjà acquise. Observations discrètes, protection uniquement finale. Athena cumule les coupons au remboursement ; Phoenix paie des coupons conditionnels périodiques avec mémoire facultative, chaque flux étant actualisé à sa date. Hors crédit émetteur, liquidité, vol stochastique et calibration. Delta : spot courant ±1 % ; Vega par point parallèle, Rho par point de taux, corrélation par point. Barrières discontinues : sensibilités bruitées malgré les aléas communs. Greeks par 100 nominal, multipliés par les quantités dans le book. Diagramme à niveau constant à chaque observation, pas un paiement terminal unique.'), 'financing.no_collateral': ('Add a positive bond/equity position to use as collateral or lend.', 'Ajoutez une position longue obligataire/action pour le collatéral ou le prêt.'), 'collateral.position': ('Pledged bond position · full marked value', 'Obligation engagée · valeur totale valorisée'), 'contract.terms': ('Contractual details', 'Détails contractuels'), 'day_count': ('Day-count denominator', 'Dénominateur de base de calcul'), 'mta': ('Minimum transfer amount', 'Montant minimum de transfert'), 'rounding': ('Rounding increment', 'Pas d’arrondi'), 'repayment': ('Repurchase cash payment', 'Paiement de rachat'), 'funding.rate': ('Funding interest vs rate', 'Intérêts selon le taux'), 'funding.maturity': ('Funding interest vs maturity', 'Intérêts selon la durée'), 'refinancing.haircut': ('Refinancing haircut (%)', 'Décote de refinancement (%)'), 'margin.price': ('Contractual margin vs price shock', 'Marge contractuelle selon le choc de prix'), 'margin.haircut': ('Book refinancing shortfall vs haircut', 'Besoin de refinancement selon la décote'), 'securities.transfer': ('Securities transfer · dirty value', 'Transfert de titres · valeur coupon couru'), 'current': ('Current', 'Actuel'), 'stressed': ('Stressed', 'Stressé'), 'lending.security': ('Lent book position · full marked value', 'Position prêtée · valeur totale valorisée'), 'collateral.type': ('Collateral type', 'Type de collatéral'), 'Non-cash': ('Non-cash', 'Titres'), 'Cash': ('Cash', 'Espèces'), 'borrow.fee': ('Borrow fee (%)', 'Commission de prêt (%)'), 'rebate': ('Cash rebate (%)', 'Rémunération du cash (%)'), 'reinvestment': ('Reinvestment yield (%)', 'Rendement de réinvestissement (%)'), 'collateral.ratio': ('Collateralization (%)', 'Collatéralisation (%)'), 'agent.share': ('Agent share (%)', 'Part de l’agent (%)'), 'perspective': ('Revenue perspective', 'Point de vue du revenu'), 'Beneficial owner': ('Beneficial owner', 'Propriétaire économique'), 'Lending agent': ('Lending agent', 'Agent de prêt'), 'other.costs': ('Other costs', 'Autres coûts'), 'gross.revenue': ('Gross lending revenue', 'Revenu brut du prêt'), 'revenue.share': ('Revenue allocated away', 'Revenu attribué à l’autre partie'), 'net.revenue': ('Net lending revenue', 'Revenu net du prêt'), 'collateral.required': ('Collateral required', 'Collatéral requis'), 'lending.method': ('Non-cash lending earns the borrow fee on loan value. Cash collateral earns reinvestment income minus rebate; a separate borrow fee is not added. Agent revenue shares apply to positive gross revenue, with the audited loss-allocation convention. This is an indicative single trade on the selected book position, not an executed transaction. ACT/360, simple interest; collateral is not income and is not added to book NAV.', 'Le prêt contre titres rapporte une commission sur la valeur prêtée. Le cash rapporte le réinvestissement moins la rémunération du cash ; aucune commission additionnelle. Part de l’agent appliquée au revenu brut positif selon la convention auditée. Trade indicatif sur la position choisie, non exécuté. ACT/360, intérêt simple ; le collatéral n’est ni un revenu ni ajouté à la VL.')})
-
-STRINGS.update({'threshold': ('Margin threshold', 'Seuil de marge')})
-
-STRINGS.update({'book.mark_mode': ('Equity mark mode must be Book or Market.', 'Le mode de prix action doit être Book ou Market.'), 'book.bond_multiplier': ('Bond prices are per 100 nominal: multiplier must be 0.01.', 'Prix obligataires par 100 nominal : multiplicateur de 0,01 requis.'), 'book.cash_unit': ('Cash/FX quantities are currency units: price and multiplier must equal 1.', 'Quantités Cash/FX en unités de devise : prix et multiplicateur égaux à 1.'), 'book.fx_option': ('Book options currently use equity BSM. Use Markets → FX for Garman–Kohlhagen contracts.', 'Les options du book utilisent BSM actions. Utilisez Marchés → Change pour Garman–Kohlhagen.'), 'MODEL': ('MODEL', 'MODÈLE'), 'Book': ('Book input', 'Saisie du book'), 'Market': ('Shared market', 'Marché partagé'), 'insight.gamma': ('The option Gamma term contributes {gamma:,.1f} for parallel 1% spot moves, before Delta and higher orders.', 'Le terme Gamma des options contribue {gamma:,.1f} pour des mouvements spot parallèles de 1 %, avant Delta et ordres supérieurs.'), 'MIXED': ('MIXED SOURCES', 'SOURCES MIXTES'), 'book.note': ('Quantities drive exposure. Equity mark mode explicitly selects the book price or shared market quote. Options/notes use model marks, bonds quoted clean prices per 100 nominal; cash/FX use currency units. Optional weights reconcile to pre-financing marked position value. Repo proceeds and liability are both booked in financed demos.', 'Les quantités déterminent les expositions. Le mode action sélectionne le prix saisi ou le marché partagé. Options/notes au modèle, obligations au prix pied de coupon par 100 nominal ; cash/change en unités de devise. Poids facultatifs cohérents avec la valeur des positions avant financement. Fonds reçus et dette repo comptabilisés dans les démos financées.')})
-
-STRINGS.update({'export': ('Export desk report', 'Exporter le rapport'), 'report.scope': ('Report scope', 'Périmètre du rapport'), 'report.all': ('Complete desk', 'Desk complet'), 'report.rates': ('Fixed Income Risk', 'Risque obligataire'), 'report.risk': ('Portfolio Risk', 'Risque de portefeuille'), 'report.structured': ('Structured Products', 'Produits structurés'), 'report.financing': ('Repo & Securities Lending', 'Repo & Prêt de titres'), 'report.prepare': ('Prepare Excel', 'Préparer Excel'), 'report.download': ('Download Excel', 'Télécharger Excel'), 'report.note': ('Reports use this book, current model inputs and dated sources. Technical sheet/column identifiers remain stable for reconciliation.', 'Rapports sur ce book, ses paramètres et les sources datées. Identifiants techniques de feuilles/colonnes stables pour le rapprochement.'), 'r.companion': ('R Portfolio Analytics Companion', 'Module complémentaire R'), 'r.note': ('Optional reproducible R implementation on its bundled synthetic sample. These files are separate from the current shared book; they demonstrate interoperability, not a second live dashboard.', 'Implémentation R reproductible sur son échantillon synthétique fourni. Fichiers distincts du portefeuille courant ; démonstration d’interopérabilité, pas un second tableau de bord temps réel.')})
-
-STRINGS.update({'Equity': ('Equity', 'Actions'), 'Bond': ('Bond', 'Obligations'), 'FX': ('FX', 'Change'), 'Option': ('Option', 'Option'), 'Structured': ('Structured', 'Structurés'), 'diagnostics': ('Risk diagnostics', 'Diagnostics de risque'), 'rolling': ('Volatility & drawdown', 'Volatilité & baisse cumulée'), 'financing.method': ('Simple ACT/360 or ACT/365 as selected. Repo cash is a liability deducted from NAV; its proceeds must also be booked in cash. Positive signed VM is collateral to post; negative VM releases collateral. Contractual margin keeps the original haircut and applies threshold, minimum transfer and rounding. Refinancing haircut stress is separate and shows actual book cash shortfall, not just reduced capacity. Liquidity is not economic P&L.', 'ACT/360 ou ACT/365 simple selon le choix. Dette repo déduite de la VL ; fonds reçus à comptabiliser en cash. VM signée positive : collatéral à déposer ; négative : restitution. Décote contractuelle fixe, seuil, transfert minimum et arrondi appliqués. Stress de décote de refinancement distinct : besoin effectif du book, pas seulement capacité réduite. La liquidité n’est pas le P&L économique.'), 'field.id': ('Position ID', 'Identifiant'), 'field.ticker': ('Ticker', 'Ticker'), 'field.asset_class': ('Asset class', 'Classe d’actifs'), 'field.currency': ('Currency', 'Devise'), 'field.quantity': ('Signed quantity / nominal', 'Quantité / nominal signé'), 'field.price': ('Book price / bond clean', 'Prix saisi / pied de coupon'), 'field.multiplier': ('Contract multiplier', 'Multiplicateur'), 'field.sleeve': ('Sleeve', 'Poche'), 'field.underlying': ('Underlying', 'Sous-jacent'), 'field.strike': ('Strike', 'Strike'), 'field.maturity': ('Remaining years', 'Années restantes'), 'field.volatility': ('Annual vol · decimal', 'Vol annuelle · décimale'), 'field.coupon': ('Annual coupon · decimal', 'Coupon annuel · décimal'), 'field.yield_rate': ('Indicative yield · decimal', 'Taux indicatif · décimal'), 'field.option_type': ('Call / Put', 'Call / Put'), 'field.mark_mode': ('Equity mark source', 'Source du prix action'), 'field.weight': ('Optional weight', 'Poids facultatif')})
-
-STRINGS.update({'quote.change': ('Latest daily-bar change (%)', 'Variation de la dernière bougie journalière (%)'), 'quote.method': ('Public daily-bar last prices exclude cash distributions and may include an unfinished session. Observation timestamps are per series; header time is retrieval time, not proof of freshness. A missing prior bar gives no change. Unavailable data uses labelled synthetic fallback or a dated cached observation.', 'Derniers prix des bougies journalières publiques, hors distributions ; la séance peut être inachevée. Horodatage par série ; l’en-tête indique la collecte, pas une garantie de fraîcheur. Sans bougie précédente, pas de variation. Repli synthétique explicite ou observation en cache datée.'), 'scenario.method': ('Hypothetical severe scenarios, not forecasts. Bonds use duration/convexity and spread risk. Options and structured notes use full BSM or common-seed Monte Carlo repricing, with ordered spot → volatility → rates → correlation attribution. FX is applied last to non-base values. Correlation is clipped to the basket’s valid matrix range. Collateral-price/haircut shocks are dedicated financing-capacity assumptions: resulting cash shortfalls are liquidity, separate from economic P&L.', 'Scénarios sévères hypothétiques, pas des prévisions. Obligations : duration/convexité et spread. Options et notes : revalorisation BSM ou Monte Carlo à graine commune, attribution spot → vol → taux → corrélation. Change appliqué en dernier aux valeurs hors devise de référence. Corrélation bornée au domaine matriciel valide du panier. Chocs de collatéral/décote dédiés au financement : besoins cash distincts du P&L économique.'), 'carry.method': ('Three-month carry is dirty value × solved YTM × 0.25. Roll-down uses DV01 and the unchanged contextual curve slope, available only for USD/EUR bonds. Missing currency curves leave roll unavailable, not substituted. Estimates exclude financing, FX, default and transaction costs.', 'Portage trois mois : valeur coupon couru × taux actuariel résolu × 0,25. Roll-down via DV01 et pente inchangée de la courbe, pour obligations USD/EUR uniquement. Sans courbe de devise, roll indisponible, sans substitution. Hors financement, change, défaut et frais.')})
+STRINGS = {'workspaces': ('Workspaces', 'Espaces de travail'),
+ 'book.nav': ('Net asset value must be positive after financing liabilities.',
+              'La valeur liquidative doit être positive après dettes de financement.'),
+ 'nav.overview': ('Desk Overview', 'Vue du desk'),
+ 'nav.markets': ('Markets', 'Marchés'),
+ 'nav.risk': ('Risk Lab', 'Laboratoire de risque'),
+ 'nav.derivatives': ('Derivatives Lab', 'Dérivés'),
+ 'nav.financing': ('Financing', 'Financement'),
+ 'brand': ('MARKET ANALYTICS / DESK', 'MARKET ANALYTICS / DESK'),
+ 'subtitle': ('Market → Position → Risk → Scenario → Hedge → Decision',
+              'Marché → Position → Risque → Scénario → Couverture → Décision'),
+ 'language': ('Language', 'Langue'),
+ 'theme': ('Theme', 'Thème'),
+ 'dark': ('Dark', 'Sombre'),
+ 'light': ('Light', 'Clair'),
+ 'status': ('Market context', 'Contexte de marché'),
+ 'SYNTHETIC': ('SYNTHETIC', 'SYNTHÉTIQUE'),
+ 'PUBLIC': ('PUBLIC', 'PUBLIC'),
+ 'USER INPUT': ('USER INPUT', 'SAISIE UTILISATEUR'),
+ 'book': ('Position book', 'Portefeuille'),
+ 'book.selector': ('Demo book', 'Portefeuille démo'),
+ 'book.balanced': ('Multi-Asset Balanced', 'Multi-actifs équilibré'),
+ 'book.macro': ('Rates & FX Macro', 'Macro Taux & Change'),
+ 'book.options': ('Equity Options Book', 'Options actions'),
+ 'book.structured': ('Structured / Hedged Book', 'Structurés / Couverture'),
+ 'book.edit': ('Edit book', 'Modifier le portefeuille'),
+ 'book.load': ('Load custom book', 'Charger un portefeuille'),
+ 'book.apply': ('Apply positions', 'Appliquer les positions'),
+ 'book.csv': ('Import CSV', 'Importer CSV'),
+ 'book.template': ('Download current book CSV', 'Télécharger le portefeuille CSV'),
+ 'book.saved': ('Book updated across all workspaces.', 'Portefeuille mis à jour dans tous les espaces.'),
+ 'book.note': ('Quantities drive exposure. Equity mark mode explicitly selects the book price or shared '
+               'market quote. Options/notes use model marks, bonds quoted clean prices per 100 nominal; '
+               'cash/FX use currency units. Optional weights reconcile to pre-financing marked position '
+               'value. Repo proceeds and liability are both booked in financed demos.',
+               'Les quantités déterminent les expositions. Le mode action sélectionne le prix saisi ou le '
+               'marché partagé. Options/notes au modèle, obligations au prix pied de coupon par 100 nominal '
+               '; cash/change en unités de devise. Poids facultatifs cohérents avec la valeur des positions '
+               'avant financement. Fonds reçus et dette repo comptabilisés dans les démos financées.'),
+ 'book.missing_columns': ('Required columns: id, ticker, asset_class, currency, quantity, price.',
+                          'Colonnes requises : id, ticker, asset_class, currency, quantity, price.'),
+ 'book.row_count': ('The book must contain 1–1,000 positions.',
+                    'Le portefeuille doit contenir de 1 à 1 000 positions.'),
+ 'book.missing_values': ('Required fields cannot be empty.', 'Les champs requis ne peuvent pas être vides.'),
+ 'book.duplicates': ('Position identifiers must be unique; tickers may repeat for separate contracts.',
+                     'Les identifiants doivent être uniques ; un ticker peut désigner plusieurs contrats.'),
+ 'book.asset_class': ('Unsupported asset class.', 'Classe d’actifs non prise en charge.'),
+ 'book.currency': ('Unsupported currency.', 'Devise non prise en charge.'),
+ 'book.numeric': ('Numeric fields must be finite numbers.',
+                  'Les champs numériques doivent contenir des nombres finis.'),
+ 'book.positive': ('Prices, multipliers, maturities, strikes and volatilities must be positive.',
+                   'Prix, multiplicateurs, maturités, strikes et volatilités doivent être positifs.'),
+ 'book.option_type': ('Option type must be Call or Put.', 'Le type d’option doit être Call ou Put.'),
+ 'book.weights': ('Optional weights must be complete, sum to 1, and match quantity-based exposures.',
+                  'Les poids facultatifs doivent être complets, totaliser 1 et correspondre aux quantités.'),
+ 'book.underlying': ('An option underlying is missing from shared market inputs.',
+                     'Un sous-jacent d’option est absent des données de marché partagées.'),
+ 'error': ('Calculation could not be completed. Check the inputs.',
+           'Calcul impossible. Vérifiez les paramètres.'),
+ 'data': ('View data', 'Voir les données'),
+ 'details': ('Calculation details', 'Détails du calcul'),
+ 'methodology': ('Methodology & formulas', 'Méthodologie & formules'),
+ 'about': ('Build & assumptions', 'Projet & hypothèses'),
+ 'disclaimer': ('Educational / proxy analytics. Hypothetical scenarios, not forecasts. No regulatory '
+                'compliance or bank-grade pricing claim.',
+                'Analyses pédagogiques / approximatives. Scénarios hypothétiques, pas des prévisions. Aucune '
+                'conformité réglementaire ni valorisation bancaire revendiquée.'),
+ 'author': ('Built by Hugo Aschenbrenner · SKEMA MSc Financial Markets & Investments',
+            'Créé par Hugo Aschenbrenner · SKEMA MSc Financial Markets & Investments'),
+ 'nav': ('NAV', 'VL'),
+ 'gross': ('Gross exposure', 'Exposition brute'),
+ 'dv01': ('Net DV01 / bp', 'DV01 nette / pb'),
+ 'delta': ('Delta · spot units', 'Delta · unités spot'),
+ 'delta_cash': ('Delta equivalent', 'Équivalent Delta'),
+ 'gamma': ('Gamma', 'Gamma'),
+ 'vega': ('Vega / vol pt', 'Vega / point de vol'),
+ 'value': ('Value', 'Valeur'),
+ 'exposure': ('Exposure', 'Exposition'),
+ 'asset_class': ('Asset class', 'Classe d’actifs'),
+ 'position': ('Position', 'Position'),
+ 'currency': ('Currency', 'Devise'),
+ 'base_currency': ('Base currency', 'Devise de référence'),
+ 'concentration': ('Book concentration', 'Concentration du portefeuille'),
+ 'risk_contribution': ('Volatility contribution', 'Contribution à la volatilité'),
+ 'top_risks': ('Top risks · calculated from this book', 'Risques majeurs · calculés sur ce portefeuille'),
+ 'insight.concentration': ('{asset} represents {weight:.1%} of gross exposure.',
+                           '{asset} représente {weight:.1%} de l’exposition brute.'),
+ 'insight.dv01': ('{share:.1%} of absolute DV01 sits at 10 years or longer.',
+                  '{share:.1%} de la DV01 absolue est située à 10 ans ou plus.'),
+ 'insight.gamma': ('The option Gamma term contributes {gamma:,.1f} for parallel 1% spot moves, before Delta '
+                   'and higher orders.',
+                   'Le terme Gamma des options contribue {gamma:,.1f} pour des mouvements spot parallèles de '
+                   '1 %, avant Delta et ordres supérieurs.'),
+ 'insight.fx': ('{share:.1%} of gross exposure is outside {currency}.',
+                '{share:.1%} de l’exposition brute est hors {currency}.'),
+ 'rates': ('Rates & Credit', 'Taux & Crédit'),
+ 'fx': ('FX', 'Change'),
+ 'equity_vol': ('Equity & Volatility', 'Actions & Volatilité'),
+ 'curve': ('Yield curves', 'Courbes de taux'),
+ 'tenor': ('Maturity (years)', 'Maturité (années)'),
+ 'yield': ('Yield (%)', 'Taux (%)'),
+ 'spot': ('Spot', 'Spot'),
+ 'rate': ('Rate (%)', 'Taux (%)'),
+ 'vol': ('Volatility (%)', 'Volatilité (%)'),
+ 'book_exposure': ('Book & Exposure', 'Positions & Expositions'),
+ 'risk_var': ('VaR / Expected Shortfall', 'VaR / Perte moyenne extrême'),
+ 'factor': ('Factor Risk', 'Risque factoriel'),
+ 'stress': ('Stress & Scenario', 'Stress & Scénarios'),
+ 'validation': ('Validation / P&L Explain', 'Validation / Explication du P&L'),
+ 'vanilla': ('Vanilla Options', 'Options vanilles'),
+ 'greeks': ('Greeks', 'Sensibilités'),
+ 'volatility': ('Volatility', 'Volatilité'),
+ 'structured': ('Structured Products', 'Produits structurés'),
+ 'repo': ('Repo', 'Repo'),
+ 'lending': ('Securities Lending', 'Prêt de titres'),
+ 'collateral': ('Collateral & Margin', 'Collatéral & Marge'),
+ 'option.select': ('Book option', 'Option du portefeuille'),
+ 'option.none': ('Select the Equity Options demo book or add an option in Risk Lab.',
+                 'Choisissez la démo Options actions ou ajoutez une option dans Risque.'),
+ 'option.price': ('Theoretical price', 'Prix théorique'),
+ 'option.type': ('Option type', 'Type d’option'),
+ 'strike': ('Strike', 'Strike'),
+ 'maturity': ('Maturity (years)', 'Maturité (années)'),
+ 'option.method': ('European BSM. Continuous rates and dividend yields; volatility in annual decimal units. '
+                   'Vega and Rho per percentage point; Theta per calendar day. No smile or liquidity model.',
+                   'BSM européen. Taux et dividendes continus ; volatilité annuelle décimale. Vega et Rho '
+                   'par point de pourcentage ; Theta par jour calendaire. Sans smile ni liquidité.'),
+ 'financing.none': ('Select a bond as collateral and set the shared repo terms below.',
+                    'Sélectionnez une obligation en collatéral et les conditions du repo ci-dessous.'),
+ 'financing.cash': ('Repo cash liability', 'Dette de financement repo'),
+ 'financing.rate': ('Repo rate (%)', 'Taux repo (%)'),
+ 'financing.haircut': ('Contractual haircut (%)', 'Décote contractuelle (%)'),
+ 'financing.days': ('Tenor (days)', 'Durée (jours)'),
+ 'financing.cost': ('Funding interest', 'Intérêts de financement'),
+ 'financing.margin': ('Cash-equivalent margin', 'Marge en équivalent cash'),
+ 'financing.method': ('Simple ACT/360 or ACT/365 as selected. Repo cash is a liability deducted from NAV; '
+                      'its proceeds must also be booked in cash. Positive signed VM is collateral to post; '
+                      'negative VM releases collateral. Contractual margin keeps the original haircut and '
+                      'applies threshold, minimum transfer and rounding. Refinancing haircut stress is '
+                      'separate and shows actual book cash shortfall, not just reduced capacity. Liquidity '
+                      'is not economic P&L.',
+                      'ACT/360 ou ACT/365 simple selon le choix. Dette repo déduite de la VL ; fonds reçus à '
+                      'comptabiliser en cash. VM signée positive : collatéral à déposer ; négative : '
+                      'restitution. Décote contractuelle fixe, seuil, transfert minimum et arrondi '
+                      'appliqués. Stress de décote de refinancement distinct : besoin effectif du book, pas '
+                      'seulement capacité réduite. La liquidité n’est pas le P&L économique.'),
+ 'MIXED': ('MIXED SOURCES', 'SOURCES MIXTES'),
+ 'constant_maturity': ('par / constant maturity', 'pair / maturité constante'),
+ 'zero_coupon': ('zero coupon', 'zéro coupon'),
+ 'latest': ('Latest', 'Dernière'),
+ 'week': ('1W', '1 sem.'),
+ 'month': ('1M', '1 mois'),
+ 'refresh': ('Refresh context', 'Actualiser le contexte'),
+ 'risk.synthetic': ('Risk history is a deterministic synthetic sample, revalued using this book’s current '
+                    'exposures. It is separate from public market context.',
+                    'Historique de risque synthétique déterministe, revalorisé avec les expositions '
+                    'actuelles. Il est distinct du contexte public de marché.'),
+ 'var': ('Historical VaR', 'VaR historique'),
+ 'es': ('Expected Shortfall', 'Perte moyenne extrême'),
+ 'worst_loss': ('Worst scenario P&L', 'P&L du pire scénario'),
+ 'liquidity': ('Financing liquidity', 'Liquidité de financement'),
+ 'pnl': ('Economic P&L', 'P&L économique'),
+ 'scenario': ('Scenario', 'Scénario'),
+ 'risk_off': ('Risk-Off', 'Aversion au risque'),
+ 'rates_selloff': ('Rates Selloff', 'Hausse des taux'),
+ 'bull_steepener': ('Bull Steepener', 'Pentification haussière'),
+ 'credit_shock': ('Credit Shock', 'Choc de crédit'),
+ 'vol_spike': ('Volatility Spike', 'Pic de volatilité'),
+ 'usd_shock': ('FX / USD Shock', 'Choc de change / USD'),
+ 'correlation_breakdown': ('Correlation Breakdown', 'Rupture de corrélation'),
+ 'custom': ('Custom', 'Personnalisé'),
+ 'insight.stress': ('The largest scenario loss is {scenario}: {loss:.2%} of NAV.',
+                    'La plus forte perte est {scenario} : {loss:.2%} de la VL.'),
+ 'curve.change': ('Curve changes (bp)', 'Variations de courbe (pb)'),
+ 'curve.regime': ('Curve regime', 'Régime de courbe'),
+ 'curve.normal': ('Upward sloping', 'Croissante'),
+ 'curve.inverted': ('Inverted', 'Inversée'),
+ 'rates.method': ('US constant-maturity par yields and ECB AAA zero-coupon yields have different bases. '
+                  'Overlays use the last available observation on or before each lookback date. No '
+                  'interpolation is presented as an observed rate. Public rates are context; contract '
+                  'pricing inputs remain explicit.',
+                  'Les taux US à maturité constante et les taux zéro-coupon AAA BCE ont des bases '
+                  'différentes. Comparaison avec la dernière observation disponible avant la date cible. '
+                  'Aucune interpolation n’est présentée comme observée. Les taux publics fournissent le '
+                  'contexte ; les hypothèses contractuelles restent explicites.'),
+ 'quote.method': ('Public daily-bar last prices exclude cash distributions and may include an unfinished '
+                  'session. Observation timestamps are per series; header time is retrieval time, not proof '
+                  'of freshness. A missing prior bar gives no change. Unavailable data uses labelled '
+                  'synthetic fallback or a dated cached observation.',
+                  'Derniers prix des bougies journalières publiques, hors distributions ; la séance peut '
+                  'être inachevée. Horodatage par série ; l’en-tête indique la collecte, pas une garantie de '
+                  'fraîcheur. Sans bougie précédente, pas de variation. Repli synthétique explicite ou '
+                  'observation en cache datée.'),
+ 'cs01': ('CS01 / bp', 'CS01 / pb'),
+ 'curve.bucket': ('Maturity DV01 ladder', 'Échelle de DV01 par maturité'),
+ 'bond.convexity': ('Price–yield convexity', 'Convexité prix–taux'),
+ 'carry': ('3M carry estimate', 'Portage estimé 3 mois'),
+ 'roll': ('3M roll-down estimate', 'Roll-down estimé 3 mois'),
+ 'retrieved': ('Retrieved', 'Récupéré'),
+ 'covariance': ('Covariance estimator', 'Estimateur de covariance'),
+ 'sample': ('Sample covariance', 'Covariance empirique'),
+ 'ewma': ('EWMA · λ = 0.94', 'EWMA · λ = 0,94'),
+ 'ledoit_wolf': ('Ledoit–Wolf shrinkage', 'Régularisation Ledoit–Wolf'),
+ 'confidence': ('Confidence level', 'Niveau de confiance'),
+ 'horizon': ('Horizon (business days)', 'Horizon (jours ouvrés)'),
+ 'parametric_var': ('Parametric VaR', 'VaR paramétrique'),
+ 'parametric_es': ('Gaussian ES', 'ES gaussienne'),
+ 'component_var': ('Component VaR', 'VaR par composante'),
+ 'marginal_var_per_unit': ('Marginal VaR / quantity unit', 'VaR marginale / unité'),
+ 'incremental_var': ('Incremental VaR (position removal)', 'VaR incrémentale (retrait de position)'),
+ 'distribution': ('P&L distribution', 'Distribution du P&L'),
+ 'observations': ('Observations', 'Observations'),
+ 'drawdown': ('Drawdown', 'Perte depuis le sommet'),
+ 'rolling_vol': ('60-day rolling volatility', 'Volatilité glissante 60 jours'),
+ 'correlation': ('Correlation', 'Corrélation'),
+ 'rolling_corr': ('60-day rolling correlation', 'Corrélation glissante 60 jours'),
+ 'date': ('Date', 'Date'),
+ 'exceedances': ('Out-of-sample VaR exceedances', 'Dépassements de VaR hors échantillon'),
+ 'risk.method': ('Historical VaR/ES use overlapping sums of fixed-book daily P&L. Gaussian VaR assumes zero '
+                 'mean and square-root-of-time scaling. Component VaR sums to Gaussian VaR; marginal VaR is '
+                 'per additional quantity unit; incremental VaR compares with removing a position. EWMA uses '
+                 'normalized exponentially decaying weights and a weighted-mean unbiased covariance. '
+                 'Ledoit–Wolf targets a scaled identity on stochastic columns; deterministic cash columns '
+                 'remain zero-risk. The 97.5% ES view is FRTB-inspired, not regulatory FRTB compliance.',
+                 'VaR/ES historiques : sommes glissantes du P&L journalier à positions fixes. VaR gaussienne '
+                 ': moyenne nulle et racine du temps. La somme des composantes égale la VaR gaussienne ; '
+                 'marginale par unité supplémentaire ; incrémentale par retrait. EWMA : pondérations '
+                 'exponentielles normalisées et covariance centrée corrigée. Ledoit–Wolf : cible identité '
+                 'sur les colonnes stochastiques ; cash déterministe sans risque. Vue ES 97,5 % inspirée de '
+                 'FRTB, sans conformité réglementaire.'),
+ 'pca': ('Curve PCA · level / slope / curvature', 'ACP de courbe · niveau / pente / courbure'),
+ 'loadings': ('Factor loadings', 'Chargements factoriels'),
+ 'explained': ('Variance explained', 'Variance expliquée'),
+ 'factor_exposure': ('P&L for a +1σ factor move', 'P&L pour un mouvement factoriel de +1σ'),
+ 'pca.method': ('PCA uses centered daily yield changes in basis points, not yield levels. Components are '
+                'ordered by sample variance; level/slope/curvature are interpretations, not guaranteed '
+                'shapes. Signs are fixed for reproducibility. Exposures use cashflow key-rate bumps in the '
+                'selected currency, translated to the book base. Flat-YTM key-rate discounting is a proxy, '
+                'not a calibrated zero curve.',
+                'ACP sur variations journalières de taux centrées en points de base. Composantes triées par '
+                'variance ; niveau/pente/courbure sont des interprétations, pas des formes garanties. Signes '
+                'fixés. Expositions par chocs de taux clés dans la devise choisie, converties en devise de '
+                'référence. Actualisation par YTM plat approximative, sans courbe zéro calibrée.'),
+ 'scenario.method': ('Hypothetical severe scenarios, not forecasts. Bonds use duration/convexity and spread '
+                     'risk. Options and structured notes use full BSM or common-seed Monte Carlo repricing, '
+                     'with ordered spot → volatility → rates → correlation attribution. FX is applied last '
+                     'to non-base values. Correlation is clipped to the basket’s valid matrix range. '
+                     'Collateral-price/haircut shocks are dedicated financing-capacity assumptions: '
+                     'resulting cash shortfalls are liquidity, separate from economic P&L.',
+                     'Scénarios sévères hypothétiques, pas des prévisions. Obligations : duration/convexité '
+                     'et spread. Options et notes : revalorisation BSM ou Monte Carlo à graine commune, '
+                     'attribution spot → vol → taux → corrélation. Change appliqué en dernier aux valeurs '
+                     'hors devise de référence. Corrélation bornée au domaine matriciel valide du panier. '
+                     'Chocs de collatéral/décote dédiés au financement : besoins cash distincts du P&L '
+                     'économique.'),
+ 'equity': ('Equity spot', 'Spot actions'),
+ 'credit': ('Credit spreads (bp)', 'Spreads de crédit (pb)'),
+ 'rate_shock': ('Parallel rates (bp)', 'Choc parallèle (pb)'),
+ 'haircut': ('Refinancing haircut change (pp)', 'Variation décote de refinancement (pp)'),
+ 'collateral_shock': ('Collateral price shock (%)', 'Choc prix du collatéral (%)'),
+ 'factor_pnl': ('P&L by risk factor', 'P&L par facteur'),
+ 'carry.method': ('Three-month carry is dirty value × solved YTM × 0.25. Roll-down uses DV01 and the '
+                  'unchanged contextual curve slope, available only for USD/EUR bonds. Missing currency '
+                  'curves leave roll unavailable, not substituted. Estimates exclude financing, FX, default '
+                  'and transaction costs.',
+                  'Portage trois mois : valeur coupon couru × taux actuariel résolu × 0,25. Roll-down via '
+                  'DV01 et pente inchangée de la courbe, pour obligations USD/EUR uniquement. Sans courbe de '
+                  'devise, roll indisponible, sans substitution. Hors financement, change, défaut et frais.'),
+ 'ann_vol': ('Annualized volatility', 'Volatilité annualisée'),
+ 'hhi': ('Gross concentration HHI', 'Concentration brute HHI'),
+ 'effective_assets': ('Effective asset count', 'Nombre effectif de positions'),
+ 'nonparallel': ('Set shocks by maturity', 'Chocs par maturité'),
+ 'fx.forwards': ('Forwards & swaps', 'Forwards & swaps'),
+ 'fx.options': ('FX options', 'Options de change'),
+ 'fx.hedge': ('Client Hedge Builder', 'Couverture client'),
+ 'foreign': ('Foreign currency', 'Devise étrangère'),
+ 'domestic': ('Domestic currency', 'Devise domestique'),
+ 'forward': ('Forward', 'Forward'),
+ 'forward_points': ('Forward points (pips)', 'Points de terme (pips)'),
+ 'carry_fx': ('Forward carry', 'Portage à terme'),
+ 'swap_points': ('3M → maturity swap points', 'Points de swap 3 mois → échéance'),
+ 'foreign_rate': ('Foreign rate (%)', 'Taux étranger (%)'),
+ 'domestic_rate': ('Domestic rate (%)', 'Taux domestique (%)'),
+ 'notional': ('Foreign-currency notional', 'Nominal en devise étrangère'),
+ 'client': ('Corporate exposure', 'Exposition entreprise'),
+ 'exporter': ('Exporter · receives foreign currency', 'Exportateur · encaisse une devise étrangère'),
+ 'importer': ('Importer · pays foreign currency', 'Importateur · paie une devise étrangère'),
+ 'protected_rate': ('Protected rate, after premium carry', 'Taux protégé, après coût de prime'),
+ 'upfront_premium': ('Upfront premium (domestic)', 'Prime initiale (devise domestique)'),
+ 'breakeven': ('Break-even vs unhedged', 'Seuil vs absence de couverture'),
+ 'participation_limit': ('Participation cap / floor', 'Plafond / plancher de participation'),
+ 'unhedged': ('Unhedged', 'Sans couverture'),
+ 'option': ('Vanilla option', 'Option vanille'),
+ 'collar': ('Zero-cost collar', 'Tunnel à coût nul'),
+ 'proceeds': ('Domestic cash flow at maturity', 'Flux en devise domestique à échéance'),
+ 'strategy': ('Strategy', 'Stratégie'),
+ 'collar.unavailable': ('No valid zero-cost collar for these inputs.',
+                        'Pas de tunnel à coût nul valide pour ces paramètres.'),
+ 'fx.method': ('S is domestic currency per unit of foreign currency. Rates are continuous; T uses years. F = '
+               'S exp[(rd − rf)T]. Points use 0.0001, or 0.01 when domestic currency is JPY. Cross-rates '
+               'share one USD numeraire. Quotes and model inputs are separate, explicitly editable '
+               'assumptions.',
+               'S représente la devise domestique par unité étrangère. Taux continus ; T en années. F = S '
+               'exp[(rd − rf)T]. Pip de 0,0001, ou 0,01 pour le JPY domestique. Taux croisés via un '
+               'numéraire USD unique. Cotations et hypothèses de modèle restent explicites et modifiables.'),
+ 'gk.method': ('Garman–Kohlhagen is European BSM with foreign rate replacing dividend yield. Price/premium '
+               'is in domestic currency per foreign unit. Delta is spot Delta, not premium-adjusted. Vega '
+               'and each rate sensitivity are per percentage point; Theta is per calendar day.',
+               'Garman–Kohlhagen correspond à BSM européen avec le taux étranger en dividende. Prime en '
+               'devise domestique par unité étrangère. Delta spot, non ajusté de prime. Vega et sensibilités '
+               'de taux par point de pourcentage ; Theta par jour calendaire.'),
+ 'hedge.method': ('Positive cash flows are exporter receipts; negative flows are importer payments. Premiums '
+                  'are paid today and financed at the domestic rate to maturity. The forward locks a rate; '
+                  'the bought option preserves favorable spot participation after premium. A model zero-cost '
+                  'collar caps that participation; bid/ask, credit and transaction costs are excluded. '
+                  'Collar break-even versus unhedged is the entire strike interval. These are contract '
+                  'comparisons, not executable quotes.',
+                  'Flux positifs : recettes exportateur ; négatifs : paiements importateur. Primes payées '
+                  'aujourd’hui et capitalisées au taux domestique. Le forward fixe le taux ; l’option '
+                  'préserve la participation favorable après prime. Le tunnel à coût nul théorique limite '
+                  'cette participation ; hors bid/ask, crédit et frais. Son seuil d’égalité est tout '
+                  'l’intervalle des strikes. Comparaisons contractuelles, non cotations exécutables.'),
+ 'foreign_rho': ('Foreign Rho / rate pt', 'Rho étranger / point de taux'),
+ 'domestic_rho': ('Domestic Rho / rate pt', 'Rho domestique / point de taux'),
+ 'theta': ('Theta / day', 'Theta / jour'),
+ 'curve_trade': ('Curve Trade Builder', 'Construction de trades de courbe'),
+ 'trade_structure': ('Trade structure', 'Structure du trade'),
+ 'steepener': ('Steepener', 'Pentification'),
+ 'flattener': ('Flattener', 'Aplatissement'),
+ 'butterfly': ('Butterfly', 'Papillon'),
+ 'parallel': ('Parallel shift', 'Choc parallèle'),
+ 'curvature': ('Curvature', 'Courbure'),
+ 'curve_trade.method': ('Reference par-coupon bonds use the contextual curve yield and the audited coupon '
+                        'engine. Two-leg trades are DV01-neutral; butterflies also neutralize a linear '
+                        'maturity tilt using wing DV01 weights. Scenario P&L is first-order DV01, excluding '
+                        'carry, convexity and execution costs. Positive nominal is long.',
+                        'Obligations de référence au pair valorisées avec le taux de courbe et le moteur de '
+                        'coupons audité. Deux jambes neutres en DV01 ; papillons également neutres à une '
+                        'pente linéaire grâce aux poids des ailes. P&L de premier ordre hors portage, '
+                        'convexité et frais. Nominal positif : position longue.'),
+ 'market.inputs': ('Shared market assumptions', 'Hypothèses de marché partagées'),
+ 'Call': ('Call', 'Call'),
+ 'Put': ('Put', 'Put'),
+ 'Straddle': ('Straddle', 'Straddle'),
+ 'iv.bounds': ('Price violates European option bounds or volatility inputs are invalid.',
+               'Prix hors bornes européennes ou volatilités invalides.'),
+ 'iv.convergence': ('Implied volatility could not be bracketed reliably.',
+                    'Volatilité implicite impossible à encadrer de façon fiable.'),
+ 'explain.invalid': ('The time shock must leave positive maturity and a valid option.',
+                     'Le choc temporel doit préserver une maturité et une option valides.'),
+ 'hedge.invalid': ('Invalid hedging path or simulation inputs.',
+                   'Trajectoire ou paramètres de couverture invalides.'),
+ 'iv.solver': ('Implied-volatility solver', 'Solveur de volatilité implicite'),
+ 'observed.price': ('Observed premium per unit', 'Prime observée par unité'),
+ 'implied.vol': ('Implied volatility (%)', 'Volatilité implicite (%)'),
+ 'realized.vol': ('Realized path volatility (%)', 'Volatilité réalisée du chemin (%)'),
+ 'iv.method': ('Bisection within European no-arbitrage bounds. At the discounted intrinsic bound IV is zero; '
+               'at the upper bound no finite IV exists. Near expiry/deep moneyness can make IV weakly '
+               'identifiable.',
+               'Dichotomie dans les bornes européennes sans arbitrage. IV nulle à la borne intrinsèque '
+               'actualisée ; aucune IV finie à la borne supérieure. Identification fragile à échéance courte '
+               'ou loin du strike.'),
+ 'advanced': ('Advanced', 'Avancé'),
+ 'pnl_explain': ('Option P&L Explain', 'Explication du P&L option'),
+ 'elapsed': ('Elapsed calendar days', 'Jours calendaires écoulés'),
+ 'shock.vol': ('Volatility shock (points)', 'Choc de volatilité (points)'),
+ 'vanna': ('Vanna / decimal vol', 'Vanna / vol décimale'),
+ 'volga': ('Volga / decimal vol²', 'Volga / vol décimale²'),
+ 'charm': ('Charm / calendar year', 'Charm / année calendaire'),
+ 'residual': ('Residual', 'Résiduel'),
+ 'total': ('Total', 'Total'),
+ 'full_reprice': ('Full repricing', 'Revalorisation complète'),
+ 'approximation': ('Greek approximation', 'Approximation par sensibilités'),
+ 'explain.method': ('Signed book position P&L in base currency. Vega/Rho are converted from per-point to '
+                    'decimal derivatives. Theta uses elapsed ACT/365 days. Vanna and Volga add second-order '
+                    'vol effects; residual includes omitted cross terms and higher orders. Fixed dividend '
+                    'yield, no trading or funding cash flows.',
+                    'P&L signé en devise de référence. Vega/Rho convertis des points en dérivées décimales. '
+                    'Theta en jours ACT/365 écoulés. Vanna/Volga ajoutent les effets vol d’ordre deux ; '
+                    'résiduel incluant termes croisés omis et ordres supérieurs. Dividende fixe, sans '
+                    'transactions ni financement.'),
+ 'hedge.sim': ('Delta Hedging / Gamma Scalping', 'Couverture Delta / Gamma scalping'),
+ 'hedge.instrument': ('Long instrument · one unit', 'Instrument acheté · une unité'),
+ 'realized.assumed': ('Simulated path volatility (%)', 'Volatilité du chemin simulé (%)'),
+ 'hedge.frequency': ('Rebalance every N observations', 'Rééquilibrage toutes les N observations'),
+ 'cost.bps': ('Cost per traded notional (bp)', 'Frais par montant négocié (pb)'),
+ 'hedge.view': ('Hedging view', 'Vue couverture'),
+ 'hedge.components': ('Hedged P&L decomposition', 'Décomposition du P&L couvert'),
+ 'hedge.path': ('Simulated spot and hedge', 'Spot simulé et couverture'),
+ 'delta_hedge': ('Hedge shares', 'Quantité de couverture'),
+ 'option_pnl': ('Option P&L', 'P&L option'),
+ 'hedge_pnl': ('Hedge P&L', 'P&L couverture'),
+ 'funding': ('Cash financing', 'Financement cash'),
+ 'costs': ('Transaction costs', 'Frais de transaction'),
+ 'component': ('Component', 'Composante'),
+ 'hedge.error': ('Terminal hedge error / unit', 'Erreur finale de couverture / unité'),
+ 'hedge.sim.method': ('SYNTHETIC: seeded GBM with 252 observations over the selected contract life (not '
+                      'necessarily daily). Long one option or straddle, short its current BSM delta; '
+                      'constant implied vol. Cash earns/pays the model rate. Costs apply at inception, '
+                      'rebalances and terminal liquidation. Total = option P&L + hedge P&L + cash financing '
+                      '− costs. It is a path-dependent teaching simulation, not a trading backtest.',
+                      'SYNTHÉTIQUE : GBM déterministe, 252 observations sur la durée du contrat (pas '
+                      'nécessairement quotidiennes). Achat d’une option/straddle et vente du delta BSM '
+                      'courant ; vol implicite constante. Cash rémunéré/financé au taux du modèle. Frais '
+                      'initiaux, rééquilibrages et liquidation inclus. Total = P&L option + couverture + '
+                      'financement − frais. Simulation pédagogique dépendante du chemin, pas un backtest.'),
+ 'option.units': ('European BSM per underlying unit, constant rates/volatility, continuous dividend yield '
+                  'q=0 for book equity options. Delta is price change per spot unit; Gamma is Delta change '
+                  'per spot unit; Vega is price change per volatility point, Rho per rate point, Theta per '
+                  'elapsed calendar day. Formulas below show unscaled decimal/year derivatives. Contract '
+                  'quantities are applied in book risk and P&L Explain.',
+                  'BSM européen par unité, taux/volatilité constants, dividende continu q=0 pour les options '
+                  'actions du book. Delta : variation du prix par unité spot ; Gamma : variation du Delta ; '
+                  'Vega : prix par point de vol ; Rho : prix par point de taux ; Theta : prix par jour '
+                  'écoulé. Formules ci-dessous en dérivées décimales/annuelles. Quantités appliquées au '
+                  'risque et au P&L du portefeuille.'),
+ 'advanced.method': ('Per-option-unit analytical derivatives. Vanna = ∂²V/∂S∂σ, Volga = ∂²V/∂σ² with σ in '
+                     'decimals; Charm = −∂Delta/∂T (calendar time passing), per year. Divide Charm by 365 '
+                     'for a one-day local approximation. Finite-difference regression tests cross-check both '
+                     'Calls and Puts.',
+                     'Dérivées analytiques par unité d’option. Vanna = ∂²V/∂S∂σ, Volga = ∂²V/∂σ², σ décimale '
+                     '; Charm = −∂Delta/∂T (temps écoulé), par année. Diviser Charm par 365 pour '
+                     'l’approximation locale quotidienne. Tests par différences finies pour Calls et Puts.'),
+ 'intrinsic': ('Terminal intrinsic value', 'Valeur intrinsèque finale'),
+ 'greeks.view': ('Sensitivity view', 'Vue sensibilités'),
+ 'vega_1pct': ('Vega vs spot', 'Vega selon le spot'),
+ 'theta_daily': ('Theta vs remaining time', 'Theta selon le temps restant'),
+ 'price_surface': ('Price × spot / volatility', 'Prix × spot / volatilité'),
+ 'gamma_surface': ('Gamma × spot / maturity', 'Gamma × spot / maturité'),
+ 'vega_surface': ('Vega × spot / maturity', 'Vega × spot / maturité'),
+ 'skew': ('Log-moneyness skew', 'Pente en log-moneyness'),
+ 'vol.term': ('Volatility term structure', 'Structure par terme de volatilité'),
+ 'vol.view': ('Volatility view', 'Vue volatilité'),
+ 'vol.surface': ('Synthetic volatility surface', 'Surface de volatilité synthétique'),
+ 'vol.smile': ('Synthetic volatility smile', 'Smile de volatilité synthétique'),
+ 'fx.quotes': ('FX volatility quotations', 'Cotations de volatilité FX'),
+ 'moneyness': ('Strike / forward', 'Strike / forward'),
+ 'vol.method': ('SYNTHETIC surface centered on the selected option IV; stylized log-moneyness skew/curvature '
+                'and maturity slope, not fitted or guaranteed arbitrage-free. Do not use it as an executable '
+                'option chain. FX RR = 25Δ call vol − put vol; BF = their average − ATM vol (simple '
+                'smile-butterfly convention, not a market-strangle quote). Spot deltas are unadjusted for '
+                'premium. Realized versus implied comparison appears in the hedging simulator.',
+                'Surface SYNTHÉTIQUE centrée sur l’IV de l’option ; pente/courbure stylisées, non calibrées '
+                'ni garanties sans arbitrage. Pas une chaîne d’options négociable. RR FX = vol Call 25Δ − '
+                'vol Put ; BF = moyenne − ATM (convention smile simple, pas un strangle de marché). Deltas '
+                'spot non ajustés de prime. Comparaison réalisée/implicite dans le simulateur de '
+                'couverture.'),
+ 'structured.invalid': ('Invalid structured-product contract, barriers or paths.',
+                        'Contrat structuré, barrières ou trajectoires invalides.'),
+ 'structured.none': ('Select the Structured / Hedged demo book or add a structured position.',
+                     'Choisissez le portefeuille Structurés / Couverture ou ajoutez une position '
+                     'structurée.'),
+ 'structured.select': ('Structured book position', 'Position structurée du portefeuille'),
+ 'structured.terms': ('Shared contract terms', 'Conditions contractuelles partagées'),
+ 'product': ('Product', 'Produit'),
+ 'risk': ('Risk', 'Risque'),
+ 'simulation': ('Simulation', 'Simulation'),
+ 'memory': ('Coupon memory', 'Mémoire des coupons'),
+ 'simulations': ('Monte Carlo paths', 'Trajectoires Monte Carlo'),
+ 'autocall_barrier': ('Autocall barrier', 'Barrière de rappel'),
+ 'coupon_barrier': ('Coupon barrier', 'Barrière de coupon'),
+ 'protection_barrier': ('Protection barrier', 'Barrière de protection'),
+ 'coupon_rate': ('Annual coupon (%)', 'Coupon annuel (%)'),
+ 'observations_year': ('Observations / year', 'Observations / an'),
+ 'underlyings': ('Basket underlyings', 'Sous-jacents du panier'),
+ 'underlying': ('Underlying', 'Sous-jacent'),
+ 'fixing': ('Initial fixing', 'Fixing initial'),
+ 'vol.decimal': ('Annual volatility (decimal)', 'Volatilité annuelle (décimale)'),
+ 'structured.payoff': ('Payoff on constant observation paths',
+                       'Paiement sur trajectoires constantes aux observations'),
+ 'fixing.percent': ('Performance / initial fixing (%)', 'Performance / fixing initial (%)'),
+ 'fixing.points': ('Percentage points of initial fixing', 'Points de pourcentage du fixing initial'),
+ 'payoff': ('Total payoff', 'Paiement total'),
+ 'proxy_value': ('Model value / 100 nominal', 'Valeur modèle / 100 nominal'),
+ 'mc_error': ('Monte Carlo standard error', 'Erreur standard Monte Carlo'),
+ 'barrier.distances': ('Current distance above barriers', 'Distance actuelle au-dessus des barrières'),
+ 'barrier': ('Barrier', 'Barrière'),
+ 'mc.delta': ('Monte Carlo Delta / underlying', 'Delta Monte Carlo / sous-jacent'),
+ 'autocall_probability': ('Autocall probability', 'Probabilité de rappel'),
+ 'loss_probability': ('Capital loss probability', 'Probabilité de perte en capital'),
+ 'coupon_probability': ('Coupon payment probability', 'Probabilité de paiement de coupon'),
+ 'expected_maturity': ('Expected life (years)', 'Durée de vie attendue (années)'),
+ 'corr_risk': ('Correlation risk / point', 'Risque de corrélation / point'),
+ 'simulation.view': ('Simulation view', 'Vue simulation'),
+ 'autocall.time': ('Unconditional autocall-time probabilities',
+                   'Probabilités inconditionnelles de date de rappel'),
+ 'fan': ('Worst-of path quantiles', 'Quantiles du chemin worst-of'),
+ 'coupon_paid': ('Coupons paid', 'Coupons payés'),
+ 'capital_loss': ('Capital loss distribution', 'Distribution des pertes en capital'),
+ 'probability': ('Probability', 'Probabilité'),
+ 'sensitivity.grid': ('Sensitivity grid', 'Grille de sensibilité'),
+ 'spot_vol': ('Spot × volatility · value change', 'Spot × volatilité · variation de valeur'),
+ 'spot_corr': ('Spot × correlation · value change', 'Spot × corrélation · variation de valeur'),
+ 'vol_corr': ('Volatility × correlation · value change', 'Volatilité × corrélation · variation de valeur'),
+ 'structured.method': ('Risk-neutral GBM / constant-correlation Monte Carlo proxy, deterministic common '
+                       'seed. Fixed contractual initial fixings; maturity is remaining life for a new '
+                       'contract with no accrued coupon memory. Discrete autocall/coupon observations and '
+                       'final-only protection. Athena accrues coupons to redemption; Phoenix pays '
+                       'conditional periodic coupons with optional memory, discounting each cash flow at its '
+                       'payment date. No issuer credit, liquidity, stochastic volatility or calibration. '
+                       'Delta bumps each current spot ±1%; Vega is per parallel volatility point, Rho per '
+                       'rate point, correlation risk per correlation point. Discontinuous barriers make bump '
+                       'results noisy even with common random numbers. All product Greeks are per 100 '
+                       'nominal; book quantities scale them. The payoff diagram uses a constant level at '
+                       'every observation, not a unique terminal payoff for path-dependent contracts.',
+                       'Proxy Monte Carlo GBM risque-neutre à corrélation constante, graine commune '
+                       'déterministe. Fixings contractuels initiaux fixes ; durée restante d’un nouveau '
+                       'contrat sans mémoire de coupon déjà acquise. Observations discrètes, protection '
+                       'uniquement finale. Athena cumule les coupons au remboursement ; Phoenix paie des '
+                       'coupons conditionnels périodiques avec mémoire facultative, chaque flux étant '
+                       'actualisé à sa date. Hors crédit émetteur, liquidité, vol stochastique et '
+                       'calibration. Delta : spot courant ±1 % ; Vega par point parallèle, Rho par point de '
+                       'taux, corrélation par point. Barrières discontinues : sensibilités bruitées malgré '
+                       'les aléas communs. Greeks par 100 nominal, multipliés par les quantités dans le '
+                       'book. Diagramme à niveau constant à chaque observation, pas un paiement terminal '
+                       'unique.'),
+ 'financing.no_collateral': ('Add a positive bond/equity position to use as collateral or lend.',
+                             'Ajoutez une position longue obligataire/action pour le collatéral ou le prêt.'),
+ 'collateral.position': ('Pledged bond position · full marked value',
+                         'Obligation engagée · valeur totale valorisée'),
+ 'contract.terms': ('Contractual details', 'Détails contractuels'),
+ 'day_count': ('Day-count denominator', 'Dénominateur de base de calcul'),
+ 'mta': ('Minimum transfer amount', 'Montant minimum de transfert'),
+ 'rounding': ('Rounding increment', 'Pas d’arrondi'),
+ 'repayment': ('Repurchase cash payment', 'Paiement de rachat'),
+ 'funding.rate': ('Funding interest vs rate', 'Intérêts selon le taux'),
+ 'funding.maturity': ('Funding interest vs maturity', 'Intérêts selon la durée'),
+ 'refinancing.haircut': ('Refinancing haircut (%)', 'Décote de refinancement (%)'),
+ 'margin.price': ('Contractual margin vs price shock', 'Marge contractuelle selon le choc de prix'),
+ 'margin.haircut': ('Book refinancing shortfall vs haircut', 'Besoin de refinancement selon la décote'),
+ 'securities.transfer': ('Securities transfer · dirty value', 'Transfert de titres · valeur coupon couru'),
+ 'current': ('Current', 'Actuel'),
+ 'stressed': ('Stressed', 'Stressé'),
+ 'lending.security': ('Lent book position · full marked value', 'Position prêtée · valeur totale valorisée'),
+ 'collateral.type': ('Collateral type', 'Type de collatéral'),
+ 'Non-cash': ('Non-cash', 'Titres'),
+ 'Cash': ('Cash', 'Espèces'),
+ 'borrow.fee': ('Borrow fee (%)', 'Commission de prêt (%)'),
+ 'rebate': ('Cash rebate (%)', 'Rémunération du cash (%)'),
+ 'reinvestment': ('Reinvestment yield (%)', 'Rendement de réinvestissement (%)'),
+ 'collateral.ratio': ('Collateralization (%)', 'Collatéralisation (%)'),
+ 'agent.share': ('Agent share (%)', 'Part de l’agent (%)'),
+ 'perspective': ('Revenue perspective', 'Point de vue du revenu'),
+ 'Beneficial owner': ('Beneficial owner', 'Propriétaire économique'),
+ 'Lending agent': ('Lending agent', 'Agent de prêt'),
+ 'other.costs': ('Other costs', 'Autres coûts'),
+ 'gross.revenue': ('Gross lending revenue', 'Revenu brut du prêt'),
+ 'revenue.share': ('Revenue allocated away', 'Revenu attribué à l’autre partie'),
+ 'net.revenue': ('Net lending revenue', 'Revenu net du prêt'),
+ 'collateral.required': ('Collateral required', 'Collatéral requis'),
+ 'lending.method': ('Non-cash lending earns the borrow fee on loan value. Cash collateral earns reinvestment '
+                    'income minus rebate; a separate borrow fee is not added. Agent revenue shares apply to '
+                    'positive gross revenue, with the audited loss-allocation convention. This is an '
+                    'indicative single trade on the selected book position, not an executed transaction. '
+                    'ACT/360, simple interest; collateral is not income and is not added to book NAV.',
+                    'Le prêt contre titres rapporte une commission sur la valeur prêtée. Le cash rapporte le '
+                    'réinvestissement moins la rémunération du cash ; aucune commission additionnelle. Part '
+                    'de l’agent appliquée au revenu brut positif selon la convention auditée. Trade '
+                    'indicatif sur la position choisie, non exécuté. ACT/360, intérêt simple ; le collatéral '
+                    'n’est ni un revenu ni ajouté à la VL.'),
+ 'threshold': ('Margin threshold', 'Seuil de marge'),
+ 'book.mark_mode': ('Equity mark mode must be Book or Market.',
+                    'Le mode de prix action doit être Book ou Market.'),
+ 'book.bond_multiplier': ('Bond prices are per 100 nominal: multiplier must be 0.01.',
+                          'Prix obligataires par 100 nominal : multiplicateur de 0,01 requis.'),
+ 'book.cash_unit': ('Cash/FX quantities are currency units: price and multiplier must equal 1.',
+                    'Quantités Cash/FX en unités de devise : prix et multiplicateur égaux à 1.'),
+ 'book.fx_option': ('Book options currently use equity BSM. Use Markets → FX for Garman–Kohlhagen contracts.',
+                    'Les options du book utilisent BSM actions. Utilisez Marchés → Change pour '
+                    'Garman–Kohlhagen.'),
+ 'MODEL': ('MODEL', 'MODÈLE'),
+ 'Book': ('Book input', 'Saisie du book'),
+ 'Market': ('Shared market', 'Marché partagé'),
+ 'export': ('Export desk report', 'Exporter le rapport'),
+ 'report.scope': ('Report scope', 'Périmètre du rapport'),
+ 'report.all': ('Complete desk', 'Desk complet'),
+ 'report.rates': ('Fixed Income Risk', 'Risque obligataire'),
+ 'report.risk': ('Portfolio Risk', 'Risque de portefeuille'),
+ 'report.structured': ('Structured Products', 'Produits structurés'),
+ 'report.financing': ('Repo & Securities Lending', 'Repo & Prêt de titres'),
+ 'report.prepare': ('Prepare Excel', 'Préparer Excel'),
+ 'report.download': ('Download Excel', 'Télécharger Excel'),
+ 'report.note': ('Reports use this book, current model inputs and dated sources. Technical sheet/column '
+                 'identifiers remain stable for reconciliation.',
+                 'Rapports sur ce book, ses paramètres et les sources datées. Identifiants techniques de '
+                 'feuilles/colonnes stables pour le rapprochement.'),
+ 'r.companion': ('R Portfolio Analytics Companion', 'Module complémentaire R'),
+ 'r.note': ('Optional reproducible R implementation on its bundled synthetic sample. These files are '
+            'separate from the current shared book; they demonstrate interoperability, not a second live '
+            'dashboard.',
+            'Implémentation R reproductible sur son échantillon synthétique fourni. Fichiers distincts du '
+            'portefeuille courant ; démonstration d’interopérabilité, pas un second tableau de bord temps '
+            'réel.'),
+ 'Equity': ('Equity', 'Actions'),
+ 'Bond': ('Bond', 'Obligations'),
+ 'FX': ('FX', 'Change'),
+ 'Option': ('Option', 'Option'),
+ 'Structured': ('Structured', 'Structurés'),
+ 'diagnostics': ('Risk diagnostics', 'Diagnostics de risque'),
+ 'rolling': ('Volatility & drawdown', 'Volatilité & baisse cumulée'),
+ 'field.id': ('Position ID', 'Identifiant'),
+ 'field.ticker': ('Ticker', 'Ticker'),
+ 'field.asset_class': ('Asset class', 'Classe d’actifs'),
+ 'field.currency': ('Currency', 'Devise'),
+ 'field.quantity': ('Signed quantity / nominal', 'Quantité / nominal signé'),
+ 'field.price': ('Book price / bond clean', 'Prix saisi / pied de coupon'),
+ 'field.multiplier': ('Contract multiplier', 'Multiplicateur'),
+ 'field.sleeve': ('Sleeve', 'Poche'),
+ 'field.underlying': ('Underlying', 'Sous-jacent'),
+ 'field.strike': ('Strike', 'Strike'),
+ 'field.maturity': ('Remaining years', 'Années restantes'),
+ 'field.volatility': ('Annual vol · decimal', 'Vol annuelle · décimale'),
+ 'field.coupon': ('Annual coupon · decimal', 'Coupon annuel · décimal'),
+ 'field.yield_rate': ('Indicative yield · decimal', 'Taux indicatif · décimal'),
+ 'field.option_type': ('Call / Put', 'Call / Put'),
+ 'field.mark_mode': ('Equity mark source', 'Source du prix action'),
+ 'field.weight': ('Optional weight', 'Poids facultatif'),
+ 'quote.change': ('Latest daily-bar change (%)', 'Variation de la dernière bougie journalière (%)')}
 
 TRANSLATIONS = {lang: {key: pair[i] for key, pair in STRINGS.items()} for i, lang in enumerate(("en", "fr"))}
 

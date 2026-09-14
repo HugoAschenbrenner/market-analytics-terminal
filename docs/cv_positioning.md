@@ -2,22 +2,20 @@
 
 ## One-Line CV Bullet
 
-Built a Python/R multi-asset Market Analytics Terminal covering fixed income risk, repo/securities lending, options payoff/pricing, autocallable valuation proxies, portfolio risk, Excel exports, and 240+ automated tests.
+Built a bilingual Python/R Market Analytics Terminal linking a shared cross-asset book to risk decomposition, stress scenarios, rates/FX hedges, derivatives P&L attribution and Excel reporting.
 
-## Stronger CV Bullet
+## Technical CV Bullet
 
-Developed a tested Python/R desk analytics platform covering fixed income DV01/curve shocks, repo margin calls, securities lending economics, options payoff and Black-Scholes Greeks, autocallable payoff/valuation proxies, and portfolio VaR/CVaR/risk contribution, with Streamlit UI and Excel reporting.
+Developed a five-workspace Streamlit terminal with 100-position book validation, sample/EWMA/Ledoit–Wolf risk, DV01-neutral curve trades, Garman–Kohlhagen FX hedges, finite-difference-validated advanced Greeks and controlled Monte Carlo autocallable risk; preserved audited financing engines and Python/R regression checks.
 
 ## Interview Pitch
 
-I wanted to build something more desk-relevant than a basic pricing calculator. So I built a modular Market Analytics Terminal where each module follows a desk workflow: input, calculation, scenario analysis, interpretation, and export.
+I built the Market Analytics Terminal to show the connection between a market move and a desk decision. It starts with a shared demo book, shows the principal risk concentrations, applies coherent scenarios, and lets me express a rates or FX hedge or explain nonlinear option P&L. Every workspace uses the same book and market state.
 
-The platform includes fixed income risk analytics, repo and securities lending margin tools, options payoff/pricing analytics, structured product payoff and valuation proxies, and portfolio risk diagnostics. I also added an R companion layer for portfolio performance analytics because R is still very credible for buy-side reporting.
+The main engineering decisions were preserving validated financial calculations, centralizing units and source provenance, and separating economic P&L from liquidity requirements. Tests check reconciliation and financial identities, including analytical Greeks against finite differences and hedging cash-account identities. English/French, light/dark, optional CSV and Excel reporting make the workflow demonstrable without setup.
 
-The key point is not that the analytics are bank-grade. They are not. The key point is that the tool demonstrates market logic, risk decomposition, scenario thinking, code structure, testing discipline, and practical workflow awareness.
+## Boundaries to explain clearly
 
-## What to Say If Challenged
+The market strip combines dated public sources with labelled fallbacks. Portfolio risk history and volatility surfaces are synthetic demonstrations. Structured valuations and bump Greeks are Monte Carlo proxies with sampling error, not calibrated issuer prices. The 97.5% ES view does not establish regulatory compliance. R provides a separate reproducible companion report with parity checks rather than implying a second production risk platform.
 
-This is not meant to replace internal desk systems. It is a transparent educational platform designed to show that I understand how market inputs translate into risk, payoff, margin, and reporting outputs.
-
-The strongest part is not one formula. It is the architecture: modular engines, scenario analysis, tested outputs, Excel reporting, and cross-asset coverage.
+Show a specific stress loss, the contributing exposure and a possible hedge expression. Discuss the assumptions and residual risk alongside the result. Current validation evidence is recorded in [technical validation](technical_validation.md) and [V2 completion](v2_completion.md).
