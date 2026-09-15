@@ -33,13 +33,15 @@ def style_figure(fig, theme="dark", height=290):
             trace.update(colorbar=dict(thickness=12,len=.75,tickfont=dict(color=c['text_primary']),title=dict(font=dict(color=c['text_primary']))))
     # Reserve extra vertical room for horizontal legends below the axis labels.
     legend_count=sum(bool(trace.name) and trace.showlegend is not False for trace in fig.data)
-    extra=55 if legend_count>3 else 25 if legend_count else 0
+    legend_count+=sum(shape.showlegend is True for shape in fig.layout.shapes)
+    orientation=fig.layout.legend.orientation or 'h'
+    extra=max(25,18*legend_count) if orientation=='v' and legend_count else 55 if legend_count>3 else 25 if legend_count else 0
     fig.update_layout(template="plotly_dark" if theme == "dark" else "plotly_white", height=height+extra,
         margin=dict(l=14,r=22,t=48,b=48+extra),paper_bgcolor=c['chart_background'],plot_bgcolor=c['chart_background'],
         font=dict(color=c['text_primary'],family="Inter, Arial, sans-serif",size=12),colorway=palette,
         hoverlabel=dict(bgcolor=c['surface'],font_color=c['text_primary']),
         title=dict(font=dict(size=14,color=c['text_primary']),automargin=True),
-        legend=dict(orientation='h',yanchor='top',y=-.3,x=0,font=dict(size=10,color=c['text_primary']),title_text=''),
+        legend=dict(orientation=orientation,yanchor='top',y=-.3,x=0,font=dict(size=10,color=c['text_primary']),title_text=''),
         coloraxis_colorbar=dict(thickness=12,len=.75,tickfont=dict(color=c['text_primary'])),
         scene=dict(bgcolor=c['chart_background'],xaxis=dict(backgroundcolor=c['surface'],gridcolor=c['grid'],color=c['text_primary']),yaxis=dict(backgroundcolor=c['surface'],gridcolor=c['grid'],color=c['text_primary']),zaxis=dict(backgroundcolor=c['surface'],gridcolor=c['grid'],color=c['text_primary'])))
     fig.update_xaxes(gridcolor=c['grid'],zerolinecolor=c['border'],automargin=True,title_standoff=10)

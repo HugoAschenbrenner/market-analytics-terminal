@@ -40,3 +40,17 @@ def test_waterfalls_and_surfaces_use_semantic_theme_colors(theme):
     assert fig.data[0].decreasing.marker.color==TOKENS[theme]['negative']
     fig=go.Figure(go.Surface(z=[[1,2],[3,4]]));style_figure(fig,theme)
     assert fig.layout.scene.xaxis.color==TOKENS[theme]['text_primary']
+
+
+def test_barrier_legends_keep_their_levels_and_room_below_the_chart():
+    fig=go.Figure(go.Scatter(x=[25,150],y=[25,108]))
+    # Coincident barriers still need separate, readable legend entries.
+    for name,level in [('Autocall',100),('Coupon',64.7),('Protection',64.7)]:
+        fig.add_vline(x=level,name=name,showlegend=True)
+    fig.update_layout(legend_orientation='v')
+    style_figure(fig,'light',320)
+    assert [shape.x0 for shape in fig.layout.shapes]==[100,64.7,64.7]
+    assert fig.layout.legend.orientation=='v'
+    assert fig.layout.height>=374
+    assert fig.layout.margin.b>=102
+    assert list(fig.data[0].y)==[25,108]

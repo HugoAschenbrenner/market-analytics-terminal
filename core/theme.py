@@ -20,10 +20,11 @@ def apply_theme(theme):
     .stApp {{font-family:Inter,Arial,sans-serif}}
     [data-testid="stVerticalBlock"] {{gap:.7rem}}
     [data-testid="stColumn"], [data-testid="stElementContainer"] {{min-width:0}}
+    [data-testid="stCaptionContainer"] {{opacity:1!important}}
     [data-testid="stCaptionContainer"] p {{color:var(--text-secondary)!important;font-size:.8rem;line-height:1.45}}
     [data-testid="stMetric"] {{height:100%;background:var(--surface);border-top:2px solid var(--accent);padding:.7rem .8rem}}
     [data-testid="stMetricValue"] {{font-size:clamp(1.3rem,2vw,1.8rem);line-height:1.25}}
-    [data-testid="stTooltipIcon"] svg, [data-testid="stMetricLabel"] svg {{color:var(--text-secondary)!important}}
+    [data-testid="stTooltipHoverTarget"] svg, [data-testid="stTooltipIcon"] svg, [data-testid="stMetricLabel"] svg {{color:var(--text-secondary)!important;stroke:currentColor!important}}
     [data-testid="stMetricLabel"] {{height:auto;min-height:2.6rem;overflow:visible}}
     [data-testid="stMetricLabel"] p {{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.3}}
     [class*="st-key-metrics-"] [data-testid="stHorizontalBlock"] {{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:.65rem}}
@@ -46,6 +47,7 @@ def apply_theme(theme):
     summary {{min-height:42px;color:var(--text-primary)!important}}
     [role="tab"], [role="radio"] {{color:var(--text-primary)!important;min-height:40px;flex-shrink:0}}
     [role="tablist"] {{overflow-x:auto;scrollbar-width:thin;gap:1rem;max-width:100%}}
+    [data-testid="stTabsScrollLeft"], [data-testid="stTabsScrollRight"] {{background:var(--surface)!important;color:var(--accent)!important;border:1px solid var(--border);border-radius:4px}}
     [role="tab"][aria-selected="true"] {{color:var(--accent)!important;border-color:var(--accent)!important}}
     [role="radio"] {{background:var(--surface)!important;border-color:var(--border)!important}}
     [role="radio"] p {{white-space:normal;line-height:1.2}}

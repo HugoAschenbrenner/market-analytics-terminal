@@ -53,9 +53,12 @@ def render_structured(state):
             levels=np.linspace(.25,1.5,126)
             paths=np.broadcast_to(levels[:,None,None],(len(levels),len(result['times']),len(names)))
             payoff=cashflows(paths,inputs,product,memory)
-            fig=go.Figure(go.Scatter(x=levels*100,y=payoff.payoff))
-            for value,key in [(inputs.autocall_barrier,'autocall_barrier'),(inputs.coupon_barrier,'coupon_barrier'),(inputs.protection_barrier,'protection_barrier')]:fig.add_vline(x=value*100,line_dash='dot',annotation_text=t(key))
-            chart(fig.update_layout(title=t('structured.payoff'),xaxis_title=t('fixing.percent'),yaxis_title=t('payoff')))
+            fig=go.Figure(go.Scatter(x=levels*100,y=payoff.payoff,showlegend=False))
+            # A stacked legend stays readable even when barriers coincide or
+            # the chart is narrow. Dash patterns identify them without color.
+            for value,key,dash in [(inputs.autocall_barrier,'autocall_barrier','dot'),(inputs.coupon_barrier,'coupon_barrier','dash'),(inputs.protection_barrier,'protection_barrier','dashdot')]:
+                fig.add_vline(x=value*100,line_dash=dash,name=f'{t(key)} · {value*100:g}%',showlegend=True)
+            chart(fig.update_layout(title=t('structured.payoff'),xaxis_title=t('fixing.percent'),yaxis_title=t('payoff'),legend_orientation='v'),height=320)
             kpis([('proxy_value',summary['value']),('mc_error',summary['mc_error']),('coupon_rate',inputs.coupon_rate*100),('maturity',inputs.maturity_years)])
     if tabs[1].open:
         with tabs[1]:
