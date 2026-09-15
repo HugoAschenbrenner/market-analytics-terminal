@@ -1,3 +1,4 @@
+from components.education import explain
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -15,6 +16,7 @@ def option_args(row,state):
 
 
 def render_explain(row,state,prefix='explain'):
+    explain("explain",currency=state.book.base_currency)
     a,b,c,d=st.columns(4)
     ds=a.slider(t('equity'),-30.,30.,1.,key=prefix+'s')/100*row.spot
     dv=b.slider(t('shock.vol'),-min(15.,row.volatility*99),30.,1.,key=prefix+'v')/100
@@ -31,6 +33,7 @@ def render_explain(row,state,prefix='explain'):
 
 
 def render_hedge(row,state):
+    explain("hedge")
     a,b,c,d=st.columns(4)
     kind=a.selectbox(t('hedge.instrument'),[row.option_type,'Straddle'],key='sim_kind',format_func=lambda x,lang=state.ui.language:t(x,lang))
     realized=b.slider(t('realized.assumed'),1.,80.,float(row.volatility*100),key='sim_rv')/100

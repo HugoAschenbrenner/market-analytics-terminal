@@ -1,3 +1,4 @@
+from components.education import explain
 import numpy as np
 import plotly.express as px
 import streamlit as st
@@ -9,6 +10,7 @@ from engines.rates_tools_engine import curve_trade
 
 def render_curve_trade(state):
     st.subheader(t('curve_trade'))
+    explain("curve_trade")
     a,b,c=st.columns(3)
     structure=a.selectbox(t('trade_structure'),['2s10s','5s30s','2s5s10s'],key='curve_structure')
     view=b.selectbox(t('scenario'),['steepener','flattener'] if structure!='2s5s10s' else ['butterfly'],format_func=lambda x,lang=state.ui.language:t(x,lang))

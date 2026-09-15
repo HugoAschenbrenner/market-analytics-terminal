@@ -1,3 +1,4 @@
+from components.education import explain
 from dataclasses import asdict
 import numpy as np
 import pandas as pd
@@ -20,6 +21,7 @@ def render(state):
         with tabs[1]:render_lending(state,marks)
     if tabs[0].open or tabs[2].open:
         with tabs[0] if tabs[0].open else tabs[2]:
+            explain("financing")
             b=state.book;bonds=marks.query("asset_class=='Bond' and market_value>0")
             if bonds.empty:st.info(t('financing.no_collateral'));return
             ids=bonds.id.tolist()
@@ -61,6 +63,7 @@ def render(state):
 
 
 def render_lending(state,marks):
+    explain("lending")
     eligible=marks.query("asset_class in ['Bond','Equity'] and market_value>0")
     if eligible.empty:st.info(t('financing.no_collateral'));return
     saved=state.book.lending_terms

@@ -11,6 +11,8 @@ state=get_state()
 ensure_market(state)
 global_header(state)
 book_selector(state)
+from components.education import render_workspace_guide
+render_workspace_guide(state)
 PAGES={'overview':overview,'markets':markets,'risk':risk_lab,'derivatives':derivatives_lab,'financing':financing}
 try:
     PAGES[state.ui.page].render(state)

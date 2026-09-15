@@ -1,3 +1,4 @@
+from components.education import explain, option_context
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
@@ -22,6 +23,7 @@ FORMULAS=[r'd_1=\frac{\log(S/K)+(r-q+\sigma^2/2)T}{\sigma\sqrt T},\quad d_2=d_1-
 def render_vanilla(row,state):
     tabs=st.tabs([t(k) for k in ['option.price','pnl_explain','hedge.sim']],key='vanilla_tabs',on_change='rerun')
     args=option_args(row,state)
+    option_context(row,state)
     if tabs[0].open:
         with tabs[0]:
             kpis([('option.price',row.mark),('strike',row.strike),('implied.vol',row.volatility*100),('maturity',row.maturity)])
@@ -37,6 +39,7 @@ def render_vanilla(row,state):
 
 
 def render_greeks(row,state):
+    option_context(row,state);explain("greeks")
     args=option_args(row,state);g=greeks(*args)
     view=st.selectbox(t('greeks.view'),['delta','gamma','vega_1pct','theta_daily','price_surface','gamma_surface','vega_surface'],format_func=lambda x,lang=state.ui.language:t(x,lang))
     spots=np.linspace(row.spot*.65,row.spot*1.35,41);times=np.linspace(max(.001,row.maturity*.02),row.maturity*1.5,30)
@@ -56,7 +59,9 @@ def render_greeks(row,state):
 
 
 def render_volatility(row,state):
+    explain("volatility")
     args=option_args(row,state)
+    option_context(row,state)
     with st.expander(t('iv.solver')):
         observed=st.number_input(t('observed.price'),min_value=0.,value=float(row.mark),format='%.8f')
         try:st.metric(t('implied.vol'),f'{implied_volatility(observed,*args[:5])*100:.4f}%')

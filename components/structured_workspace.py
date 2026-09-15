@@ -1,3 +1,4 @@
+from components.education import explain
 from dataclasses import replace
 import numpy as np
 import pandas as pd
@@ -13,6 +14,7 @@ from components.kpi_card import kpis
 
 
 def render_structured(state):
+    explain("structured")
     notes=state.book.positions.query("asset_class=='Structured'")
     if notes.empty:st.info(t('structured.none'));return
     selected=st.selectbox(t('structured.select'),notes.id.tolist(),key='note_select')

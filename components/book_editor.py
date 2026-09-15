@@ -1,3 +1,4 @@
+from components.education import explain
 import pandas as pd
 import streamlit as st
 from core.state import DEMO_BOOKS, demo_book, replace_book, change_base_currency
@@ -18,7 +19,7 @@ def book_selector(state):
         c.caption(f'{t(state.book.source)} · {len(state.book.positions)} · {t("book."+state.book.name)}')
 
 def book_editor(state):
-    st.caption(t("book.note"))
+    explain("book")
     with st.expander(t("book.edit"), expanded=True):
         display=state.book.positions.copy()
         mappings={'asset_class':{x:t(x) for x in ASSET_CLASSES},'mark_mode':{x:t(x) for x in ['Book','Market']}}

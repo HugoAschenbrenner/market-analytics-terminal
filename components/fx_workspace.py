@@ -1,3 +1,4 @@
+from components.education import explain
 import numpy as np
 import plotly.express as px
 import streamlit as st
@@ -29,6 +30,7 @@ def render_fx(state):
                 state.market.provenance[ticker]=dict(price=value,change=None,source='USER INPUT',provider='user',as_of=datetime.now(timezone.utc).isoformat(),basis='input')
             state.market.source='MIXED'
             spot,rd,rf=s,dr,fr
+    explain('fx',domestic=domestic,foreign=foreign,rd=rd,rf=rf)
     tabs=st.tabs([t('fx.forwards'),t('fx.options'),t('fx.hedge')],key='fx_tabs',on_change='rerun')
     if tabs[0].open:
         with tabs[0]:

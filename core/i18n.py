@@ -620,6 +620,9 @@ STRINGS = {'market.scroll': ('Market snapshot · scroll sideways for more →', 
  'field.weight': ('Optional weight', 'Poids facultatif'),
  'quote.change': ('Latest daily-bar change (%)', 'Variation de la dernière bougie journalière (%)')}
 
+from core.explanations import GUIDANCE
+STRINGS.update(GUIDANCE)
+
 TRANSLATIONS = {lang: {key: pair[i] for key, pair in STRINGS.items()} for i, lang in enumerate(("en", "fr"))}
 
 def t(key, lang=None, **values):

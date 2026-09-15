@@ -16,11 +16,12 @@ def render(state):
     stress=scenario_summary(frame,state.market,state.book)
     worst=stress.loc[stress.pnl.idxmin()]
     kpis([('nav',risk['nav']),('es',float(risk['es'])),('dv01',float(frame.dv01.sum())),('vega',float(frame.vega.sum())),('worst_loss',float(worst.pnl)),('liquidity',float(stress.liquidity.max()))])
-    st.caption(t('risk.synthetic')+f" · {state.risk.confidence:.1%}")
+    st.caption(t('explain.overview_units',currency=state.book.base_currency,confidence=state.risk.confidence,horizon=state.risk.horizon))
+    st.caption(t('risk.synthetic'))
     a,b=st.columns(2)
     with a: curve_chart(state,height=250)
     with b:
-        chart(px.bar(risk['contributions'],x='id',y='contribution',title=t('risk_contribution'),labels={'id':t('position'),'contribution':t('risk_contribution')}),height=250)
+        chart(px.bar(risk['contributions'],x='id',y='contribution',title=t('risk_contribution'),labels={'id':t('position'),'contribution':t('risk_contribution')}).update_yaxes(tickformat='.1%'),height=250)
     a,b=st.columns(2)
     with a:
         display=stress.assign(scenario=stress.scenario.map(t))

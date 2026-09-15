@@ -1,3 +1,4 @@
+from components.education import explain
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
@@ -16,6 +17,7 @@ def render_rates(state):
     tabs=st.tabs([t('curve'),t('curve.bucket'),t('curve_trade')],key='rates_tabs',on_change='rerun')
     if tabs[0].open:
         with tabs[0]:
+            explain("curve")
             curve_chart(state,history=True,height=300)
             for col,(currency,payload) in zip(st.columns(2),state.market.curves.items()):
                 with col:

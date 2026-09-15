@@ -1,3 +1,4 @@
+from components.education import explain
 from dataclasses import replace
 import numpy as np
 import pandas as pd
@@ -31,6 +32,7 @@ def render(state):
             chart(px.bar(frame,x='id',y='market_value',color='asset_class',title=t('exposure'),labels={'id':t('position'),'market_value':t('value'),'asset_class':t('asset_class')}))
     if tabs[1].open:
         with tabs[1]:
+            explain("risk")
             risk_controls(state);risk=book_risk(state)
             kpis([(k,float(risk[k])) for k in ['var','es','parametric_var','parametric_es']])
             st.caption(t('risk.synthetic')+f" · {t('ann_vol')}: {risk['volatility']:.2%}")
@@ -44,8 +46,8 @@ def render(state):
             diagnostic=st.segmented_control(t('diagnostics'),['rolling','correlation'],default='rolling',required=True,format_func=lambda k,lang=state.ui.language:t(k,lang),key='risk_diagnostic')
             a,b=st.columns(2)
             if diagnostic=='rolling':
-                with a:chart(go.Figure(go.Scatter(x=risk['returns'].index,y=risk['returns'].rolling(60).std()*np.sqrt(252))).update_layout(title=t('rolling_vol'),xaxis_title=t('date'),yaxis_title=t('volatility')))
-                with b:chart(go.Figure(go.Scatter(x=risk['drawdown'].index,y=risk['drawdown'],fill='tozeroy')).update_layout(title=t('drawdown'),xaxis_title=t('date'),yaxis_title=t('drawdown')))
+                with a:chart(go.Figure(go.Scatter(x=risk['returns'].index,y=risk['returns'].rolling(60).std()*np.sqrt(252))).update_layout(title=t('rolling_vol'),xaxis_title=t('date'),yaxis_title=t('volatility')).update_yaxes(tickformat='.1%'))
+                with b:chart(go.Figure(go.Scatter(x=risk['drawdown'].index,y=risk['drawdown'],fill='tozeroy')).update_layout(title=t('drawdown'),xaxis_title=t('date'),yaxis_title=t('drawdown')).update_yaxes(tickformat='.1%'))
             else:
                 with a:chart(px.imshow(risk['pnl'].corr(),color_continuous_scale='RdBu',zmin=-1,zmax=1,title=t('correlation')))
                 with b:
@@ -58,13 +60,14 @@ def render(state):
             view_data(risk['contributions']);formula_panel('risk.method',[r'\mathrm{VaR}_\alpha=z_\alpha\sqrt{w^\top\Sigma w}',r'\mathrm{CVaR}_i=w_i z_\alpha\frac{(\Sigma w)_i}{\sqrt{w^\top\Sigma w}}'])
     if tabs[2].open:
         with tabs[2]:
+            explain('pca')
             currency=st.selectbox(t('currency'),['USD','EUR'],key='pca_currency')
             payload=state.market.curves[currency];pca=curve_pca(payload['history'])
             st.caption(f'{t(payload["source"])} · {payload["provider"]} · {payload["as_of"]}')
             loadings=pd.DataFrame(pca['loadings'].T,index=payload['history'].columns,columns=['PC1','PC2','PC3'])
             a,b=st.columns(2)
             with a: chart(px.line(loadings,title=t('loadings'),labels={'index':t('tenor'),'value':t('loadings'),'variable':t('factor')}))
-            with b: chart(go.Figure(go.Bar(x=['PC1','PC2','PC3'],y=pca['explained'])).update_layout(title=t('explained'),yaxis_title=t('explained')))
+            with b: chart(go.Figure(go.Bar(x=['PC1','PC2','PC3'],y=pca['explained'])).update_layout(title=t('explained'),yaxis_title=t('explained')).update_yaxes(tickformat='.0%'))
             marks=book_risk(state)['marks'];bonds=marks.query("asset_class=='Bond' and currency==@currency")
             ladder=key_rate_ladder(bonds,state)
             if len(ladder):
@@ -93,6 +96,7 @@ def render(state):
                 else:st.info(t('option.none'))
 
 def render_scenarios(state):
+    explain("stress")
     choices=[s.name for s in PRESETS]+['custom']
     saved=state.scenario.shocks
     selected=st.selectbox(t('scenario'),choices,index=choices.index(state.scenario.name),format_func=lambda x,lang=state.ui.language:t(x,lang),key='scenario_select')

@@ -23,6 +23,7 @@ def apply_theme(theme):
     [data-testid="stCaptionContainer"] p {{color:var(--text-secondary)!important;font-size:.8rem;line-height:1.45}}
     [data-testid="stMetric"] {{height:100%;background:var(--surface);border-top:2px solid var(--accent);padding:.7rem .8rem}}
     [data-testid="stMetricValue"] {{font-size:clamp(1.3rem,2vw,1.8rem);line-height:1.25}}
+    [data-testid="stTooltipIcon"] svg, [data-testid="stMetricLabel"] svg {{color:var(--text-secondary)!important}}
     [data-testid="stMetricLabel"] {{height:auto;min-height:2.6rem;overflow:visible}}
     [data-testid="stMetricLabel"] p {{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.3}}
     [class*="st-key-metrics-"] [data-testid="stHorizontalBlock"] {{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:.65rem}}
@@ -60,6 +61,7 @@ def apply_theme(theme):
     .market-scroll-hint {{display:none}}
     .risk-line {{border-left:2px solid var(--warning);padding:.5rem .8rem;margin:.4rem 0;background:var(--surface)}}
     .guide-intro {{color:var(--text-secondary);font-size:.86rem;line-height:1.5;margin:0}}
+    .source-grid {{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(270px,100%),1fr));gap:.5rem}}
     .source-card {{border-left:3px solid var(--accent);padding:.5rem .7rem;margin:.5rem 0;background:var(--surface-secondary);overflow-wrap:anywhere}}
     .source-card strong {{font-size:.9rem}} .source-card small {{display:block;color:var(--text-secondary);font-size:.78rem}}
     @media(max-width:1100px) {{
