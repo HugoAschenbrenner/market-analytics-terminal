@@ -27,6 +27,14 @@ Select Multi-Asset Balanced, Rates & FX Macro, Equity Options Book or Structured
 
 Charts and headline metrics lead each workflow. Detailed data, formulas, assumptions and reports are collapsible. The four original Excel exporter APIs and audited financial engines remain available alongside the unified V2 report.
 
+## Reading the terminal on any screen
+
+The header, controls, KPI cards and chart columns adapt to phone, tablet and large desktop widths. On a phone, scroll the market strip and long tab lists sideways; detailed tables scroll inside their own panels. Light and dark charts share consistent, contrast-checked colors.
+
+Open **Understand this workspace · data & controls** on any page for a plain-language introduction, an inventory of actual data sources and observation dates, explanations of why values change or stay fixed, and a metric glossary. The help icon beside each KPI explains its units and reveals a more precise value. The same guidance is available in French.
+
+Public context refreshes on request through a 15-minute cache; there is no streaming feed. The guide distinguishes shared book edits from local what-if controls, public observations from synthetic samples, and market curves from model-rate assumptions. See the [responsive UI validation and current screenshots](docs/ui_responsiveness_2026_09_15.md).
+
 ## Demo Screenshots
 
 Local V2 captures; displayed public observations are dated snapshots, not current quotations.
