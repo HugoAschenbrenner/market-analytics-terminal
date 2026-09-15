@@ -5,16 +5,17 @@ from core.i18n import t, error_message
 from core.models import ASSET_CLASSES, CURRENCIES
 
 def book_selector(state):
-    a,b,c = st.columns([3,1,2])
-    selection = a.selectbox(t("book.selector"), DEMO_BOOKS, index=DEMO_BOOKS.index(state.book.name), format_func=lambda x, lang=state.ui.language:t("book."+x,lang), key="demo_selector",label_visibility="collapsed")
-    if selection != state.book.name:
-        state.book = demo_book(selection)
-        state.risk.results.clear()
-        st.rerun()
-    base = b.selectbox(t("base_currency"), CURRENCIES, index=CURRENCIES.index(state.book.base_currency), key="base_currency",label_visibility="collapsed")
-    if base != state.book.base_currency:
-        change_base_currency(state, base)
-    c.caption(f'{t(state.book.source)} · {len(state.book.positions)} · {t("book."+state.book.name)}')
+    with st.container(key="book-selector"):
+        a,b,c = st.columns([3,1,2])
+        selection = a.selectbox(t("book.selector"), DEMO_BOOKS, index=DEMO_BOOKS.index(state.book.name), format_func=lambda x, lang=state.ui.language:t("book."+x,lang), key="demo_selector",label_visibility="collapsed")
+        if selection != state.book.name:
+            state.book = demo_book(selection)
+            state.risk.results.clear()
+            st.rerun()
+        base = b.selectbox(t("base_currency"), CURRENCIES, index=CURRENCIES.index(state.book.base_currency), key="base_currency",label_visibility="collapsed")
+        if base != state.book.base_currency:
+            change_base_currency(state, base)
+        c.caption(f'{t(state.book.source)} · {len(state.book.positions)} · {t("book."+state.book.name)}')
 
 def book_editor(state):
     st.caption(t("book.note"))

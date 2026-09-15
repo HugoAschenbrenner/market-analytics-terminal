@@ -7,17 +7,18 @@ PAGES = ("overview", "markets", "risk", "derivatives", "financing")
 ALIASES = {"home":"overview", "cross-asset-dashboard":"overview", "fixed-income-risk":"markets", "portfolio-risk":"risk", "structured-products":"derivatives", "repo-sec-lending":"financing"}
 
 def global_header(state):
-    brand, language, theme, status = st.columns([4,1,1,2])
-    with brand:
-        st.markdown(f'<div class="desk-brand">{t("brand")}</div>', unsafe_allow_html=True)
-        st.caption(t("subtitle"))
-    lang = language.selectbox(t("language"), ["en","fr"], index=["en","fr"].index(state.ui.language), format_func=str.upper, key="global_language", label_visibility="collapsed")
-    mode = theme.selectbox(t("theme"), ["dark","light"], index=["dark","light"].index(state.ui.theme), format_func=lambda x, lang=state.ui.language:t(x,lang), key="global_theme", label_visibility="collapsed")
-    if (lang, mode) != (state.ui.language, state.ui.theme):
-        state.ui.language, state.ui.theme = lang, mode
-        st.query_params["lang"], st.query_params["theme"] = lang, mode
-        st.rerun()
-    status.caption(f'{t(state.market.source)} · {state.market.as_of}')
+    with st.container(key="terminal-header"):
+        brand, language, theme, status = st.columns([4,1,1,2])
+        with brand:
+            st.markdown(f'<div class="desk-brand">{t("brand")}</div>', unsafe_allow_html=True)
+            st.caption(t("subtitle"))
+        lang = language.selectbox(t("language"), ["en","fr"], index=["en","fr"].index(state.ui.language), format_func=str.upper, key="global_language", label_visibility="collapsed")
+        mode = theme.selectbox(t("theme"), ["dark","light"], index=["dark","light"].index(state.ui.theme), format_func=lambda x, lang=state.ui.language:t(x,lang), key="global_theme", label_visibility="collapsed")
+        if (lang, mode) != (state.ui.language, state.ui.theme):
+            state.ui.language, state.ui.theme = lang, mode
+            st.query_params["lang"], st.query_params["theme"] = lang, mode
+            st.rerun()
+        status.caption(f'{t(state.market.source)} · {state.market.as_of}')
     apply_theme(state.ui.theme)
     slug = st.query_params.get("page", "overview")
     slug = ALIASES.get(slug, slug)

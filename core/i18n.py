@@ -1,6 +1,7 @@
 """Central EN/FR catalog. Stable calculation identifiers never depend on language."""
 
-STRINGS = {'workspaces': ('Workspaces', 'Espaces de travail'),
+STRINGS = {'market.scroll': ('Market snapshot · scroll sideways for more →', 'Marchés · défiler horizontalement pour la suite →'),
+ 'workspaces': ('Workspaces', 'Espaces de travail'),
  'book.nav': ('Net asset value must be positive after financing liabilities.',
               'La valeur liquidative doit être positive après dettes de financement.'),
  'nav.overview': ('Desk Overview', 'Vue du desk'),

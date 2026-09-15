@@ -20,4 +20,4 @@ def market_strip(state):
         delta=payload.get('change') if label in ['SPY','VIX','EURUSD'] else None
         change=f' {delta:+.2%}' if delta is not None else ''
         items.append(f'<div class="market-tile"><span>{html.escape(label)}</span><b>{html.escape(value+change)}</b><small>{html.escape(stamp)}</small></div>')
-    st.markdown('<div class="market-strip">'+''.join(items)+'</div>',unsafe_allow_html=True)
+    st.markdown('<div class="market-scroll-hint">'+html.escape(t('market.scroll'))+'</div><div class="market-strip" tabindex="0" role="region" aria-label="'+html.escape(t('status'))+'">'+''.join(items)+'</div>',unsafe_allow_html=True)
