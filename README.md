@@ -13,7 +13,7 @@ Select **Open the overview / Ouvrir la vue d’ensemble** to begin, or choose a 
 1. **Desk Overview:** identify the loaded book, NAV, Expected Shortfall, DV01, Vega, worst scenario and financing liquidity. Read the numerical risk insights below the chart grid.
 2. **Markets:** inspect dated US/euro curves and book sensitivities; express a view with a DV01-neutral curve trade, or compare forward, option and collar hedges for a corporate FX exposure.
 3. **Risk Lab:** edit the shared book, select a covariance estimator, inspect Component VaR and apply a cross-asset stress. Economic losses and liquidity needs remain separate.
-4. **Derivatives Lab:** explain option P&L with Greeks and full repricing, simulate delta hedging, or inspect Athena/Phoenix worst-of valuation and Monte Carlo risk.
+4. **Derivatives Lab:** explain option P&L with Greeks and full repricing, simulate delta hedging, or inspect Athena/Phoenix worst-of valuation and Monte Carlo risk. Open **Product workshop / Atelier produits** for option strategies, eight barrier variants and Discount/Bonus certificates with component valuation and explanations.
 5. **Financing:** inspect contractual repo margin, securities-lending economics and refinancing capacity. Prepare a unified or focused Excel report from any workspace.
 
 Select Multi-Asset Balanced, Rates & FX Macro, Equity Options Book or Structured Products / Hedged Book. CSV import is optional under **Load custom book**; the editable book supports 100 positions. Language, theme and book selections persist within the session. Links can specify `?page=overview&lang=en&theme=dark`.
@@ -23,7 +23,7 @@ Select Multi-Asset Balanced, Rates & FX Macro, Equity Options Book or Structured
 - **Desk Overview:** shared marked NAV and risk KPIs, yield curves, risk contributions, scenario P&L and calculated concentration/Greek insights.
 - **Markets — Fixed Income Risk and FX:** audited clean/dirty bond valuation, ACT/ACT schedules, duration/convexity, DV01/CS01, key-rate ladders, carry/roll estimates, curve overlays and trade builders. FX includes covered interest parity, cross-rates, swap points, Garman–Kohlhagen Greeks and client hedge comparisons.
 - **Risk Lab — Portfolio Risk:** sample, EWMA and Ledoit–Wolf covariance; historical/Gaussian VaR and ES; marginal/component/incremental risk; rolling diagnostics, drawdown and exceedances; curve PCA; coherent equity/FX/rates/credit/volatility/correlation stresses.
-- **Derivatives Lab — Structured Products and options:** BSM, bounded implied-volatility inversion, analytical Vanna/Volga/Charm, curves/heatmaps, synthetic volatility surfaces, P&L attribution and self-financing hedging simulation. Athena/Phoenix contracts share controlled Monte Carlo valuation, probabilities and bump risk with the rest of the book.
+- **Derivatives Lab — Structured Products and options:** BSM, bounded implied-volatility inversion, analytical Vanna/Volga/Charm, curves/heatmaps, synthetic volatility surfaces, P&L attribution and self-financing hedging simulation. Athena/Phoenix contracts share controlled Monte Carlo valuation, probabilities and bump risk with the rest of the book. The independent Product workshop adds eleven expiry strategies with model/manual premiums and aggregate Greeks, continuous zero-rebate barrier options, and Discount/Bonus/Capped Bonus certificates with conditional redemption charts.
 - **Financing — Repo & Securities Lending:** contractual cash flows and margin with threshold/MTA/rounding, cash/non-cash lending economics, collateral shocks and haircut-dependent refinancing capacity.
 - **R Portfolio Analytics Companion:** reproducible CSV/PNG reporting and Python/R parity checks, available as a technical expander in Risk Lab. Its bundled dataset is separate from the current book.
 
@@ -36,6 +36,8 @@ The header, controls, KPI cards and chart columns adapt to phone, tablet and lar
 Open **Understand this workspace · data & controls** in any analytical workspace for a plain-language introduction, an inventory of actual data sources and observation dates, explanations of why values change or stay fixed, and a metric glossary. The help icon beside each KPI explains its units and reveals a more precise value. The same guidance is available in French; Start provides a shorter introductory FAQ.
 
 Public context refreshes on request through a 15-minute cache; there is no streaming feed. The guide distinguishes shared book edits from local what-if controls, public observations from synthetic samples, and market curves from model-rate assumptions. See the [responsive UI validation and current screenshots](docs/ui_responsiveness_2026_09_15.md).
+
+The Product workshop is a separate experiment inside Derivatives Lab: its user-entered examples do not modify the shared book or exported desk report. Explanations distinguish theoretical price from cash redemption and P&L, and model touch probability from a market forecast. See the [product research, conventions and validation record](docs/derivatives_workshop_2026_09_17.md), including the 652-test regression result and mobile/desktop captures.
 
 ## Demo Screenshots
 
