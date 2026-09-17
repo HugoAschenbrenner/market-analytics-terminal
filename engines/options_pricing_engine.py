@@ -16,7 +16,7 @@ Conventions:
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from math import erf, exp, isfinite, log, pi, sqrt
+from math import erfc, exp, isfinite, log, pi, sqrt
 from typing import Any, Dict, Iterable, List, Optional
 
 import pandas as pd
@@ -68,7 +68,7 @@ def norm_pdf(x: float) -> float:
 
 def norm_cdf(x: float) -> float:
     """Standard normal cumulative distribution function."""
-    return 0.5 * (1.0 + erf(x / sqrt(2.0)))
+    return 0.5 * erfc(-x / sqrt(2.0))
 
 
 def normalize_option_type(option_type: str) -> str:
@@ -225,107 +225,61 @@ def black_scholes_price(
     return float(price)
 
 
-def black_scholes_greeks(
-    option_type: str,
-    spot: float,
-    strike: float,
-    maturity_years: float,
-    risk_free_rate: float,
-    volatility: float,
-    dividend_yield: float = 0.0,
+def black_scholes_raw_greeks(
+    option_type: str, spot: float, strike: float, maturity_years: float,
+    risk_free_rate: float, volatility: float, dividend_yield: float = 0.0,
 ) -> Dict[str, float]:
+    """Full-precision BSM derivatives, per unit of decimal vol/rate and year.
+
+    Theta, Charm and Veta differentiate elapsed time t, holding expiry fixed:
+    d/dt = -d/dT. All other inputs are held fixed for every partial derivative.
+    This is the canonical Greek engine; legacy market-unit APIs adapt it below.
     """
-    Calculate Black-Scholes-Merton Greeks.
+    p = validate_black_scholes_inputs(option_type, spot, strike, maturity_years,
+                                     risk_free_rate, volatility, dividend_yield)
+    s, k, T, r, v, q = p.spot, p.strike, p.maturity_years, p.risk_free_rate, p.volatility, p.dividend_yield
+    d = calculate_d1_d2(s, k, T, r, v, q)
+    d1, d2, root = d['d1'], d['d2'], sqrt(T)
+    dq, dr = exp(-q*T), exp(-r*T)
+    density = dq * norm_pdf(d1)
+    sign = 1 if p.option_type == 'Call' else -1
+    n1, n2 = norm_cdf(sign*d1), norm_cdf(sign*d2)
+    delta = sign * dq * n1
+    vega = s * density * root
+    d1_dT = (2*(r-q)*T - d2*v*root) / (2*T*v*root)
+    return dict(
+        delta=delta, gamma=density/(s*v*root), vega=vega,
+        theta=-s*density*v/(2*root) - sign*r*k*dr*n2 + q*s*delta,
+        rho=sign*k*T*dr*n2, dual_delta=-sign*dr*n2,
+        vanna=-density*d2/v, vomma=vega*d1*d2/v,
+        charm=q*delta-density*d1_dT,
+        veta=vega*(q+d1*d1_dT-1/(2*T)),
+    )
 
-    Vega and rho are scaled per 1 percentage point move.
-    Theta is returned annualized and daily.
+
+def greek_conventions(raw: Dict[str, float], days_per_year: int = 365) -> Dict[str, float]:
+    """Explicit display adapters; raw derivatives remain untouched.
+
+    A 252-day convention is an annual derivative divided by 252, not a
+    business-day calendar model. Prices/Greeks are per unit of underlying.
     """
-    inputs = validate_black_scholes_inputs(
-        option_type,
-        spot,
-        strike,
-        maturity_years,
-        risk_free_rate,
-        volatility,
-        dividend_yield,
-    )
+    if days_per_year not in (252, 365):
+        raise ValueError('days_per_year must be 252 or 365.')
+    return dict(vega_1pct=raw['vega']*.01, rho_1bp=raw['rho']*.0001,
+                theta_annual=raw['theta'], theta_daily=raw['theta']/days_per_year)
 
-    d_values = calculate_d1_d2(
-        inputs.spot,
-        inputs.strike,
-        inputs.maturity_years,
-        inputs.risk_free_rate,
-        inputs.volatility,
-        inputs.dividend_yield,
-    )
 
-    d1 = d_values["d1"]
-    d2 = d_values["d2"]
-    sqrt_t = sqrt(inputs.maturity_years)
-
-    dividend_discount = exp(-inputs.dividend_yield * inputs.maturity_years)
-    rate_discount = exp(-inputs.risk_free_rate * inputs.maturity_years)
-
-    gamma = (
-        dividend_discount
-        * norm_pdf(d1)
-        / (inputs.spot * inputs.volatility * sqrt_t)
-    )
-
-    vega_1pct = (
-        inputs.spot
-        * dividend_discount
-        * norm_pdf(d1)
-        * sqrt_t
-        / 100.0
-    )
-
-    first_theta_term = -(
-        inputs.spot
-        * dividend_discount
-        * norm_pdf(d1)
-        * inputs.volatility
-        / (2.0 * sqrt_t)
-    )
-
-    if inputs.option_type == "Call":
-        delta = dividend_discount * norm_cdf(d1)
-        theta_annual = (
-            first_theta_term
-            - inputs.risk_free_rate * inputs.strike * rate_discount * norm_cdf(d2)
-            + inputs.dividend_yield * inputs.spot * dividend_discount * norm_cdf(d1)
-        )
-        rho_1pct = (
-            inputs.strike
-            * inputs.maturity_years
-            * rate_discount
-            * norm_cdf(d2)
-            / 100.0
-        )
-
-    else:
-        delta = dividend_discount * (norm_cdf(d1) - 1.0)
-        theta_annual = (
-            first_theta_term
-            + inputs.risk_free_rate * inputs.strike * rate_discount * norm_cdf(-d2)
-            - inputs.dividend_yield * inputs.spot * dividend_discount * norm_cdf(-d1)
-        )
-        rho_1pct = -(
-            inputs.strike
-            * inputs.maturity_years
-            * rate_discount
-            * norm_cdf(-d2)
-            / 100.0
-        )
-
-    return {
-        "delta": round(float(delta), 10),
-        "gamma": round(float(gamma), 10),
-        "vega_1pct": round(float(vega_1pct), 10),
-        "theta_annual": round(float(theta_annual), 10),
-        "theta_daily": round(float(theta_annual / 365.0), 10),
-        "rho_1pct": round(float(rho_1pct), 10),
-    }
+def black_scholes_greeks(
+    option_type: str, spot: float, strike: float, maturity_years: float,
+    risk_free_rate: float, volatility: float, dividend_yield: float = 0.0,
+) -> Dict[str, float]:
+    """Legacy market-unit API, preserving its names and 10-decimal rounding."""
+    g = black_scholes_raw_greeks(option_type, spot, strike, maturity_years,
+                                risk_free_rate, volatility, dividend_yield)
+    values = dict(delta=g['delta'], gamma=g['gamma'], vega_1pct=g['vega']/100,
+                  theta_annual=g['theta'], theta_daily=g['theta']/365,
+                  rho_1pct=g['rho']/100)
+    return {key: round(float(value), 10) for key, value in values.items()}
 
 
 def build_black_scholes_snapshot(

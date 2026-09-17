@@ -2,16 +2,12 @@
 from math import exp, sqrt, isfinite
 import numpy as np
 import pandas as pd
-from engines.options_pricing_engine import black_scholes_price as price, black_scholes_greeks as greeks, calculate_d1_d2, norm_pdf, validate_black_scholes_inputs
+from engines.options_pricing_engine import black_scholes_price as price, black_scholes_greeks as greeks, black_scholes_raw_greeks, validate_black_scholes_inputs
 
 
 def advanced_greeks(kind, spot, strike, maturity, rate, vol, dividend=0.):
-    validate_black_scholes_inputs(kind,spot,strike,maturity,rate,vol,dividend)
-    d=calculate_d1_d2(spot,strike,maturity,rate,vol,dividend);d1,d2=d['d1'],d['d2']
-    g=greeks(kind,spot,strike,maturity,rate,vol,dividend)
-    density=exp(-dividend*maturity)*norm_pdf(d1)
-    return dict(vanna=-density*d2/vol,volga=spot*density*sqrt(maturity)*d1*d2/vol,
-        charm=dividend*g['delta']-density*(2*(rate-dividend)*maturity-d2*vol*sqrt(maturity))/(2*maturity*vol*sqrt(maturity)))
+    g = black_scholes_raw_greeks(kind, spot, strike, maturity, rate, vol, dividend)
+    return dict(vanna=g['vanna'], volga=g['vomma'], charm=g['charm'])
 
 
 def implied_volatility(observed, kind, spot, strike, maturity, rate, dividend=0.):
