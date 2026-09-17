@@ -1,0 +1,68 @@
+:host {display:block;min-width:0}
+* {box-sizing:border-box}
+.lab {container-type:inline-size;font-family:Inter,Arial,sans-serif;color:var(--text-primary);line-height:1.45;min-width:0}
+h2,h3,h4,p {margin:0}
+button,input {font:inherit;color:inherit}
+button {cursor:pointer;background:var(--surface-secondary);border:1px solid var(--border);border-radius:6px;padding:.45rem .75rem;min-height:36px}
+button:hover {border-color:var(--accent)}
+button:focus-visible,input:focus-visible,summary:focus-visible {outline:2px solid var(--accent);outline-offset:3px}
+.heading {display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin-bottom:1rem;flex-wrap:wrap}
+h2 {font-size:1.3rem;letter-spacing:-.025em}
+.eyebrow {font-size:.66rem;letter-spacing:.12em;color:var(--accent);font-weight:700;margin-bottom:.3rem}
+.muted,.intro {font-size:.8rem;color:var(--text-secondary)}
+.actions {display:flex;gap:.5rem;flex-wrap:wrap}
+.controls {display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.7rem}
+.control {min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:.7rem}
+.control-top {display:flex;justify-content:space-between;gap:.35rem;align-items:center;min-height:2.3rem}
+.control label {font-size:.76rem;color:var(--text-secondary)}
+.control output {font-size:.9rem;font-variant-numeric:tabular-nums;font-weight:650;white-space:nowrap}
+input[type=range] {width:100%;margin:.5rem 0;accent-color:var(--accent);cursor:ew-resize;touch-action:pan-y;height:24px}
+.entry {display:flex;align-items:center;justify-content:space-between;gap:.45rem}
+.bounds {font-size:.67rem;color:var(--text-secondary);white-space:nowrap}
+input[type=number] {min-width:0;width:5.6rem;background:var(--surface-secondary);border:1px solid var(--border);border-radius:4px;padding:.25rem .35rem;font-size:.8rem}
+input[aria-invalid=true] {border-color:var(--negative)}
+.error {font-size:.75rem;color:var(--negative);min-height:1.4rem;padding:.2rem 0}
+.pricing {display:grid;grid-template-columns:minmax(170px,.9fr) minmax(0,3fr);gap:1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem;margin:.25rem 0 .8rem}
+.prices {display:flex;flex-direction:column;gap:.7rem;border-right:1px solid var(--border);padding-right:1rem}
+.price label {font-size:.75rem;color:var(--text-secondary);display:block}
+.price output {font-size:1.7rem;font-weight:650;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.formulas {display:flex;flex-direction:column;justify-content:center;gap:.35rem;min-width:0}
+.math {font-family:Georgia,'Times New Roman',serif;font-size:clamp(.9rem,1.2cqw,1.05rem);overflow-wrap:anywhere}
+.d-values {display:flex;gap:.8rem;flex-wrap:wrap;font-size:.78rem;font-variant-numeric:tabular-nums;margin:.4rem 0}
+.d-values output {color:var(--accent);font-weight:600}
+.legend {display:flex;gap:1rem;align-items:center;flex-wrap:wrap;font-size:.72rem;color:var(--text-secondary);margin:.6rem 0}
+.legend span {display:flex;align-items:center;gap:.4rem}
+.swatch {width:20px;border-top:2px solid var(--accent)}
+.swatch.tangent {border-top:2px dashed var(--warning)}
+.swatch.point {width:8px;height:8px;border:0;border-radius:50%;background:var(--violet)}
+.side {border-top:1px solid var(--border);margin-top:1.1rem;padding-top:.9rem}
+.side h3 {font-size:1rem;font-weight:650}
+.order {font-size:.69rem;text-transform:uppercase;letter-spacing:.065em;color:var(--text-secondary);margin:.7rem 0 .5rem}
+.matrix {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.65rem}
+.chart {min-width:0;border:1px solid var(--border);background:var(--surface);border-radius:6px;padding:.65rem;position:relative}
+.chart h4 {font-size:.71rem;font-weight:400;color:var(--text-secondary);min-height:2.3em}
+.greek-line {display:flex;justify-content:space-between;align-items:center;gap:.3rem;min-height:2rem}
+.greek-name {font-size:.78rem;border:0;background:transparent;padding:0;min-height:28px;text-align:left;font-weight:600}
+.greek-value {font-variant-numeric:tabular-nums;font-size:.88rem;font-weight:650;white-space:nowrap}
+.slope {font-size:.66rem;color:var(--text-secondary);min-height:1rem;white-space:normal}
+.tooltip {position:absolute;top:3rem;left:.5rem;right:.5rem;background:var(--surface-secondary);border:1px solid var(--border);box-shadow:0 6px 20px #0003;border-radius:5px;padding:.7rem;font-size:.76rem;z-index:3}
+.chart svg {display:block;width:100%;height:auto;overflow:hidden;margin-top:.35rem}
+.chart svg text {fill:var(--text-secondary);font-family:Inter,Arial,sans-serif;font-size:11px;font-variant-numeric:tabular-nums}
+.axis,.grid {stroke:var(--grid);stroke-width:1}
+.curve {stroke:var(--accent);stroke-width:2;fill:none;vector-effect:non-scaling-stroke}
+.tangent-line {stroke:var(--warning);stroke-width:1.6;stroke-dasharray:5 4;vector-effect:non-scaling-stroke}
+.current-point {fill:var(--violet);stroke:var(--surface);stroke-width:1.5}
+.clipped {min-height:1rem;font-size:.62rem;color:var(--warning)}
+.help {margin-top:1rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:.8rem}
+summary {cursor:pointer;font-size:.85rem;font-weight:600}
+.help p {font-size:.8rem;margin:.65rem 0;color:var(--text-secondary)}
+.help strong {color:var(--text-primary)}
+.market-values {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin:.7rem 0;font-size:.78rem}
+.market-values dl {display:grid;grid-template-columns:1fr auto;gap:.35rem;margin:.4rem 0}
+dt {color:var(--text-secondary)} dd {margin:0;font-variant-numeric:tabular-nums}
+.footer {font-size:.7rem;color:var(--text-secondary);margin:.8rem 0}
+[hidden] {display:none!important}
+@container (max-width:1240px) {.matrix {grid-template-columns:repeat(3,minmax(0,1fr))}.controls {grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container (max-width:800px) {.matrix {grid-template-columns:repeat(2,minmax(0,1fr))}.controls {grid-template-columns:repeat(2,minmax(0,1fr))}.pricing {grid-template-columns:minmax(130px,.9fr) minmax(0,2fr)}}
+@container (max-width:500px) {.matrix,.controls,.pricing,.market-values {grid-template-columns:1fr}.prices {flex-direction:row;justify-content:space-between;border-right:0;border-bottom:1px solid var(--border);padding:0 0 .7rem}.price output {font-size:1.5rem}.chart h4 {min-height:0}.heading {gap:.6rem}.pricing {padding:.7rem}.math {font-size:.86rem}}
+@media (prefers-reduced-motion:reduce) {* {scroll-behavior:auto}}

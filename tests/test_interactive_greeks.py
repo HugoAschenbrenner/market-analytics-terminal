@@ -128,3 +128,26 @@ def test_each_control_updates_affected_curves_and_metrics(key):
     assert changed['current']['call']['delta'] != base['current']['call']['delta']
     assert all(a['current']!=b['current'] or a['points']!=b['points']
                for a,b in zip(base['charts'],changed['charts']))
+
+
+def test_browser_client_units_and_state():
+    node = os.environ.get('NODE_BINARY') or shutil.which('node')
+    assert node, 'Node.js 20+ is required (or set NODE_BINARY).'
+    result=subprocess.run([node,'--test',str(ROOT/'tests/js/greeks_client.test.mjs')],capture_output=True,text=True)
+    assert result.returncode == 0,result.stdout+result.stderr
+
+
+@pytest.mark.parametrize('language',['en','fr'])
+@pytest.mark.parametrize('theme',['dark','light'])
+def test_interactive_lab_mounts_without_book_option(language,theme):
+    from streamlit.testing.v1 import AppTest
+    from core.i18n import t
+    app=AppTest.from_file(str(ROOT/'app.py'),default_timeout=30)
+    app.query_params.update(page='derivatives',lang=language,theme=theme)
+    app.session_state['derivative_tabs']=t('interactive_greeks',language)
+    app.run()
+    assert not app.exception
+    assert not app.error
+    assert len(app.get('bidi_component')) == 1
+    assert not any(s.key=='book_option' for s in app.selectbox)
+    assert len(app.tabs) == 6

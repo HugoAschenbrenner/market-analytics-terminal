@@ -626,6 +626,7 @@ from core.welcome_copy import WELCOME
 STRINGS.update(WELCOME)
 from core.workshop_copy import WORKSHOP
 STRINGS.update(WORKSHOP)
+STRINGS['interactive_greeks'] = ('Interactive Greeks Lab', 'Greeks interactifs')
 
 TRANSLATIONS = {lang: {key: pair[i] for key, pair in STRINGS.items()} for i, lang in enumerate(("en", "fr"))}
 
