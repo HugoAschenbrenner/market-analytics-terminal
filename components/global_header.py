@@ -3,10 +3,23 @@ import streamlit as st
 from core.i18n import t
 from core.theme import apply_theme
 
-PAGES = ("overview", "markets", "risk", "derivatives", "financing")
+PAGES = ("welcome", "overview", "markets", "risk", "derivatives", "financing")
 ALIASES = {"home":"overview", "cross-asset-dashboard":"overview", "fixed-income-risk":"markets", "portfolio-risk":"risk", "structured-products":"derivatives", "repo-sec-lending":"financing"}
 
+def page_from_query():
+    slug = st.query_params.get("page", "welcome")
+    slug = ALIASES.get(slug, slug)
+    return slug if slug in PAGES else "welcome"
+
+def navigate(page):
+    """Button callback: update navigation before the header widget is rebuilt."""
+    if page not in PAGES:
+        raise ValueError("Unknown workspace")
+    st.session_state['workspace'] = page
+    st.query_params['page'] = page
+
 def global_header(state):
+    state.ui.page = page_from_query()
     with st.container(key="terminal-header"):
         brand, language, theme, status = st.columns([4,1,1,2])
         with brand:
@@ -18,11 +31,8 @@ def global_header(state):
             state.ui.language, state.ui.theme = lang, mode
             st.query_params["lang"], st.query_params["theme"] = lang, mode
             st.rerun()
-        status.caption(f'{t(state.market.source)} · {state.market.as_of}')
+        status.caption(t('welcome.status') if state.ui.page == 'welcome' else f'{t(state.market.source)} · {state.market.as_of}')
     apply_theme(state.ui.theme)
-    slug = st.query_params.get("page", "overview")
-    slug = ALIASES.get(slug, slug)
-    state.ui.page = slug if slug in PAGES else "overview"
     selected = st.segmented_control(t("workspaces"), PAGES, default=state.ui.page,
                                     format_func=lambda p, lang=state.ui.language:t("nav."+p,lang), required=True,
                                     key="workspace", label_visibility="collapsed", width="stretch")
@@ -30,7 +40,8 @@ def global_header(state):
         state.ui.page = selected
         st.query_params["page"] = selected
         st.rerun()
-    st.markdown(f'<div class="workspace-title">{t("nav." + state.ui.page)}</div>',unsafe_allow_html=True)
+    if state.ui.page != 'welcome':
+        st.markdown(f'<div class="workspace-title">{t("nav." + state.ui.page)}</div>',unsafe_allow_html=True)
 
 def footer():
     with st.expander(t("about")):

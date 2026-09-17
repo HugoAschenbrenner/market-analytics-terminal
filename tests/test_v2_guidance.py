@@ -54,7 +54,8 @@ def test_small_greeks_do_not_disappear_in_display_rounding(value):
 
 
 def test_kpi_help_exposes_precision_and_meaning():
-    app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30).run()
+    app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30)
+    app.query_params['page']='overview';app.run()
     nav=next(metric for metric in app.metric if metric.label=='NAV')
     assert 'repo borrowing' in nav.proto.help
     assert 'Value before display rounding' in nav.proto.help or 'More precise value' in nav.proto.help

@@ -49,7 +49,7 @@ class ScenarioState:
 class UIState:
     language: str = "en"
     theme: str = "dark"
-    page: str = "overview"
+    page: str = "welcome"
 
 @dataclass
 class TerminalState:

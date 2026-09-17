@@ -66,6 +66,44 @@ def apply_theme(theme):
     .source-grid {{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(270px,100%),1fr));gap:.5rem}}
     .source-card {{border-left:3px solid var(--accent);padding:.5rem .7rem;margin:.5rem 0;background:var(--surface-secondary);overflow-wrap:anywhere}}
     .source-card strong {{font-size:.9rem}} .source-card small {{display:block;color:var(--text-secondary);font-size:.78rem}}
+    .st-key-welcome-hero {{margin-top:.7rem;padding:clamp(1rem,2.8vw,2.5rem);border:1px solid var(--border);border-radius:14px;background:linear-gradient(135deg,var(--surface),var(--surface-secondary))}}
+    .welcome-kicker {{font-size:.72rem;font-weight:700;letter-spacing:.13em;color:var(--accent);margin-bottom:.75rem}}
+    .welcome-title {{font-size:clamp(2rem,3.5vw,3.6rem)!important;line-height:1.08;letter-spacing:-.035em;max-width:22ch;padding:0 0 1rem!important}}
+    .welcome-lede {{font-size:1.05rem;line-height:1.65;max-width:56ch;margin-bottom:1rem}}
+    .st-key-welcome-hero .stButton button {{background:var(--accent)!important;border-color:var(--accent)!important;min-height:46px;padding:.6rem 1rem}}
+    .st-key-welcome-hero .stButton button, .st-key-welcome-hero .stButton button p {{color:var(--surface)!important;font-weight:600}}
+    .welcome-route {{border-left:1px solid var(--border);padding-left:clamp(1rem,2vw,2rem)}}
+    .welcome-route h2 {{margin:0 0 1rem;padding:0}}
+    .welcome-route ol {{padding-left:1.35rem;margin:0}}
+    .welcome-route li {{padding-left:.3rem;margin-bottom:1rem}}
+    .welcome-route li::marker {{color:var(--accent);font-weight:700}}
+    .welcome-route strong {{font-size:.95rem}}
+    .welcome-route p {{color:var(--text-secondary)!important;font-size:.87rem;line-height:1.5;margin:.2rem 0 0}}
+    .welcome-current {{display:flex;flex-wrap:wrap;gap:.5rem 1.2rem;align-items:center;padding:1rem 0 .2rem;font-size:.82rem}}
+    .welcome-current span {{color:var(--text-secondary)}}
+    .welcome-current strong {{color:var(--text-primary)}}
+    .st-key-welcome-menu [data-testid="stHorizontalBlock"] {{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}}
+    .st-key-welcome-menu [data-testid="stColumn"] {{width:100%!important;min-width:0!important}}
+    [class*="st-key-welcome-card-"] {{height:100%;padding:1.15rem;border:1px solid var(--border);border-radius:10px;background:var(--surface)}}
+    [class*="st-key-welcome-card-"]:hover {{border-color:var(--accent)}}
+    [class*="st-key-welcome-card-"] [data-testid="stElementContainer"]:last-child {{margin-top:auto}}
+    .welcome-number {{display:block;font-size:.75rem;letter-spacing:.08em;color:var(--accent);margin-bottom:.65rem}}
+    [class*="st-key-welcome-card-"] h3 {{font-size:1.1rem!important;padding:0 0 .4rem}}
+    .welcome-question {{font-weight:600;font-size:.9rem;line-height:1.4}}
+    .welcome-card-copy {{color:var(--text-secondary)!important;font-size:.86rem;line-height:1.6}}
+    [class*="st-key-welcome-card-"] .stButton button {{min-height:44px;text-align:left}}
+    @media(max-width:1100px) {{.st-key-welcome-menu [data-testid="stHorizontalBlock"] {{grid-template-columns:repeat(2,minmax(0,1fr))}}}}
+    @media(max-width:900px) {{
+      .st-key-welcome-hero [data-testid="stHorizontalBlock"] {{display:grid;grid-template-columns:minmax(0,1fr);gap:1.5rem}}
+      .st-key-welcome-hero [data-testid="stColumn"] {{width:100%!important;min-width:0!important}}
+      .welcome-route {{border-left:0;border-top:1px solid var(--border);padding:1rem 0 0}}
+    }}
+    @media(max-width:640px) {{
+      .st-key-welcome-menu [data-testid="stHorizontalBlock"] {{grid-template-columns:minmax(0,1fr)}}
+      .welcome-current {{gap:.35rem .8rem}}
+      .welcome-title {{font-size:2rem!important}}
+      .welcome-lede {{font-size:.95rem}}
+    }}
     @media(max-width:1100px) {{
       .st-key-terminal-header [data-testid="stHorizontalBlock"] {{display:grid;grid-template-columns: minmax(0,3fr) minmax(90px,1fr) minmax(105px,1fr)}}
       .st-key-terminal-header [data-testid="stColumn"] {{width:100%!important;min-width:0!important}}

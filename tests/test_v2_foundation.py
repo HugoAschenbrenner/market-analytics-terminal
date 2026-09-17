@@ -59,7 +59,8 @@ def test_one_shared_book_feeds_all_calculations():
     assert state.book.revision==1
 
 def test_navigation_keeps_shared_book_language_and_theme():
-    app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30).run()
+    app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30)
+    app.query_params['page']='overview';app.run()
     app.selectbox(key='demo_selector').set_value('options').run()
     app.selectbox(key='global_language').set_value('fr').run()
     app.selectbox(key='global_theme').set_value('light').run()
