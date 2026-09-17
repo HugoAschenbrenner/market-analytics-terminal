@@ -39,6 +39,8 @@ Public context refreshes on request through a 15-minute cache; there is no strea
 
 The Product workshop is a separate experiment inside Derivatives Lab: its user-entered examples do not modify the shared book or exported desk report. Explanations distinguish theoretical price from cash redemption and P&L, and model touch probability from a market forecast. See the [product research, conventions and validation record](docs/derivatives_workshop_2026_09_17.md), including the 652-test regression result and mobile/desktop captures.
 
+**Derivatives Lab → Interactive Greeks Lab / Dérivés → Greeks interactifs** adds a separate BSM explorer. Six sliders update twenty analytical curves, current points, tangents and prices continuously in the browser. Inputs are illustrative and independent of the book/feed. The exact four-row matrix connects each function to its derivative, with explicit elapsed-time signs, raw units and market-unit equivalents. It supports EN/FR, both themes and desktop/tablet/mobile layouts. See the [architecture, conventions and validation record](docs/interactive_greeks_lab.md).
+
 ## Demo Screenshots
 
 Local V2 captures; displayed public observations are dated snapshots, not current quotations.
@@ -87,6 +89,8 @@ Rscript r_analytics/portfolio_performance_report.R
 ```
 
 UI tests use deterministic offline market fixtures. Public adapter tests cover parsing, dates and failures; a passing suite does not promise continuing provider availability.
+
+The full test suite also requires **Node.js 20+** on `PATH` (or `NODE_BINARY` set to its executable) to execute the actual Greeks browser modules and compare their results with Python/SciPy. Node and npm are **not** needed to run or deploy the Streamlit application; the component ships local JavaScript/CSS without a build step or CDN.
 
 ## Architecture
 

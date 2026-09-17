@@ -139,9 +139,13 @@ def test_browser_client_units_and_state():
 
 @pytest.mark.parametrize('language',['en','fr'])
 @pytest.mark.parametrize('theme',['dark','light'])
-def test_interactive_lab_mounts_without_book_option(language,theme):
+def test_interactive_lab_mounts_without_book_option(language,theme,monkeypatch):
     from streamlit.testing.v1 import AppTest
     from core.i18n import t
+    from app_pages import derivatives_lab
+    def unnecessary_book_valuation(*_):
+        raise AssertionError('The standalone lab must not value the book to select an option')
+    monkeypatch.setattr(derivatives_lab,'marked_positions',unnecessary_book_valuation)
     app=AppTest.from_file(str(ROOT/'app.py'),default_timeout=30)
     app.query_params.update(page='derivatives',lang=language,theme=theme)
     app.session_state['derivative_tabs']=t('interactive_greeks',language)

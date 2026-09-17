@@ -66,6 +66,10 @@ export default function mount({parentElement,data}) {
     };
     slider.addEventListener('input',input);number.addEventListener('input',input);
     slider.addEventListener('pointerdown',()=>{dragging=true;});
+    // Keyboard changes also fit clipped curves after the live input frame.
+    slider.addEventListener('change',()=>{
+      if(!dragging && curveClipped){yRanges=[];schedule();}
+    });
     number.addEventListener('blur',()=>{
       if(parseInput(control,number.value)===null){number.value=state[key]*control.scale;number.setAttribute('aria-invalid','false');error.textContent='';}
     });
@@ -105,10 +109,12 @@ export default function mount({parentElement,data}) {
         const value=el('output','greek-value',null,line);
         const tip=el('div','tooltip',text['help_'+spec.greek],card);tip.hidden=true;tip.id='lab-help-'+index;tip.setAttribute('role','tooltip');
         name.setAttribute('aria-describedby',tip.id);name.setAttribute('aria-expanded','false');
+        let pinned=false;
         const show=visible=>{tip.hidden=!visible;name.setAttribute('aria-expanded',String(visible));};
-        name.addEventListener('mouseenter',()=>show(true));name.addEventListener('mouseleave',()=>show(false));
-        name.addEventListener('focus',()=>show(true));name.addEventListener('blur',()=>show(false));
-        name.addEventListener('click',()=>show(tip.hidden));name.addEventListener('keydown',e=>{if(e.key==='Escape')show(false);});
+        name.addEventListener('mouseenter',()=>show(true));name.addEventListener('mouseleave',()=>{if(!pinned)show(false);});
+        name.addEventListener('focus',()=>show(true));name.addEventListener('blur',()=>{pinned=false;show(false);});
+        name.addEventListener('click',()=>{pinned=!pinned;show(pinned);});
+        name.addEventListener('keydown',e=>{if(e.key==='Escape'){pinned=false;show(false);}});
         const slope=el('p','slope','',card);
         const svg=svgEl('svg',{viewBox:'0 0 300 202',role:'img'},card);
         const title=svgEl('title',{},svg);

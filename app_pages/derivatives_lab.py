@@ -15,11 +15,12 @@ def render(state):
             if st.session_state.get('derivative_tabs') != t(key):
                 st.session_state['derivative_tabs']=t(key)
             break
-    options=marked_positions(state).query("asset_class=='Option'")
     row=None
-    if not options.empty and st.session_state.get('derivative_tabs') not in (t('structured'),t('workshop'),t('interactive_greeks')):
-        selected=st.selectbox(t('option.select'),options.id.tolist(),key='book_option')
-        row=options.set_index('id').loc[selected]
+    if st.session_state.get('derivative_tabs') not in (t('structured'),t('workshop'),t('interactive_greeks')):
+        options=marked_positions(state).query("asset_class=='Option'")
+        if not options.empty:
+            selected=st.selectbox(t('option.select'),options.id.tolist(),key='book_option')
+            row=options.set_index('id').loc[selected]
     tabs=st.tabs([t(k) for k in tab_keys],key='derivative_tabs',on_change='rerun')
     st.session_state['_derivative_active']=st.session_state['derivative_tabs']
     for tab,renderer in zip(tabs[:3],[render_vanilla,render_greeks,render_volatility]):
