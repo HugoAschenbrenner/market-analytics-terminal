@@ -34,7 +34,7 @@ WELCOME = {
     'welcome.risk.open': ('Test the risks →', 'Tester les risques →'),
     'welcome.derivatives.title': ('Options & structured notes', 'Options & produits structurés'),
     'welcome.derivatives.question': ('How does a contract react to the market?', 'Comment un contrat réagit-il au marché ?'),
-    'welcome.derivatives.body': ('Explore model prices, sensitivities and payoffs as spot, volatility and time change.', 'Explorez les prix au modèle, les sensibilités et les paiements selon le prix du sous-jacent, la volatilité et le temps.'),
+    'welcome.derivatives.body': ('Explore option strategies, barriers and Discount/Bonus certificates in the Product workshop, alongside book options and structured notes.', 'Explorez stratégies d’options, barrières et certificats Discount/Bonus dans l’Atelier produits, en complément des options et produits structurés du portefeuille.'),
     'welcome.derivatives.open': ('Understand derivatives →', 'Comprendre les dérivés →'),
     'welcome.financing.title': ('Financing & collateral', 'Financement & garanties'),
     'welcome.financing.question': ('How much cash and collateral are needed?', 'Quels besoins en cash et en garanties ?'),

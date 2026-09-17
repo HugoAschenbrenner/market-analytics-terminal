@@ -624,6 +624,8 @@ from core.explanations import GUIDANCE
 STRINGS.update(GUIDANCE)
 from core.welcome_copy import WELCOME
 STRINGS.update(WELCOME)
+from core.workshop_copy import WORKSHOP
+STRINGS.update(WORKSHOP)
 
 TRANSLATIONS = {lang: {key: pair[i] for key, pair in STRINGS.items()} for i, lang in enumerate(("en", "fr"))}
 

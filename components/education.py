@@ -8,7 +8,7 @@ PAGE_TERMS = {
     'overview':['nav','es','dv01','vega','worst_loss','liquidity','risk_contribution'],
     'markets':['dv01','cs01','forward','carry','roll','delta','foreign_rho'],
     'risk':['var','es','parametric_var','parametric_es','component_var','risk_contribution','hhi','effective_assets'],
-    'derivatives':['option.price','implied.vol','delta','gamma','vega','theta','domestic_rho','vanna','volga','charm','residual','proxy_value','mc_error','autocall_probability','loss_probability'],
+    'derivatives':['option.price','implied.vol','delta','gamma','vega','theta','domestic_rho','vanna','volga','charm','residual','proxy_value','mc_error','autocall_probability','loss_probability','workshop.price','workshop.touch_probability','workshop.debit','workshop.max_loss'],
     'financing':['financing.cash','financing.cost','financing.margin','liquidity'],
 }
 

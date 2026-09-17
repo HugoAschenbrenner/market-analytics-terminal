@@ -66,6 +66,12 @@ def apply_theme(theme):
     .source-grid {{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(270px,100%),1fr));gap:.5rem}}
     .source-card {{border-left:3px solid var(--accent);padding:.5rem .7rem;margin:.5rem 0;background:var(--surface-secondary);overflow-wrap:anywhere}}
     .source-card strong {{font-size:.9rem}} .source-card small {{display:block;color:var(--text-secondary);font-size:.78rem}}
+    .workshop-table-wrap {{overflow-x:auto;border:1px solid var(--border);border-radius:6px}}
+    .workshop-table {{width:100%;border-collapse:collapse;font-size:.85rem;color:var(--text-primary);background:var(--surface)}}
+    .workshop-table th,.workshop-table td {{padding:.65rem .8rem;border-bottom:1px solid var(--border);text-align:right;overflow-wrap:break-word}}
+    .workshop-table th {{background:var(--surface-secondary);font-weight:600}}
+    .workshop-table th:first-child,.workshop-table td:first-child {{text-align:left}}
+    .workshop-table tr:last-child td {{border-bottom:0}}
     .st-key-welcome-hero {{margin-top:.7rem;padding:clamp(1rem,2.8vw,2.5rem);border:1px solid var(--border);border-radius:14px;background:linear-gradient(135deg,var(--surface),var(--surface-secondary))}}
     .welcome-kicker {{font-size:.72rem;font-weight:700;letter-spacing:.13em;color:var(--accent);margin-bottom:.75rem}}
     .welcome-title {{font-size:clamp(2rem,3.5vw,3.6rem)!important;line-height:1.08;letter-spacing:-.035em;max-width:22ch;padding:0 0 1rem!important}}
