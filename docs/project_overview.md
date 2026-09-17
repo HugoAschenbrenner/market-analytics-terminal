@@ -2,6 +2,8 @@
 
 The Market Analytics Terminal V2 connects market context, positions, risk, scenarios and hedge expressions through one shared application state. Five workspaces replace the earlier independent pages: Desk Overview, Markets, Risk Lab, Derivatives Lab and Financing.
 
+Start / Accueil (`app_pages/welcome.py`) introduces those five workspaces before calculation views. It is the default route when no page is specified and the fallback for unknown routes. The five workspace slugs and legacy aliases still allow direct access. Its button callbacks update the query and navigation selection before rebuilding widgets, preserving the current book. Initial public-data loading is deferred until the first analytical workspace; returning to Start does not reset the market context or portfolio.
+
 ## State and calculation flow
 
 `core/models.py` defines MarketState, PositionBook, RiskState, ScenarioState and UIState inside TerminalState. `core/state.py` loads one of four demo books, validates optional CSV/editor inputs, migrates open sessions and converts monetary financing terms when the base currency changes. Quantities drive exposure; optional weights must reconcile to marked positions before financing liabilities.

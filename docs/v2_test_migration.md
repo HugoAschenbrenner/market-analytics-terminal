@@ -52,3 +52,7 @@ Financial engines and the four legacy Excel exporters retain their tests. The fo
 - test_structured_products_audit_remediation.py::test_ui_uses_final_fixing_wording — old page source assertion replaced by V2 contract tests
 
 The final README screenshot contract now requires the five V2 workspace captures (including light/dark and French), with image decoding/MIME checks. The former six-page screenshot path assertions were deliberately updated; the historical image files were retained.
+
+## Welcome-page follow-up — 17 September 2026
+
+`test_streamlit_width_compat.py::test_runtime_streamlit_code_does_not_use_width_stretch` was replaced by `test_responsive_controls_render_with_the_installed_streamlit`. V2 pins Streamlit 1.63.0, whose current API supports `width="stretch"`; the old source ban was both obsolete and limited to page files, ignoring existing shared-component usage. The new check renders the native container, button, navigation and table rather than matching source text. Eleven welcome-page tests add route, state-preservation, bilingual/theme and deferred-loading coverage. Two existing overview tests now enter their intended workspace explicitly. No financial assertion was removed; the full suite increases from 492 to 503 passing tests.

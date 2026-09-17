@@ -4,7 +4,9 @@ A Python/R Sales & Trading and cross-asset risk workstation by Hugo Aschenbrenne
 
 This branch contains V2. The [hosted terminal](https://market-analytics-terminal.streamlit.app/) is a separate deployment and may still show the earlier version until this branch is merged and deployed. Screenshots below show the local V2 build.
 
-The terminal opens with a usable demo portfolio. Public market context carries observation dates and source labels; portfolio risk history and volatility surfaces are explicitly synthetic. These are educational analytics, not executable quotes, issuer valuations or regulatory risk measures.
+The terminal opens on **Start / Accueil**, an introduction with a suggested first visit, a menu of the five workspaces and explanations of data, controls and simulations. A usable demo portfolio is ready. Public market context carries observation dates and source labels; portfolio risk history and volatility surfaces are explicitly synthetic. These are educational analytics, not executable quotes, issuer valuations or regulatory risk measures.
+
+Select **Open the overview / Ouvrir la vue d’ensemble** to begin, or choose a workspace card. Returning to Start preserves the current portfolio. The introductory page loads without fetching market data; public context is requested when you first enter an analytical workspace. Use `?page=welcome&lang=fr&theme=dark` for the French introduction, or keep an existing workspace link for direct access. See the [welcome-page validation record](docs/welcome_2026_09_17.md).
 
 ## A 90-second demonstration
 
@@ -31,13 +33,17 @@ Charts and headline metrics lead each workflow. Detailed data, formulas, assumpt
 
 The header, controls, KPI cards and chart columns adapt to phone, tablet and large desktop widths. On a phone, scroll the market strip and long tab lists sideways; detailed tables scroll inside their own panels. Light and dark charts share consistent, contrast-checked colors.
 
-Open **Understand this workspace · data & controls** on any page for a plain-language introduction, an inventory of actual data sources and observation dates, explanations of why values change or stay fixed, and a metric glossary. The help icon beside each KPI explains its units and reveals a more precise value. The same guidance is available in French.
+Open **Understand this workspace · data & controls** in any analytical workspace for a plain-language introduction, an inventory of actual data sources and observation dates, explanations of why values change or stay fixed, and a metric glossary. The help icon beside each KPI explains its units and reveals a more precise value. The same guidance is available in French; Start provides a shorter introductory FAQ.
 
 Public context refreshes on request through a 15-minute cache; there is no streaming feed. The guide distinguishes shared book edits from local what-if controls, public observations from synthetic samples, and market curves from model-rate assumptions. See the [responsive UI validation and current screenshots](docs/ui_responsiveness_2026_09_15.md).
 
 ## Demo Screenshots
 
 Local V2 captures; displayed public observations are dated snapshots, not current quotations.
+
+### Start / Accueil — French, dark
+
+![Introductory menu and suggested first visit](docs/screenshots/v2_welcome_fr_dark.jpg)
 
 ### Desk Overview — light
 
@@ -70,7 +76,7 @@ python -m pip install -r requirements.txt
 python -m streamlit run app.py
 ```
 
-No API key is required. The market service automatically requests public context, caches it for 15 minutes and falls back to dated cached or labelled synthetic series when a provider is unavailable. An offline session remains usable.
+No API key is required. On entry to an analytical workspace, the market service automatically requests public context, caches it for 15 minutes and falls back to dated cached or labelled synthetic series when a provider is unavailable. An offline session remains usable.
 
 ```sh
 python -m pytest -q
@@ -86,7 +92,7 @@ UI tests use deterministic offline market fixtures. Public adapter tests cover p
 app.py                 session initialization and workspace routing
 core/                  typed state, book validation, i18n, semantic themes
 components/            shared controls, charts, formulas and nested workflows
-app_pages/             overview, markets, risk_lab, derivatives_lab, financing
+app_pages/             welcome plus overview, markets, risk_lab, derivatives_lab, financing
 services/              market adapters, shared marks, risk and financing
 engines/               audited pricing, payoff, risk and scenario calculations
 reports/               unified V2 report and preserved Excel exporters
