@@ -357,10 +357,10 @@ STRINGS = {'market.scroll': ('Market snapshot · scroll sideways for more →', 
  'observed.price': ('Observed premium per unit', 'Prime observée par unité'),
  'implied.vol': ('Implied volatility (%)', 'Volatilité implicite (%)'),
  'realized.vol': ('Realized path volatility (%)', 'Volatilité réalisée du chemin (%)'),
- 'iv.method': ('Bisection within European no-arbitrage bounds. At the discounted intrinsic bound IV is zero; '
+ 'iv.method': ('Brent’s bracketed solver within European no-arbitrage bounds. At the discounted intrinsic bound IV is zero; '
                'at the upper bound no finite IV exists. Near expiry/deep moneyness can make IV weakly '
                'identifiable.',
-               'Dichotomie dans les bornes européennes sans arbitrage. IV nulle à la borne intrinsèque '
+               'Solveur de Brent encadré par les bornes européennes sans arbitrage. IV nulle à la borne intrinsèque '
                'actualisée ; aucune IV finie à la borne supérieure. Identification fragile à échéance courte '
                'ou loin du strike.'),
  'advanced': ('Advanced', 'Avancé'),

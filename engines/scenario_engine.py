@@ -284,3 +284,45 @@ def scenarios_to_records(scenarios: List[Scenario]) -> List[dict]:
     """Convert a list of scenarios to dictionaries for pandas/UI display."""
 
     return [scenario.to_dict() for scenario in scenarios]
+
+
+@dataclass(frozen=True)
+class MarketScenario:
+    """Common lab shock units; independent from the legacy single-factor records.
+
+    Equity is a return; volatility/correlation are absolute decimal changes;
+    rate/twist are bp; time is calendar days. Twist is interpolated linearly in
+    tenor and held flat outside its nodes. Parallel and twist shocks are added.
+    """
+    name: str = 'Custom'
+    equity: float = 0.
+    volatility: float = 0.
+    rate_bp: float = 0.
+    curve_twist: tuple[tuple[float, float], ...] = ()
+    correlation: float = 0.
+    elapsed_days: float = 0.
+
+    def __post_init__(self):
+        import numpy as np
+        values = [self.equity, self.volatility, self.rate_bp, self.correlation, self.elapsed_days]
+        if not np.isfinite(values).all() or self.equity <= -1 or self.elapsed_days < 0 or abs(self.correlation) > 1:
+            raise ValueError('Invalid common scenario: finite shocks, spot > -100%, nonnegative days and correlation change within ±1 required.')
+        if self.curve_twist:
+            nodes = np.asarray(self.curve_twist, float)
+            if nodes.ndim != 2 or nodes.shape[1] != 2 or not np.isfinite(nodes).all() or (nodes[:,0] <= 0).any() or (np.diff(nodes[:,0]) <= 0).any():
+                raise ValueError('Curve shock tenors must be positive, finite and strictly increasing.')
+
+    def rate_at(self, tenor):
+        import numpy as np
+        x = np.asarray(tenor, float)
+        twist = np.interp(x, *np.asarray(self.curve_twist).T) if self.curve_twist else np.zeros_like(x)
+        return self.rate_bp + twist
+
+
+def curve_scenarios() -> dict[str, MarketScenario]:
+    """Numerical 2Y/10Y shocks, flat outside; no ambiguous steepener labels."""
+    presets = {f'Parallel {bp:+d} bp': MarketScenario(f'Parallel {bp:+d} bp', rate_bp=bp) for bp in (25,-25,50,-50)}
+    for name, short, long in [('Bear steepener',10,40), ('Bull steepener',-40,-10),
+                              ('Bear flattener',40,10), ('Bull flattener',-10,-40)]:
+        presets[name] = MarketScenario(name, curve_twist=((2.,float(short)),(10.,float(long))))
+    return presets

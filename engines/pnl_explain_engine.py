@@ -11,22 +11,11 @@ def advanced_greeks(kind, spot, strike, maturity, rate, vol, dividend=0.):
 
 
 def implied_volatility(observed, kind, spot, strike, maturity, rate, dividend=0.):
-    inputs=validate_black_scholes_inputs(kind,spot,strike,maturity,rate,.2,dividend)
-    if not isfinite(observed):raise ValueError('iv.bounds')
-    s=spot*exp(-dividend*maturity);k=strike*exp(-rate*maturity)
-    lower=max(0.,s-k) if inputs.option_type=='Call' else max(0.,k-s)
-    upper=s if inputs.option_type=='Call' else k
-    if observed<lower or observed>=upper:raise ValueError('iv.bounds')
-    if observed==lower:return 0.
-    lo,hi=0.,1.
-    while price(kind,spot,strike,maturity,rate,hi,dividend)<observed and hi<64:hi*=2
-    if price(kind,spot,strike,maturity,rate,hi,dividend)<observed:raise ValueError('iv.convergence')
-    for _ in range(180):
-        mid=(lo+hi)/2
-        if price(kind,spot,strike,maturity,rate,mid,dividend)<observed:lo=mid
-        else:hi=mid
-        if hi-lo<1e-10:return (hi+lo)/2
-    raise ValueError('iv.convergence')
+    from engines.option_chain_engine import solve_implied_volatility
+    result = solve_implied_volatility(observed, kind, spot, strike, maturity, rate, dividend)
+    if result.volatility is None:
+        raise ValueError('iv.convergence' if result.status == 'not_bracketed' else 'iv.bounds')
+    return result.volatility
 
 
 def pnl_explain(kind,spot,strike,maturity,rate,vol,ds=0.,dv=0.,days=0.,dr=0.,units=1.,dividend=0.,advanced=True):
