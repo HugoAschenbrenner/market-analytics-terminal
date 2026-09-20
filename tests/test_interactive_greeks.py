@@ -147,7 +147,7 @@ def test_interactive_lab_mounts_without_book_option(language,theme,monkeypatch):
         raise AssertionError('The standalone lab must not value the book to select an option')
     monkeypatch.setattr(derivatives_lab,'marked_positions',unnecessary_book_valuation)
     app=AppTest.from_file(str(ROOT/'app.py'),default_timeout=30)
-    app.query_params.update(page='derivatives',lang=language,theme=theme)
+    app.query_params.update(version='v2',page='derivatives',lang=language,theme=theme)
     app.session_state['derivative_tabs']=t('interactive_greeks',language)
     app.run()
     assert not app.exception

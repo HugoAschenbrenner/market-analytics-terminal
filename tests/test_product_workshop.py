@@ -67,7 +67,7 @@ def test_strategy_rejects_invalid_premiums(premiums):
 
 def workshop_app(tool,lang='en',theme='dark',**values):
     app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30)
-    app.query_params.update(page='derivatives',lang=lang,theme=theme)
+    app.query_params.update(version='v2',page='derivatives',lang=lang,theme=theme)
     app.session_state['derivative_tabs']=TRANSLATIONS[lang]['workshop']
     app.session_state['workshop_tool']=tool
     for key,value in values.items():
@@ -176,7 +176,7 @@ def test_workshop_restores_after_inactive_widget_cleanup():
     saved=deepcopy(app.session_state['_workshop_inputs'])
     active=app.session_state['_derivative_active']
     app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30)
-    app.query_params.update(page='derivatives')
+    app.query_params.update(version='v2',page='derivatives')
     app.session_state['_derivative_active']=active
     app.session_state['_workshop_inputs']=saved
     app.run()

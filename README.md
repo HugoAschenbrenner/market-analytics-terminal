@@ -2,11 +2,11 @@
 
 A Python/R Sales & Trading and cross-asset risk workstation by Hugo Aschenbrenner. One shared book connects **Market → Position → Risk → Scenario → Hedge → Decision** across five workspaces, with English/French and light/dark controls throughout.
 
-This branch contains V2. The [hosted terminal](https://market-analytics-terminal.streamlit.app/) is a separate deployment and may still show the earlier version until this branch is merged and deployed. Screenshots below show the local V2 build.
+The [hosted terminal](https://market-analytics-terminal.streamlit.app/) opens on **V1**, the main version. Use **Discover V2** at the top of any V1 module to open the [V2 introduction](https://market-analytics-terminal.streamlit.app/?version=v2), and **Back to V1** to return. Both interfaces run in the same deployment. Switching versions starts a new session; export any work first. V1 keeps its original six-page interface and the audit fixes; V2 is an explicit opt-in through `version=v2`.
 
-The terminal opens on **Start / Accueil**, an introduction with a suggested first visit, a menu of the five workspaces and explanations of data, controls and simulations. A usable demo portfolio is ready. Public market context carries observation dates and source labels; portfolio risk history and volatility surfaces are explicitly synthetic. These are educational analytics, not executable quotes, issuer valuations or regulatory risk measures.
+V2 opens on **Start / Accueil**, an introduction with a suggested first visit, a menu of the five workspaces and explanations of data, controls and simulations. A usable demo portfolio is ready. Public market context carries observation dates and source labels; portfolio risk history and volatility surfaces are explicitly synthetic. These are educational analytics, not executable quotes, issuer valuations or regulatory risk measures.
 
-Select **Open the overview / Ouvrir la vue d’ensemble** to begin, or choose a workspace card. Returning to Start preserves the current portfolio. The introductory page loads without fetching market data; public context is requested when you first enter an analytical workspace. Use `?page=welcome&lang=fr&theme=dark` for the French introduction, or keep an existing workspace link for direct access. See the [welcome-page validation record](docs/welcome_2026_09_17.md).
+Select **Open the overview / Ouvrir la vue d’ensemble** to begin, or choose a workspace card. Returning to Start preserves the current portfolio. The introductory page loads without fetching market data; public context is requested when you first enter an analytical workspace. Use `?version=v2&page=welcome&lang=fr&theme=dark` for the French introduction, or keep an existing workspace link for direct access. See the [welcome-page validation record](docs/welcome_2026_09_17.md).
 
 ## A 90-second demonstration
 
@@ -16,7 +16,7 @@ Select **Open the overview / Ouvrir la vue d’ensemble** to begin, or choose a 
 4. **Derivatives Lab:** explain option P&L with Greeks and full repricing, simulate delta hedging, or inspect Athena/Phoenix worst-of valuation and Monte Carlo risk. Open **Product workshop / Atelier produits** for option strategies, eight barrier variants and Discount/Bonus certificates with component valuation and explanations.
 5. **Financing:** inspect contractual repo margin, securities-lending economics and refinancing capacity. Prepare a unified or focused Excel report from any workspace.
 
-Select Multi-Asset Balanced, Rates & FX Macro, Equity Options Book or Structured Products / Hedged Book. CSV import is optional under **Load custom book**; the editable book supports 100 positions. Language, theme and book selections persist within the session. Links can specify `?page=overview&lang=en&theme=dark`.
+Select Multi-Asset Balanced, Rates & FX Macro, Equity Options Book or Structured Products / Hedged Book. CSV import is optional under **Load custom book**; the editable book supports 100 positions. Language, theme and book selections persist within the session. Links can specify `?version=v2&page=overview&lang=en&theme=dark`.
 
 ## Workspaces and analytics
 
@@ -84,7 +84,7 @@ No API key is required. On entry to an analytical workspace, the market service 
 
 ```sh
 python -m pytest -q
-python -m compileall -q app.py core components app_pages services engines reports
+python -m compileall -q app.py terminal_v1.py terminal_v2.py core components app_pages services engines reports
 Rscript r_analytics/portfolio_performance_report.R
 ```
 
@@ -95,10 +95,12 @@ The full test suite also requires **Node.js 20+** on `PATH` (or `NODE_BINARY` se
 ## Architecture
 
 ```text
-app.py                 session initialization and workspace routing
+app.py                 version router (V1 by default, V2 opt-in)
+terminal_v1.py         original six-page interface and navigation
+terminal_v2.py         shared session initialization and V2 workspace routing
 core/                  typed state, book validation, i18n, semantic themes
 components/            shared controls, charts, formulas and nested workflows
-app_pages/             welcome plus overview, markets, risk_lab, derivatives_lab, financing
+app_pages/             original V1 modules plus the six V2 workspaces
 services/              market adapters, shared marks, risk and financing
 engines/               audited pricing, payoff, risk and scenario calculations
 reports/               unified V2 report and preserved Excel exporters

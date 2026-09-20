@@ -52,7 +52,7 @@ def test_hedge_frequency_and_cost_effect():
 def test_derivative_tabs_render(lang,main,sub):
     from core.i18n import TRANSLATIONS
     app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30)
-    app.query_params.update(page='derivatives',lang=lang)
+    app.query_params.update(version='v2',page='derivatives',lang=lang)
     app.session_state['derivative_tabs']=TRANSLATIONS[lang][main]
     if sub:app.session_state['vanilla_tabs']=TRANSLATIONS[lang][sub]
     app.run()

@@ -14,7 +14,7 @@ from components.education import source_inventory, PAGE_TERMS
 @pytest.mark.parametrize('topic',['read','sources','changes','terms'])
 def test_guidance_topics_render_without_changing_positions(lang,topic):
     app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30)
-    app.query_params.update(lang=lang,page='overview')
+    app.query_params.update(version='v2',lang=lang,page='overview')
     app.run();before=deepcopy(app.session_state.terminal.book)
     app.selectbox(key='guide_topic').set_value(topic).run()
     assert not app.exception and not app.error
@@ -55,7 +55,7 @@ def test_small_greeks_do_not_disappear_in_display_rounding(value):
 
 def test_kpi_help_exposes_precision_and_meaning():
     app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30)
-    app.query_params['page']='overview';app.run()
+    app.query_params['version']='v2';app.query_params['page']='overview';app.run()
     nav=next(metric for metric in app.metric if metric.label=='NAV')
     assert 'repo borrowing' in nav.proto.help
     assert 'Value before display rounding' in nav.proto.help or 'More precise value' in nav.proto.help

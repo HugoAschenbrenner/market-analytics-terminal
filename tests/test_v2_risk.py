@@ -84,7 +84,7 @@ def test_key_rate_ladder_reconciles_parallel_dv01():
 def test_risk_tabs_execute_without_errors(tab_key,lang):
     from core.i18n import TRANSLATIONS
     app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30)
-    app.query_params.update(page='risk',lang=lang)
+    app.query_params.update(version='v2',page='risk',lang=lang)
     app.session_state['risk_tabs']=TRANSLATIONS[lang][tab_key]
     app.run()
     assert not app.exception

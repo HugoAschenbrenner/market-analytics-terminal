@@ -54,7 +54,7 @@ def test_curve_trades_are_dv01_neutral(tenors,view):
 def test_fx_workflows_render(tab_key,lang):
     from core.i18n import TRANSLATIONS
     app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30)
-    app.query_params.update(page='markets',lang=lang)
+    app.query_params.update(version='v2',page='markets',lang=lang)
     app.session_state['markets_tabs']=TRANSLATIONS[lang]['fx']
     app.session_state['fx_tabs']=TRANSLATIONS[lang][tab_key]
     app.run()
@@ -66,7 +66,7 @@ def test_fx_workflows_render(tab_key,lang):
 def test_rates_workflows_render(tab_key):
     from core.i18n import TRANSLATIONS
     app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30)
-    app.query_params['page']='markets'
+    app.query_params['version']='v2';app.query_params['page']='markets'
     app.session_state['rates_tabs']=TRANSLATIONS['en'][tab_key]
     app.run()
     assert not app.exception

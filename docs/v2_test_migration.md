@@ -56,3 +56,20 @@ The final README screenshot contract now requires the five V2 workspace captures
 ## Welcome-page follow-up — 17 September 2026
 
 `test_streamlit_width_compat.py::test_runtime_streamlit_code_does_not_use_width_stretch` was replaced by `test_responsive_controls_render_with_the_installed_streamlit`. V2 pins Streamlit 1.63.0, whose current API supports `width="stretch"`; the old source ban was both obsolete and limited to page files, ignoring existing shared-component usage. The new check renders the native container, button, navigation and table rather than matching source text. Eleven welcome-page tests add route, state-preservation, bilingual/theme and deferred-loading coverage. Two existing overview tests now enter their intended workspace explicitly. No financial assertion was removed; the full suite increases from 492 to 503 passing tests.
+
+## V1/V2 coexistence — 2026-09-20
+
+The public entry point now defaults to V1 and opts into V2 with `version=v2`.
+The original V1 pages were restored from audited commit `53368ad`, using the
+same current financial engines. Existing V2 AppTest cases still exercise `app.py`
+and now explicitly pass that version parameter. The six legacy route tests now
+exercise V1 again. The monthly-frequency, zero-volatility and stale-valuation
+AppTest regressions previously retired above were restored as well. Ten new
+navigation tests check the default, invalid versions, actual same-tab link
+URLs, both languages/themes, and V1 → V2 → V1 round trips.
+
+Validation: **707 tests passed**, including JavaScript/Python Greeks parity and
+R tests. Python compilation and `git diff --check` passed. Browser checks verified
+the real same-tab V1 → V2 → V1 navigation, V2 dark styling, and the responsive V1
+switch at a 390-pixel viewport. Each version switch intentionally starts a new
+session; it does not transfer positions or unsaved inputs between interfaces.

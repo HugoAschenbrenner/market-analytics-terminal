@@ -20,7 +20,7 @@ def test_book_financing_distinguishes_capacity_loss_from_cash_need():
 @pytest.mark.parametrize('sub',['repo','lending','collateral'])
 def test_financing_tabs_render(lang,sub):
     app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30)
-    app.query_params.update(page='financing',lang=lang);app.session_state['financing_tabs']=TRANSLATIONS[lang][sub]
+    app.query_params.update(version='v2',page='financing',lang=lang);app.session_state['financing_tabs']=TRANSLATIONS[lang][sub]
     app.run()
     assert not app.exception
     assert not app.error

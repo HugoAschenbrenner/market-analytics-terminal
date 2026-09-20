@@ -11,7 +11,7 @@ from services import market_data
 
 def app_test(**query):
     app = AppTest.from_file(str(Path('app.py').resolve()), default_timeout=30)
-    app.query_params.update(query)
+    app.query_params.update(query, version='v2')
     return app
 
 

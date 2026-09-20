@@ -42,7 +42,7 @@ def test_invalid_book_is_rejected_without_mutating_state(field,value):
 @pytest.mark.parametrize('lang,theme',[('en','dark'),('fr','light')])
 def test_workspaces_render(page,lang,theme):
     app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30)
-    app.query_params.update(page=page,lang=lang,theme=theme)
+    app.query_params.update(version='v2',page=page,lang=lang,theme=theme)
     app.run()
     assert not app.exception
     assert not app.error
@@ -60,7 +60,7 @@ def test_one_shared_book_feeds_all_calculations():
 
 def test_navigation_keeps_shared_book_language_and_theme():
     app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30)
-    app.query_params['page']='overview';app.run()
+    app.query_params['version']='v2';app.query_params['page']='overview';app.run()
     app.selectbox(key='demo_selector').set_value('options').run()
     app.selectbox(key='global_language').set_value('fr').run()
     app.selectbox(key='global_theme').set_value('light').run()
@@ -69,5 +69,6 @@ def test_navigation_keeps_shared_book_language_and_theme():
     assert app.session_state.terminal.book.name=='options'
     assert app.session_state.terminal.ui.language=='fr'
     assert app.session_state.terminal.ui.theme=='light'
+    assert app.query_params['version']==['v2']
     assert app.query_params['page']==['risk']
     assert app.session_state.terminal.ui.page=='risk'

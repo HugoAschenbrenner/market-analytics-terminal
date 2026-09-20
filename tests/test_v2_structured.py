@@ -60,7 +60,7 @@ def test_structured_workspace_tabs(lang,sub):
     from core.i18n import TRANSLATIONS
     state=TerminalState(demo_book('structured'));state.ui.language=lang
     app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30)
-    app.session_state['terminal']=state;app.query_params.update(page='derivatives',lang=lang)
+    app.session_state['terminal']=state;app.query_params.update(version='v2',page='derivatives',lang=lang)
     app.session_state['derivative_tabs']=TRANSLATIONS[lang]['structured'];app.session_state['structured_tabs']=TRANSLATIONS[lang][sub]
     app.run()
     assert not app.exception
