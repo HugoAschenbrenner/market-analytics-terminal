@@ -76,3 +76,51 @@ def curve_pca(history):
         if anchor<0:vt[i]*=-1
     explained=variances/variances.sum() if variances.sum() else np.zeros_like(variances)
     return {'loadings':vt[:3], 'variance':variances[:3], 'explained':explained[:3], 'scores':centered@vt[:3].T}
+
+
+def correlation_stress(covariance, blend: float) -> np.ndarray:
+    """PSD-preserving blend: +1 -> all +1 correlations; -1 -> independence.
+
+    Keeps individual variances unchanged; blend is not an additive rho shock.
+    """
+    cov=np.asarray(covariance,float)
+    if cov.ndim!=2 or cov.shape[0]!=cov.shape[1] or not np.isfinite(cov).all() or not np.isfinite(blend) or not -1<=blend<=1 or not np.allclose(cov,cov.T) or np.linalg.eigvalsh(cov).min() < -1e-10:
+        raise ValueError('A finite PSD covariance and blend in [-1,1] are required.')
+    sd=np.sqrt(np.maximum(0.,np.diag(cov)))
+    target=np.outer(sd,sd) if blend>=0 else np.diag(sd**2)
+    return (1-abs(blend))*cov+abs(blend)*target
+
+
+def portfolio_pca(covariance, weights) -> pd.DataFrame:
+    cov=np.asarray(covariance,float);w=np.asarray(weights,float)
+    correlation_stress(cov,0.)  # validates symmetry/PSD
+    if w.shape!=(len(cov),) or not np.isfinite(w).all():
+        raise ValueError('Finite matching PCA exposures required.')
+    eigenvalues,vectors=np.linalg.eigh(cov);order=np.argsort(eigenvalues)[::-1]
+    eigenvalues=np.maximum(0.,eigenvalues[order]);vectors=vectors[:,order]
+    for col in range(len(w)):
+        anchor=np.argmax(np.abs(vectors[:,col]))
+        if vectors[anchor,col]<0:vectors[:,col]*=-1
+    exposures=w@vectors;contributions=eigenvalues*exposures**2
+    explained=eigenvalues/eigenvalues.sum() if eigenvalues.sum() else eigenvalues*0
+    portfolio_share=contributions/contributions.sum() if contributions.sum() else contributions*0
+    return pd.DataFrame({'component':[f'PC{i+1}' for i in range(len(w))],
+        'variance_explained':explained,'cumulative_variance':np.cumsum(explained),
+        'portfolio_exposure':exposures,'portfolio_variance':contributions,'portfolio_variance_share':portfolio_share})
+
+
+def covariance_attribution(covariance, weights, labels=None, confidence=.975, horizon=1) -> dict:
+    """Zero-mean Gaussian Euler allocation. Marginal values per unit of weight."""
+    cov=np.asarray(covariance,float);w=np.asarray(weights,float)
+    correlation_stress(cov,0.)
+    if w.shape!=(len(cov),) or not np.isfinite(w).all() or not .5<confidence<1 or not np.isfinite(horizon) or horizon<1 or int(horizon)!=horizon:
+        raise ValueError('Invalid attribution weights, confidence or observation horizon.')
+    sigma=float(np.sqrt(max(0.,w@cov@w)))
+    marginal=cov@w/sigma if sigma else np.zeros_like(w)
+    component=w*marginal;scale=norm.ppf(confidence)*np.sqrt(horizon)
+    table=pd.DataFrame({'id':list(labels) if labels is not None else list(range(len(w))),
+        'weight':w,'marginal_volatility':marginal,'component_volatility':component,
+        'percentage_risk':component/sigma if sigma else np.zeros_like(w),
+        'marginal_var':marginal*scale,'component_var':component*scale})
+    return {'volatility':sigma,'parametric_var':sigma*scale,'contributions':table,
+            'pca':portfolio_pca(cov,w)}
