@@ -122,3 +122,21 @@ Validation completed on 21 September 2026:
 - V2 analytical views, curves, risk attribution, input persistence, additional
   tools, structured products and workbook consistency remain covered by the
   passing regression suite.
+
+## Publication checkpoint
+
+The implementation commit `243eb7a55e3a62699b07ca12c6472377b5a0b683` was pushed
+successfully to both `main` and `codex/terminal-v2`; `git ls-remote` confirmed
+the same SHA on both branches. A subsequent resume found a clean working tree
+and reran the complete suite: **826 passed in 53.57 s**, with compilation and
+diff checks also passing.
+
+**Production verification remains pending.** The public Streamlit application
+still displayed the earlier six-module V1 after refresh and a fresh session,
+despite the corrected code being on GitHub. Its administration page requires
+sign-in, so the deployment status/reboot cannot yet be checked in this browser.
+The user was asked to connect to Streamlit. No hosting settings were changed.
+The public V1/V2 switch and French return link worked, but this does not prove
+that the rollback is deployed. Completion requires the public root to show the
+restored five-module V1 with its original sidebar links and Discover V2 link,
+followed by another V2/back-to-V1 check after the deployment is updated.
