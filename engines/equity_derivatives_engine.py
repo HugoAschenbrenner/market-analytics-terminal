@@ -44,6 +44,10 @@ def position_analytics(position: OptionPosition) -> dict:
 
 def option_scenario(position: OptionPosition, scenario: MarketScenario) -> dict:
     p = position
+    if scenario.elapsed_days >= p.maturity*365:
+        raise ValueError('Time passage must be strictly before expiry.')
+    if p.volatility+scenario.volatility <= 0:
+        raise ValueError('Shocked volatility must remain strictly positive.')
     result = pnl_explain(p.option_type,p.spot,p.strike,p.maturity,p.rate,p.volatility,
         ds=p.spot*scenario.equity,dv=scenario.volatility,days=scenario.elapsed_days,
         dr=float(scenario.rate_at(p.maturity))/10000,units=p.units,dividend=p.dividend,advanced=False)

@@ -50,7 +50,7 @@ def test_emitted_links_complete_round_trip_and_keep_v2_preferences(language, the
     assert v2.session_state.terminal.ui.page == "welcome"
     assert v2.session_state.terminal.ui.language == language
     assert v2.session_state.terminal.ui.theme == theme
-    v2.button(key="welcome-open-derivatives").click().run()
+    v2.button(key="welcome-open-equity-derivatives").click().run()
     assert not v2.exception and not v2.error
     assert v2.query_params["version"] == ["v2"]
     returned = app_for(switch_link(v2))

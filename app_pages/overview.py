@@ -35,4 +35,6 @@ def render(state):
     if total_dv: insights.append(t('insight.dv01',share=frame.loc[frame.maturity>=10,'dv01'].abs().sum()/total_dv))
     if (frame.asset_class=='Option').any(): insights.append(t('insight.gamma',gamma=frame.gamma_cash_1pct.sum()))
     for insight in insights: st.markdown(f'<div class="risk-line">{html.escape(insight)}</div>',unsafe_allow_html=True)
+    from components.lab_dashboard import render_lab_dashboard
+    render_lab_dashboard()
     view_data(frame)

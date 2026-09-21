@@ -57,6 +57,8 @@ def render(state):
                         if len(pair)==2:
                             corr=risk['pnl'][pair[0]].rolling(60).corr(risk['pnl'][pair[1]])
                             chart(go.Figure(go.Scatter(x=corr.index,y=corr)).update_layout(title=t('rolling_corr'),xaxis_title=t('date'),yaxis_title=t('correlation')))
+            from components.risk_attribution import render_attribution
+            render_attribution(risk['pnl'],np.ones(len(risk['pnl'].columns)),state.risk.confidence,state.risk.horizon,unit=state.book.base_currency+' P&L / position scale',source='SYNTHETIC fixed-book P&L',covariance=risk['covariance'],estimator=state.risk.estimator)
             view_data(risk['contributions']);formula_panel('risk.method',[r'\mathrm{VaR}_\alpha=z_\alpha\sqrt{w^\top\Sigma w}',r'\mathrm{CVaR}_i=w_i z_\alpha\frac{(\Sigma w)_i}{\sqrt{w^\top\Sigma w}}'])
     if tabs[2].open:
         with tabs[2]:

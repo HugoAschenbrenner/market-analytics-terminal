@@ -19,7 +19,7 @@ WELCOME = {
     'welcome.step3.title': ('Understand the result', 'Comprenez le résultat'),
     'welcome.step3.body': ('Use the metric help icons and each workspace’s guide to check meanings, sources and assumptions.', 'Utilisez les icônes d’aide et le guide de chaque espace pour comprendre les indicateurs, les sources et les hypothèses.'),
     'welcome.menu': ('What would you like to explore?', 'Que souhaitez-vous explorer ?'),
-    'welcome.menu_hint': ('Start with the overview, or go straight to a question. Your portfolio connects all five spaces.', 'Commencez par la vue d’ensemble, ou choisissez directement une question. Votre portefeuille relie les cinq espaces.'),
+    'welcome.menu_hint': ('Choose a question. Book workspaces share your portfolio; the EQD and zero-curve labs use independent inputs, summarized in the overview.', 'Choisissez une question. Les espaces portefeuille partagent vos positions ; les labos EQD et courbe zéro utilisent des saisies indépendantes, reprises dans la vue d’ensemble.'),
     'welcome.overview.title': ('The big picture', 'La vue d’ensemble'),
     'welcome.overview.question': ('Where does my portfolio stand?', 'Où en est mon portefeuille ?'),
     'welcome.overview.body': ('Its value, main risks and hypothetical stress losses, together on one screen.', 'Sa valeur, ses principaux risques et les pertes dans différents scénarios hypothétiques, réunis sur un écran.'),

@@ -628,6 +628,20 @@ from core.workshop_copy import WORKSHOP
 STRINGS.update(WORKSHOP)
 STRINGS['interactive_greeks'] = ('Interactive Greeks Lab', 'Greeks interactifs')
 
+STRINGS.update({
+ 'nav.equity-derivatives': ('Equity Derivatives', 'Options actions'),
+ 'nav.structured-products': ('Structured Products', 'Produits structurés'),
+ 'welcome.equity-derivatives.title': ('Equity Derivatives', 'Options actions'),
+ 'welcome.equity-derivatives.question': ('How is volatility priced and hedged?', 'Comment valoriser et couvrir la volatilité ?'),
+ 'welcome.equity-derivatives.body': ('Read an option chain, compare smiles, cash Greeks and scenario P&L, then test a delta hedge.', 'Lisez une chaîne, comparez smiles, cash Greeks et P&L de scénario, puis testez une couverture delta.'),
+ 'welcome.equity-derivatives.open': ('Open Equity Derivatives →', 'Ouvrir les options actions →'),
+ 'welcome.structured-products.title': ('Structured Products', 'Produits structurés'),
+ 'welcome.structured-products.question': ('How do note contracts respond?', 'Comment réagissent les contrats structurés ?'),
+ 'welcome.structured-products.body': ('Explore Athena/Phoenix, worst-of barriers, Monte Carlo valuation and contract risk.', 'Explorez Athena/Phoenix, barrières worst-of, valorisation Monte Carlo et risque contractuel.'),
+ 'welcome.structured-products.open': ('Open Structured Products →', 'Ouvrir les produits structurés →'),
+})
+STRINGS['welcome.intro'] = ('Explore markets, understand portfolio risk and test scenarios. Dedicated Equity Derivatives and Structured Products spaces separate options from notes.', 'Explorez les marchés, comprenez les risques et testez des scénarios. Les espaces Options actions et Produits structurés distinguent les options des notes.')
+
 TRANSLATIONS = {lang: {key: pair[i] for key, pair in STRINGS.items()} for i, lang in enumerate(("en", "fr"))}
 
 def t(key, lang=None, **values):

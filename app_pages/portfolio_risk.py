@@ -283,6 +283,12 @@ def render() -> None:
         stress_df=stress_df,
     )
 
+    with st.expander("Gaussian attribution, correlation stress & PCA", expanded=False):
+        from components.risk_attribution import render_attribution
+        render_attribution(returns_df[list(weights)], list(weights.values()), confidence=.95,
+                           horizon=int(var_horizon_periods), unit="decimal portfolio return; 0.01 = 1%",
+                           source="USER INPUT" if uploaded_file is not None else "SYNTHETIC price sample")
+
     st.subheader("Portfolio Risk Summary")
 
     horizon_label = period_label_from_frequency(

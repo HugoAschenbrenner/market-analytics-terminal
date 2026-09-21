@@ -2,6 +2,7 @@ import streamlit as st
 
 
 PAGE_SLUGS = {
+    "Equity Derivatives": "equity-derivatives",
     "Fixed Income Risk": "fixed-income-risk",
     "Repo & Securities Lending": "repo-sec-lending",
     "Structured Products": "structured-products",
@@ -11,6 +12,8 @@ PAGE_SLUGS = {
 
 
 MODULES = [
+    {"title": "Equity Derivatives", "caption": "Volatility and vanilla option risk.",
+     "description": "Option chains, smile/skew, cash Greeks, scenarios, delta hedging and a lab workbook.", "page": "Equity Derivatives"},
     {
         "title": "Fixed Income Risk",
         "caption": "Risk review for bond portfolios.",
@@ -152,9 +155,9 @@ def render() -> None:
     snapshot_cols = st.columns(5)
 
     snapshot_items = [
-        ("Modules", "5", "Fixed income, repo, structured products, portfolio risk, cross-asset."),
+        ("Modules", str(len(MODULES)), "Equity derivatives, fixed income, repo, structured products, portfolio risk, cross-asset."),
         ("Tests", "Automated", "Regression checks across engines, reports, UI integration, and documentation; see the audit validation record for the latest run."),
-        ("Reports", "4", "Excel exports for fixed income, financing, structured products, and portfolio risk."),
+        ("Reports", "5", "Four module exports plus a combined volatility, curve and risk-attribution workbook."),
         ("Languages", "Python/R", "Streamlit terminal with R portfolio analytics companion."),
         ("Data policy", "Demo + public", "Synthetic/sample analytics, uploaded data and optional separate public market context."),
     ]

@@ -41,7 +41,7 @@ def render_sources(state):
 
 
 def render_workspace_guide(state):
-    page=state.ui.page
+    page="derivatives" if state.ui.page=="structured-products" else state.ui.page
     st.caption(t('guide.'+page+'.intro'))
     with st.expander(t('guide.open')):
         selected=st.selectbox(t('guide.topic'),['read','sources','changes','terms'],format_func=lambda x,lang=state.ui.language:t('guide.'+x,lang),key='guide_topic')

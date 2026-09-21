@@ -28,7 +28,7 @@ V1 remains the public default; both interfaces and their switch must continue wo
    Greeks, scenario matrix and static hedge; financial tests and checkpoint.
 2. **Complete:** zero curve/scenario and risk-attribution extensions, invariants
    and checkpoint.
-3. **Next:** focused pages, navigation, shared scenario/dashboard snapshots,
+3. **Complete:** focused pages, navigation, shared scenario/dashboard snapshots,
    exports, bilingual controls, integration tests and checkpoint.
 4. **Pending:** full regression, browser QA, documentation, final push and live
    verification. SVI/par bootstrap remain optional and will not displace Core.
@@ -36,3 +36,9 @@ V1 remains the public default; both interfaces and their switch must continue wo
 Stage 1 validation: 733 tests passed (84.92 s); no BSM engine replacement or new dependency. The legacy IV interface delegates to the diagnostic Brent solver.
 
 Stage 2 validation: 746 tests passed (59.64 s). Zero-curve discount/forward identities, twist knots, signed cash flows, nodal/parallel DV01 reconciliation, Euler allocation and PSD correlation stress checked.
+
+Stage 3 validation: 776 tests passed (54.88 s). Both interfaces and EN/FR views,
+legacy workshop navigation, structured-demo loading, session persistence,
+invalid-input recovery and workbook formula-injection protection checked.
+Existing vanilla V1 tools remain available under EQD → Additional option tools;
+the primary Structured Products route now focuses on structured contracts.

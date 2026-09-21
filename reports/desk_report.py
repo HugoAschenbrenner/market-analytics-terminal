@@ -48,6 +48,11 @@ def generate_desk_report(state,section='all'):
         'financing':['Financing_Terms','Contractual_VM','Refinancing_Stress','Securities_Lending']}
     if section!='all':
         wanted=['Executive_Summary','Positions',*groups[section],'Methodology','Sources'];tables={k:v for k,v in tables.items() if k in wanted}
+    return write_workbook(tables)
+
+
+def write_workbook(tables):
+    """Shared safe Excel writer; input strings cannot become formulas or URLs."""
     output=BytesIO()
     with pd.ExcelWriter(output,engine='xlsxwriter',engine_kwargs={'options':{'strings_to_formulas':False,'strings_to_urls':False}}) as writer:
         header=writer.book.add_format({'bold':True,'bg_color':'#17334F','font_color':'#FFFFFF'})

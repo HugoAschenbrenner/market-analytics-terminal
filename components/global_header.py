@@ -3,17 +3,17 @@ import streamlit as st
 from core.i18n import t
 from core.theme import apply_theme
 
-PAGES = ("welcome", "overview", "markets", "risk", "derivatives", "financing")
-ALIASES = {"home":"overview", "cross-asset-dashboard":"overview", "fixed-income-risk":"markets", "portfolio-risk":"risk", "structured-products":"derivatives", "repo-sec-lending":"financing"}
+PAGES = ("welcome", "overview", "equity-derivatives", "structured-products", "markets", "risk", "financing")
+ALIASES = {"home":"overview", "cross-asset-dashboard":"overview", "fixed-income-risk":"markets", "portfolio-risk":"risk", "repo-sec-lending":"financing"}
 
 def page_from_query():
     slug = st.query_params.get("page", "welcome")
     slug = ALIASES.get(slug, slug)
-    return slug if slug in PAGES else "welcome"
+    return slug if slug in (*PAGES, "derivatives") else "welcome"
 
 def navigate(page):
     """Button callback: update navigation before the header widget is rebuilt."""
-    if page not in PAGES:
+    if page not in (*PAGES, "derivatives"):
         raise ValueError("Unknown workspace")
     st.session_state['workspace'] = page
     st.query_params['page'] = page
@@ -33,7 +33,10 @@ def global_header(state):
             st.rerun()
         status.caption(t('welcome.status') if state.ui.page == 'welcome' else f'{t(state.market.source)} · {state.market.as_of}')
     apply_theme(state.ui.theme)
-    selected = st.segmented_control(t("workspaces"), PAGES, default=state.ui.page,
+    if state.ui.page == 'derivatives':
+        st.session_state['_legacy_derivatives_visible'] = True
+    options = (*PAGES, "derivatives") if st.session_state.get('_legacy_derivatives_visible') else PAGES
+    selected = st.segmented_control(t("workspaces"), options, default=state.ui.page,
                                     format_func=lambda p, lang=state.ui.language:t("nav."+p,lang), required=True,
                                     key="workspace", label_visibility="collapsed", width="stretch")
     if selected != state.ui.page:

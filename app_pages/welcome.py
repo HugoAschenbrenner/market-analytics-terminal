@@ -4,7 +4,7 @@ import streamlit as st
 from core.i18n import t
 from components.global_header import navigate
 
-WORKSPACES = ('overview', 'markets', 'risk', 'derivatives', 'financing')
+WORKSPACES = ('overview', 'equity-derivatives', 'structured-products', 'markets', 'risk', 'financing')
 
 
 def copy(key, **values):

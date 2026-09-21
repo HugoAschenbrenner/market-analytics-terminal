@@ -22,12 +22,12 @@ def test_welcome_renders_in_both_languages_and_themes(lang, theme):
     assert not app.exception and not app.error
     assert app.session_state.terminal.ui.page == 'welcome'
     assert any(TRANSLATIONS[lang]['welcome.title'] in item.value for item in app.markdown)
-    assert len(app.button) == 6  # Start plus five workspace cards.
+    assert len(app.button) == 7  # Start plus six focused workspace cards.
     assert not app.metric and not app.get('plotly_chart')
     assert not any(box.key == 'demo_selector' for box in app.selectbox)
 
 
-@pytest.mark.parametrize('page', ['overview', 'markets', 'risk', 'derivatives', 'financing'])
+@pytest.mark.parametrize('page', ['overview', 'markets', 'risk', 'equity-derivatives', 'structured-products', 'financing'])
 def test_menu_enters_workspace_and_returns_without_resetting_edits(page):
     state = TerminalState(demo_book('options'))
     state.book.positions.loc[state.book.positions.id == 'spy-put', 'quantity'] = -7

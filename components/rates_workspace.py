@@ -14,7 +14,8 @@ from services.analytics import marked_positions
 from engines.rates_tools_engine import carry_roll,yield_price_curve,key_rate_ladder
 
 def render_rates(state):
-    tabs=st.tabs([t('curve'),t('curve.bucket'),t('curve_trade')],key='rates_tabs',on_change='rerun')
+    from components.lab_common import tr
+    tabs=st.tabs([t('curve'),t('curve.bucket'),t('curve_trade'),tr('Zero Curve Lab','Labo courbe zéro')],key='rates_tabs',on_change='rerun')
     if tabs[0].open:
         with tabs[0]:
             explain("curve")
@@ -43,3 +44,8 @@ def render_rates(state):
             formula_panel('carry.method');view_data(bonds)
     if tabs[2].open:
         with tabs[2]:render_curve_trade(state)
+
+    if tabs[3].open:
+        with tabs[3]:
+            from components.curve_builder import render_curve_builder
+            render_curve_builder()

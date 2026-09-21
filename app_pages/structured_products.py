@@ -1137,25 +1137,13 @@ def _render_options_payoff_lab() -> None:
 def render() -> None:
     render_module_header(
         title="Structured Products",
-        caption="Options, autocallable payoff logic, valuation proxies, worst-of scenarios, barrier risk, and desk explanations.",
+        caption="Autocallable payoff logic, valuation proxies, worst-of scenarios, barrier risk, and desk explanations.",
         objective=(
-            "Objective: connect vanilla option intuition, theoretical pricing, autocallable payoff logic, "
+            "Objective: connect contract terms, autocallable payoff logic, "
             "scenario analysis, valuation proxies, and client/desk-ready explanations."
         ),
     )
 
-
-    _render_options_payoff_lab()
-
-    st.divider()
-
-    _render_black_scholes_pricer_lab()
-
-    st.divider()
-
-    _render_interactive_options_greeks_lab()
-
-    st.divider()
 
     _render_structured_products_valuation_proxy()
 
