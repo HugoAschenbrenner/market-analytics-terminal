@@ -1,5 +1,10 @@
 # Equity Derivatives upgrade — implementation ledger
 
+**Architecture correction, 21 September 2026:** V1 is frozen at `a68b64c`.
+The stage notes below record the earlier implementation, including an erroneous
+V1 integration that has now been selectively rolled back. All new labs belong
+to V2 only. See `docs/v1_freeze.md` for the exact restoration and guard tests.
+
 Starting point: `a68b64c` on `codex/terminal-v2`, clean and also published on main.
 V1 remains the public default; both interfaces and their switch must continue working.
 
@@ -31,7 +36,8 @@ V1 remains the public default; both interfaces and their switch must continue wo
 3. **Complete:** focused pages, navigation, shared scenario/dashboard snapshots,
    exports, bilingual controls, integration tests and checkpoint.
 4. **Validation complete:** full regression, browser QA and documentation.
-   Publication/live verification follows the final validated checkpoint.
+   `e16d918` was pushed to both branches and observed live, before the selective
+   V1 architecture correction described above.
    SVI/par bootstrap are deferred optional features, not missing Core work.
 
 Stage 1 validation: 733 tests passed (84.92 s); no BSM engine replacement or new dependency. The legacy IV interface delegates to the diagnostic Brent solver.
@@ -41,8 +47,9 @@ Stage 2 validation: 746 tests passed (59.64 s). Zero-curve discount/forward iden
 Stage 3 validation: 776 tests passed (54.88 s). Both interfaces and EN/FR views,
 legacy workshop navigation, structured-demo loading, session persistence,
 invalid-input recovery and workbook formula-injection protection checked.
-Existing vanilla V1 tools remain available under EQD → Additional option tools;
-the primary Structured Products route now focuses on structured contracts.
+At that stage, V1 vanilla tools had incorrectly been moved under EQD. The
+selective rollback restores them to V1 Structured Products; V2 keeps its
+dedicated structured route and its additional derivative tools.
 
 Stage 4 final validation: 781 tests passed (54.74 s), including label/layout polish.
 Compilation and `git diff --check` passed. Browser checks covered EQD at 391 CSS

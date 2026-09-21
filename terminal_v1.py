@@ -10,12 +10,10 @@ from app_pages import (
     portfolio_risk,
     repo_sec_lending,
     structured_products,
-    equity_derivatives,
 )
 
 PAGES = {
     "Home": home.render,
-    "Equity Derivatives": equity_derivatives.render,
     "Fixed Income Risk": fixed_income.render,
     "Repo & Securities Lending": repo_sec_lending.render,
     "Structured Products": structured_products.render,
@@ -25,7 +23,6 @@ PAGES = {
 
 PAGE_SLUGS = {
     "Home": "home",
-    "Equity Derivatives": "equity-derivatives",
     "Fixed Income Risk": "fixed-income-risk",
     "Repo & Securities Lending": "repo-sec-lending",
     "Structured Products": "structured-products",
@@ -37,7 +34,6 @@ SLUG_TO_PAGE = {slug: page for page, slug in PAGE_SLUGS.items()}
 
 PAGE_ICONS = {
     "Home": "⌂",
-    "Equity Derivatives": "Δ",
     "Fixed Income Risk": "◔",
     "Repo & Securities Lending": "⇄",
     "Structured Products": "◇",
@@ -58,16 +54,23 @@ def _get_query_page_slug() -> str:
     return page_slug
 
 
-def _navigate_v1(slug: str) -> None:
-    st.query_params['page'] = slug
-
-
 def render_sidebar_nav_link(page_name: str, selected_page: str) -> None:
-    # Native callbacks preserve analytical inputs between module visits.
-    st.button(f"{PAGE_ICONS.get(page_name, '')} {page_name}",
-              key='v1-nav-'+PAGE_SLUGS[page_name], width='stretch',
-              type='primary' if page_name==selected_page else 'secondary',
-              on_click=_navigate_v1,args=(PAGE_SLUGS[page_name],))
+    icon = PAGE_ICONS.get(page_name, "•")
+    slug = PAGE_SLUGS[page_name]
+    active_class = " mat-sidebar-active" if page_name == selected_page else ""
+
+    safe_page_name = html.escape(page_name)
+    safe_icon = html.escape(icon)
+
+    st.markdown(
+        f"""
+        <a class="mat-sidebar-link{active_class}" href="?page={slug}" target="_self">
+            <span class="mat-sidebar-icon">{safe_icon}</span>
+            <span class="mat-sidebar-label">{safe_page_name}</span>
+        </a>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render():

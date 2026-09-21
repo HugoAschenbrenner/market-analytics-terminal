@@ -192,8 +192,6 @@ def render() -> None:
         ),
     )
 
-    from components.lab_dashboard import render_lab_dashboard
-    render_lab_dashboard()
     _render_market_data_snapshot()
     st.divider()
 

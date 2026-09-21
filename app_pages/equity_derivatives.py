@@ -26,7 +26,7 @@ def _mark_position_input():
     get_lab().position_source='USER INPUT'
 
 
-def render(state=None):
+def render(state):
     st.title('Equity Derivatives')
     st.caption(tr('Volatility & Risk Lab · European options · Input → Calculation → Scenario → Interpretation → Export',
                   'Volatilité et risque · Options européennes · Saisie → Calcul → Scénario → Interprétation → Export'))
@@ -87,15 +87,9 @@ def render(state=None):
         from components.lab_report import render_lab_export
         render_lab_export()
     with st.expander(tr('Additional option tools', 'Outils options complémentaires')):
-        if state is not None:
-            from components.global_header import navigate
-            st.button(tr('Open book options, strategies & Interactive Greeks', 'Ouvrir les options du portefeuille, stratégies et Greeks interactifs'),
-                      key='eqd_legacy_tools',on_click=navigate,args=('derivatives',))
-        elif st.toggle(tr('Show payoff strategies and legacy pricer', 'Afficher les stratégies de payoff et le pricer historique'),key='eqd_legacy_tools'):
-            from app_pages.structured_products import _render_options_payoff_lab, _render_black_scholes_pricer_lab, _render_interactive_options_greeks_lab
-            _render_options_payoff_lab()
-            _render_black_scholes_pricer_lab()
-            _render_interactive_options_greeks_lab()
+        from components.global_header import navigate
+        st.button(tr('Open book options, strategies & Interactive Greeks', 'Ouvrir les options du portefeuille, stratégies et Greeks interactifs'),
+                  key='eqd_legacy_tools',on_click=navigate,args=('derivatives',))
 
 
 def render_chain(lab,chain):

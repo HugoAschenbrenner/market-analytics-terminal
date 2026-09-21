@@ -198,10 +198,6 @@ def render() -> None:
         ),
     )
 
-    with st.expander("Zero curve builder & curve scenarios", expanded=False):
-        from components.curve_builder import render_curve_builder
-        render_curve_builder()
-
     _render_rates_bond_market_snapshot()
 
     st.divider()

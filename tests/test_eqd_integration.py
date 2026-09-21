@@ -16,11 +16,10 @@ def app_at(page,version='v2',lang='en'):
     return app
 
 
-@pytest.mark.parametrize('version',['v1','v2'])
 @pytest.mark.parametrize('lang',['en','fr'])
 @pytest.mark.parametrize('view',['chain','position','scenario','hedge','greeks'])
-def test_eqd_focused_views_render_offline(version,lang,view):
-    app=app_at('equity-derivatives',version,lang)
+def test_eqd_focused_views_render_offline(lang,view):
+    app=app_at('equity-derivatives','v2',lang)
     app.session_state['eqd_view']=view
     app.run()
     assert not app.exception and not app.error
@@ -35,17 +34,17 @@ def test_chain_visualizations_render(view):
     assert app.get('plotly_chart')
 
 
-def test_v1_navigation_preserves_lab_inputs_and_dashboard_recomputes():
-    app=app_at('equity-derivatives','v1');app.session_state['eqd_view']='scenario';app.run()
+def test_v2_navigation_preserves_lab_inputs_and_dashboard_recomputes():
+    app=app_at('equity-derivatives');app.session_state['eqd_view']='scenario';app.run()
     app.number_input(key='eqd_pos_quantity').set_value(-23.).run()
     app.number_input(key='lab_spot_shock').set_value(-8.).run()
     expected=option_outputs(app.session_state.analytics_lab)['scenario']['full']
-    app.button(key='v1-nav-cross-asset-dashboard').click().run()
+    app.button_group(key='workspace').set_value('overview').run()
     assert not app.exception and not app.error
-    assert app.query_params['page']==['cross-asset-dashboard']
+    assert app.query_params['page']==['overview']
     actual=next(m.value for m in app.metric if m.label=='Option scenario P&L')
     assert actual==f'{expected:,.2f}'
-    app.button(key='v1-nav-equity-derivatives').click().run()
+    app.button_group(key='workspace').set_value('equity-derivatives').run()
     assert app.session_state.analytics_lab.position.quantity==-23
     assert app.session_state.analytics_lab.scenario.equity==-.08
 

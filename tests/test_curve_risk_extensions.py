@@ -4,7 +4,7 @@ import pytest
 from engines.rates_tools_engine import ZeroCurve,curve_from_table,zero_curve_table,curve_spreads,cashflow_curve_risk,sample_curve_table
 from engines.scenario_engine import MarketScenario,curve_scenarios
 from engines.risk_factor_engine import correlation_stress,covariance_attribution
-from engines.portfolio_risk_engine import calculate_portfolio_attribution
+from engines.portfolio_attribution_engine import calculate_portfolio_attribution
 
 
 def test_zero_curve_discount_and_forward_identities():

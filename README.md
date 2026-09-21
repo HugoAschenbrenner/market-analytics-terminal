@@ -2,7 +2,7 @@
 
 A Python/R Sales & Trading and cross-asset risk workstation by Hugo Aschenbrenner. **Input → Calculation → Scenario → Interpretation → Export** connects an Equity Derivatives Volatility & Risk Lab with curve analytics, portfolio risk and structured products. V2 provides English/French and light/dark controls.
 
-The [hosted terminal](https://market-analytics-terminal.streamlit.app/) opens on **V1**, the main version. Use **Discover V2** at the top of any V1 module to open the [V2 introduction](https://market-analytics-terminal.streamlit.app/?version=v2), and **Back to V1** to return. Both interfaces run in the same deployment. Switching versions starts a new session; export any work first. V1 retains its original modules and audit fixes, plus the new Equity Derivatives page; V2 is an explicit opt-in through `version=v2`.
+The [hosted terminal](https://market-analytics-terminal.streamlit.app/) opens on **V1**, the main version. Use **Discover V2** at the top of any V1 module to open the [V2 introduction](https://market-analytics-terminal.streamlit.app/?version=v2), and **Back to V1** to return. Both interfaces run in the same deployment. Switching versions starts a new session; export any work first. **V1 is frozen at `a68b64c`**. All subsequent product/UI/analytics work, including the Equity Derivatives lab, belongs exclusively to V2, selected explicitly with `version=v2`. See the [V1 freeze and selective rollback record](docs/v1_freeze.md).
 
 V2 opens on **Start / Accueil**, with six focused workspace cards and explanations of data, controls and simulations. Book workspaces share a demo portfolio. The EQD and zero-curve labs use independent session inputs, synthesized in the overview without adding them to portfolio totals. Public context carries observation dates and source labels. The default option chain and portfolio risk history are deterministic synthetic examples; a user chain can supply prices or IVs. These are educational analytics, not executable quotes, issuer valuations or regulatory risk measures.
 
@@ -10,12 +10,14 @@ Select **Open the overview / Ouvrir la vue d’ensemble** to begin, or choose a 
 
 ## A 90-second demonstration
 
+Select **Discover V2** first. This flow describes the developing V2; V1 keeps its six original pages unchanged.
+
 1. **Home / Start — 0–10 s:** identify the version, the shared book and the independent lab examples.
 2. **Equity Derivatives — 10–40 s:** read ATM IV and downside skew; switch smile/term views. Open Scenario P&L, apply −5% spot / +3 vol points and compare full repricing with local Greeks. Open Delta hedge to see the residual risk after neutralizing initial Delta.
 3. **Structured Products — 40–50 s:** load the structured demo if needed (explicitly replaces the shared book); explain Athena/Phoenix barriers, Monte Carlo value and sampling error.
-4. **Fixed Income / Curves — 50–65 s:** in V1 use Fixed Income Risk → Zero curve lab; in V2 use Markets → Rates → Zero Curve Lab. Apply Bear steepener: 2Y +10 bp, 10Y +40 bp. Compare full cash-flow repricing and nodal DV01.
-5. **Portfolio Risk — 65–80 s:** open Gaussian attribution in V1, or Risk Lab → VaR in V2. Contrast historical VaR with Gaussian Component VaR, inspect the largest contributor and PCA, then vary the correlation blend.
-6. **Cross-Asset Dashboard / Desk Overview — 80–90 s:** read the same lab scenario outputs beside the book summary, keeping their scopes separate. Prepare the combined lab workbook from EQD, Curves or Attribution.
+4. **Fixed Income / Curves — 50–65 s:** use Markets → Rates → Zero Curve Lab. Apply Bear steepener: 2Y +10 bp, 10Y +40 bp. Compare full cash-flow repricing and nodal DV01.
+5. **Portfolio Risk — 65–80 s:** open Risk Lab → VaR. Contrast historical VaR with Gaussian Component VaR, inspect the largest contributor and PCA, then vary the correlation blend.
+6. **Cross-Asset synthesis / Desk Overview — 80–90 s:** read the same lab scenario outputs beside the book summary, keeping their scopes separate. Prepare the combined lab workbook from EQD, Curves or Attribution.
 
 Select Multi-Asset Balanced, Rates & FX Macro, Equity Options Book or Structured Products / Hedged Book. CSV import is optional under **Load custom book**; the editable book supports 100 positions. Language, theme and book selections persist within the session. Links can specify `?version=v2&page=overview&lang=en&theme=dark`.
 
@@ -26,7 +28,7 @@ Select Multi-Asset Balanced, Rates & FX Macro, Equity Options Book or Structured
 - **Structured Products:** a dedicated route for Athena/Phoenix, worst-of contracts, payoff logic, Monte Carlo valuation proxy and contract risk. The existing structured-product engine is retained.
 - **Markets — Fixed Income Risk and FX:** audited clean/dirty bond valuation, ACT/ACT schedules, duration/convexity, DV01/CS01, key-rate ladders, carry/roll estimates, curve overlays and trade builders. FX includes covered interest parity, cross-rates, swap points, Garman–Kohlhagen Greeks and client hedge comparisons.
 - **Risk Lab — Portfolio Risk:** sample, EWMA and Ledoit–Wolf covariance; distinct historical/Gaussian VaR and ES; marginal/component/percentage risk and VaR; PSD-preserving correlation blends and covariance PCA with portfolio exposure and explained variance. Existing rolling diagnostics and whole-book scenarios remain available.
-- **Additional derivative tools:** accessible from EQD → Additional option tools. The preserved V2 Derivatives Lab contains book options, higher-order Greeks, the existing hedging-path experiment, Product workshop (strategies, barriers and certificates), and Interactive Greeks. V1's earlier payoff/pricer/interactive tools are also retained under EQD's additional-tools expander.
+- **Additional derivative tools:** accessible from EQD → Additional option tools. The preserved V2 Derivatives Lab contains book options, higher-order Greeks, the existing hedging-path experiment, Product workshop (strategies, barriers and certificates), and Interactive Greeks. V1's original vanilla tools stay in its unchanged Structured Products page.
 - **Financing — Repo & Securities Lending:** contractual cash flows and margin with threshold/MTA/rounding, cash/non-cash lending economics, collateral shocks and haircut-dependent refinancing capacity.
 - **R Portfolio Analytics Companion:** reproducible CSV/PNG reporting and Python/R parity checks, available as a technical expander in Risk Lab. Its bundled dataset is separate from the current book.
 
@@ -99,7 +101,7 @@ The full test suite also requires **Node.js 20+** on `PATH` (or `NODE_BINARY` se
 
 ```text
 app.py                 version router (V1 by default, V2 opt-in)
-terminal_v1.py         Home plus six analytical modules; public default
+terminal_v1.py         frozen Home plus five original modules; public default
 terminal_v2.py         shared session initialization and V2 workspace routing
 core/                  typed state, book validation, i18n, semantic themes
 components/            shared controls, charts, formulas and nested workflows
@@ -110,6 +112,8 @@ reports/               shared-book report, lab workbook and legacy exporters
 r_analytics/           standalone report, CSV/PNG outputs
 tests/                financial, state, UI, report and R regression coverage
 ```
+
+`tests/v1_frozen_manifest.json` locks the V1 import closure, styles, router, version switch, reports, dependencies and sample assets to their `a68b64c` bytes. New V2 behavior must use V2 modules or adapters around frozen pure engines. The V2 attribution adapter lives in `engines/portfolio_attribution_engine.py`; the original V1 portfolio engine remains unchanged. Do not refresh the freeze manifest to accommodate V2 work.
 
 See [project architecture](docs/project_overview.md), [financial conventions and validation](docs/technical_validation.md), [V2 requirement completion](docs/v2_completion.md), [checkpoint history](docs/v2_progress.md), [test migration ledger](docs/v2_test_migration.md) and the [original audit](docs/audit_2026_09_10.md). Interview wording is in [CV positioning](docs/cv_positioning.md).
 

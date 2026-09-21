@@ -3,7 +3,8 @@
 Implementation and validation record — 21 September 2026. This extends the
 existing BSM, P&L, rates, covariance and reporting engines without adding a
 dependency. V1 remains the public default, with V2 available via the version
-switch. Both interfaces expose the new Equity Derivatives module.
+switch. The new Equity Derivatives module and all later improvements belong
+exclusively to V2. V1 is frozen at `a68b64c`; see [the freeze record](v1_freeze.md).
 
 ## Scope and data flow
 
@@ -11,7 +12,7 @@ The application has two explicit scopes. `TerminalState` holds the shared V2
 book, market context and whole-book risk. `services/lab.py::LabState` holds an
 independent option position, editable chain, curve example and lab scenario.
 Lab positions are **not** automatically added to NAV or book stress totals.
-The overview/Cross-Asset Dashboard recomputes the same lab inputs, separately
+The V2 Desk Overview recomputes the same lab inputs, separately
 from portfolio totals. A combined workbook uses these same calculation paths.
 
 The risk-attribution panel saves its last computed result, confidence, horizon,
@@ -32,7 +33,7 @@ for other workspaces. A quote can populate the lab position while preserving
 signed quantity and multiplier. Editing that position changes its own source
 label. Currency is an explicit denomination label, not an FX conversion.
 In-session native navigation retains inputs. Switching V1/V2 or a full browser
-reload starts a new session; export first. Legacy options tools remain reachable
+reload starts a new session; export first. V2 legacy options tools remain reachable
 from EQD → Additional option tools, and existing deep links remain supported.
 
 ## IV and empirical volatility
@@ -163,8 +164,9 @@ Percentage risk = component_vol/s (fractions sum to 1 when s>0; individual
 values may be negative or exceed 1). Zero-risk portfolios return zero
 contributions. At confidence c and horizon h observations, zero-mean Gaussian
 VaR = Φ⁻¹(c)s√h; marginal/component VaR scale the corresponding volatility
-contribution by Φ⁻¹(c)√h. Components sum to VaR. V1 uses return observations and
-weights; V2 uses base-currency position P&Ls and unit weights with its selected
+contribution by Φ⁻¹(c)√h. Components sum to VaR. The V2 adapter also supports
+return observations and weights; its book UI uses base-currency position P&Ls
+and unit weights with its selected
 covariance estimator. Captions distinguish these units. These numbers do not
 allocate historical VaR/CVaR, which retain their existing sample-based methods.
 
@@ -195,9 +197,11 @@ examples and Streamlit AppTest flows. `test_eqd_engines.py` covers IV recovery,
 bounds, missing observations, signed scaling, local/full P&L, zero shocks and
 hedge identities. `test_curve_risk_extensions.py` covers discount/forward
 identities, shock knots, DV01, PSD stress, Euler sums and PCA reconciliation.
-`test_eqd_integration.py` covers V1/V2, EN/FR, every main EQD view, navigation,
+`test_eqd_integration.py` covers V2 EN/FR, every main EQD view, navigation,
 quote loading, price workflow, invalid scenarios, persistence, language changes
-and workbook consistency. The existing Python/R/JavaScript suite is retained.
+and workbook consistency. `test_v1_freeze.py` separately checks baseline file
+identity, V1 routes and exclusion of V2 features. The existing Python/R/JavaScript
+suite is retained.
 See the [checkpoint ledger](eqd_upgrade_progress.md) for run results.
 
 No paid API is required. European BSM excludes American exercise and calibrated
