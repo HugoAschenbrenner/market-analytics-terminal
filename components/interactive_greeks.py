@@ -10,7 +10,7 @@ import re
 import streamlit.components.v2 as components
 
 from core.greeks_lab_copy import lab_copy
-from core.theme import TOKENS
+from core.v2_theme import TOKENS
 
 ASSETS = Path(__file__).with_name('greeks_lab')
 

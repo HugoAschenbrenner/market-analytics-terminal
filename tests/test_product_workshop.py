@@ -183,7 +183,8 @@ def test_workshop_restores_after_inactive_widget_cleanup():
     assert not app.exception and not app.error
     assert app.session_state['derivative_tabs']==TRANSLATIONS['en']['workshop']
     assert app.number_input(key='certificate_bonus').value==115.
-    app.button_group(key='workspace').set_value('markets').run()
+    app.button_group(key='desk_section').set_value('analytics').run()
+    app.button_group(key='desk_section').set_value('derivatives').run()
     app.button_group(key='workspace').set_value('derivatives').run()
     assert not app.exception and not app.error
     assert app.selectbox(key='workshop_tool').value=='certificates'

@@ -43,6 +43,7 @@ def test_menu_enters_workspace_and_returns_without_resetting_edits(page):
     assert app.query_params['page'] == [page]
     assert app.session_state.terminal.ui.page == page
     pd.testing.assert_frame_equal(before.positions, app.session_state.terminal.book.positions)
+    app.button_group(key='desk_section').set_value('markets').run()
     app.button_group(key='workspace').set_value('welcome').run()
     assert not app.exception and not app.error
     assert app.session_state.terminal.ui.page == 'welcome'

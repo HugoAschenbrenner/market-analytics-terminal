@@ -1,7 +1,7 @@
 """Theme-aware Plotly charts with room for labels, legends and color bars."""
 import streamlit as st
 from plotly.colors import qualitative
-from core.theme import TOKENS
+from core.v2_theme import TOKENS
 from core.state import get_state
 
 

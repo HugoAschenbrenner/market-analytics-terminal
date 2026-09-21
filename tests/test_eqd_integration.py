@@ -39,11 +39,13 @@ def test_v2_navigation_preserves_lab_inputs_and_dashboard_recomputes():
     app.number_input(key='eqd_pos_quantity').set_value(-23.).run()
     app.number_input(key='lab_spot_shock').set_value(-8.).run()
     expected=option_outputs(app.session_state.analytics_lab)['scenario']['full']
+    app.button_group(key='desk_section').set_value('portfolio').run()
     app.button_group(key='workspace').set_value('overview').run()
     assert not app.exception and not app.error
     assert app.query_params['page']==['overview']
     actual=next(m.value for m in app.metric if m.label=='Option scenario P&L')
     assert actual==f'{expected:,.2f}'
+    app.button_group(key='desk_section').set_value('derivatives').run()
     app.button_group(key='workspace').set_value('equity-derivatives').run()
     assert app.session_state.analytics_lab.position.quantity==-23
     assert app.session_state.analytics_lab.scenario.equity==-.08
@@ -141,6 +143,7 @@ def test_matrix_and_hedge_inputs_survive_navigation_and_match_workbook():
     visible=float(next(m.value for m in app.metric if m.label=='Net hedged P&L').replace(',',''))
     tables=lab_report_tables(app.session_state.analytics_lab)
     assert tables['Delta_Hedge'].set_index('metric').loc['net_pnl','value']==pytest.approx(visible,abs=.005)
+    app.button_group(key='desk_section').set_value('markets').run()
     app.button_group(key='workspace').set_value('welcome').run()
     app.button(key='welcome-open-equity-derivatives').click().run()
     app.button_group(key='eqd_view').set_value('scenario').run()
@@ -154,6 +157,7 @@ def test_additional_tools_remain_discoverable_and_allow_return():
     app=app_at('equity-derivatives').run()
     app.button(key='eqd_legacy_tools').click().run()
     assert not app.exception and app.session_state.terminal.ui.page=='derivatives'
+    app.button_group(key='desk_section').set_value('derivatives').run()
     app.button_group(key='workspace').set_value('equity-derivatives').run()
     assert not app.exception and app.session_state.terminal.ui.page=='equity-derivatives'
 

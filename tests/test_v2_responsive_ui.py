@@ -3,7 +3,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pytest
 from core.charting import style_figure
-from core.theme import TOKENS
+from core.v2_theme import TOKENS
 
 
 def luminance(hex_color):

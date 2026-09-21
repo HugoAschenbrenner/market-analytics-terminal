@@ -38,7 +38,7 @@ def test_invalid_book_is_rejected_without_mutating_state(field,value):
     with pytest.raises(ValueError): replace_book(state,frame)
     pd.testing.assert_frame_equal(before,state.book.positions)
 
-@pytest.mark.parametrize('page',['overview','markets','risk','derivatives','financing'])
+@pytest.mark.parametrize('page',['overview','markets','analytics','security','risk','derivatives','financing'])
 @pytest.mark.parametrize('lang,theme',[('en','dark'),('fr','light')])
 def test_workspaces_render(page,lang,theme):
     app=AppTest.from_file(str(Path('app.py').resolve()),default_timeout=30)

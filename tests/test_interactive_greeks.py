@@ -152,6 +152,6 @@ def test_interactive_lab_mounts_without_book_option(language,theme,monkeypatch):
     app.run()
     assert not app.exception
     assert not app.error
-    assert len(app.get('bidi_component')) == 1
+    assert len([c for c in app.get('bidi_component') if c.key=='interactive_greeks_lab']) == 1
     assert not any(s.key=='book_option' for s in app.selectbox)
     assert len(app.tabs) == 6

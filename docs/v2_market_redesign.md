@@ -59,3 +59,21 @@ reads for the new ticker, tables, security pages and Board use one data service.
    language/theme and V1 identity checks; final docs and verified remote pushes.
 
 Each substantial validated unit is committed and pushed before continuing.
+
+### Shell/Markets checkpoint
+
+Added a V2-only neutral dark/light theme, grouped navigation, shared security
+search, a five-minute ticker fragment (CSS animation does not poll), responsive
+market rows and one reusable security route with seven chart horizons. Existing
+rates/FX analytics now live at `page=analytics`; all pricers, books and reports
+remain available. The ticker and rows navigate within the current session.
+Cash-session schedules use IANA zones and include Asian lunch breaks; holidays
+are explicitly unverified. No quote substitute is used when FRED is unavailable.
+
+Validation: 861 tests passed, including the unchanged 42-file V1 manifest/import
+closure and all frozen V1 routes. Existing UI tests were migrated to the grouped
+navigation, while financial assertions were retained. Browser inspection found
+and corrected a light table on the dark theme and navigation after component
+triggers. Yahoo observations loaded in the local preview; FRED timed out, while
+Treasury XML, Yahoo RSS, Federal Reserve RSS and ECB RSS responded successfully.
+BLS calendar requests returned HTTP 403; event views must preserve this limitation.

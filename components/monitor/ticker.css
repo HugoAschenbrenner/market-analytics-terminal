@@ -1,0 +1,5 @@
+.ticker{overflow:hidden;background:var(--bg);color:var(--fg);border-block:1px solid var(--line);font:12px Arial,sans-serif;font-variant-numeric:tabular-nums;width:100%;padding:3px 0}
+.strip{display:flex;width:max-content;animation:travel 100s linear infinite}.group{display:flex;flex-shrink:0}.ticker:hover .strip,.ticker:focus-within .strip{animation-play-state:paused}
+button{white-space:nowrap;display:flex;gap:9px;align-items:center;background:transparent;border:0;border-right:1px solid var(--line);color:var(--fg);padding:10px 17px;cursor:pointer;font:inherit}
+button:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}button:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}b{font-size:11px;color:var(--muted)}.positive{color:var(--up)}.negative{color:var(--down)}
+@keyframes travel{to{transform:translateX(-50%)}}@media(prefers-reduced-motion:reduce){.strip{animation:none}.group:nth-child(2){display:none}.ticker{overflow-x:auto}}
