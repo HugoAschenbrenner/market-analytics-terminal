@@ -94,11 +94,12 @@ def analyze_option_chain(data: pd.DataFrame, as_of: date | str, mode: str = 'pri
             raise ValueError(f'One chain must use a single {name}; separate underlyings and input conventions.')
     accepted, rejected, seen = [], [], set()
     for index, row in frame.iterrows():
+        diagnostic = None
         try:
             expiry = pd.Timestamp(row.maturity).normalize()
             years = (expiry-valuation).days / 365
             inputs = validate_black_scholes_inputs(row.option_type, row.spot, row.strike, years, row.rate, .2, row.dividend)
-            if pd.isna(expiry) or not str(row.underlying).strip():
+            if pd.isna(expiry) or pd.isna(row.underlying) or not str(row.underlying).strip():
                 raise ValueError('Expiry and underlying are required.')
             key = (expiry, inputs.strike, inputs.option_type)
             if key in seen:
@@ -119,8 +120,11 @@ def analyze_option_chain(data: pd.DataFrame, as_of: date | str, mode: str = 'pri
                 delta=greeks['delta'], gamma=greeks['gamma'], vega_1vol_point=greeks['vega_1pct'],
                 theta_daily=greeks['theta_daily'], rho_1pct=greeks['rho_1pct']))
         except (ValueError, TypeError, OverflowError) as exc:
-            rejected.append({'row': str(index), 'reason': str(exc)})
-    return {'chain': pd.DataFrame(accepted), 'rejected': pd.DataFrame(rejected, columns=['row', 'reason']),
+            rejected.append({'row': str(index), 'reason': str(exc),
+                'iv_status': diagnostic.status if diagnostic else 'invalid_input',
+                'lower_price_bound': diagnostic.lower_bound if diagnostic else None,
+                'upper_price_bound': diagnostic.upper_bound if diagnostic else None})
+    return {'chain': pd.DataFrame(accepted), 'rejected': pd.DataFrame(rejected, columns=['row', 'reason', 'iv_status', 'lower_price_bound', 'upper_price_bound']),
             'as_of': valuation.date().isoformat(), 'mode': mode}
 
 

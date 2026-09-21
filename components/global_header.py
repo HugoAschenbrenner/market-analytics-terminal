@@ -31,7 +31,12 @@ def global_header(state):
             state.ui.language, state.ui.theme = lang, mode
             st.query_params["lang"], st.query_params["theme"] = lang, mode
             st.rerun()
-        status.caption(t('welcome.status') if state.ui.page == 'welcome' else f'{t(state.market.source)} · {state.market.as_of}')
+        if state.ui.page == 'equity-derivatives':
+            from services.lab import get_lab
+            lab = get_lab()
+            status.caption(f'{t(lab.source)} · {lab.as_of}')
+        else:
+            status.caption(t('welcome.status') if state.ui.page == 'welcome' else f'{t(state.market.source)} · {state.market.as_of}')
     apply_theme(state.ui.theme)
     if state.ui.page == 'derivatives':
         st.session_state['_legacy_derivatives_visible'] = True

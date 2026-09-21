@@ -18,6 +18,8 @@ class LabState:
     source: str = 'SYNTHETIC'
     currency: str = 'USD'
     selected_maturity: str = ''
+    view: str = 'chain'
+    volatility_view: str = 'heatmap'
     position: OptionPosition = field(default_factory=OptionPosition)
     position_source: str = 'Independent synthetic example'
     scenario: MarketScenario = field(default_factory=lambda:MarketScenario('Custom',equity=-.05,volatility=.03,rate_bp=25))

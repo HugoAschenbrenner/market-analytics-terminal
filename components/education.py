@@ -9,6 +9,7 @@ PAGE_TERMS = {
     'markets':['dv01','cs01','forward','carry','roll','delta','foreign_rho'],
     'risk':['var','es','parametric_var','parametric_es','component_var','risk_contribution','hhi','effective_assets'],
     'derivatives':['option.price','implied.vol','delta','gamma','vega','theta','domestic_rho','vanna','volga','charm','residual','proxy_value','mc_error','autocall_probability','loss_probability','workshop.price','workshop.touch_probability','workshop.debit','workshop.max_loss'],
+    'structured-products':['proxy_value','mc_error','autocall_probability','loss_probability','delta','vega'],
     'financing':['financing.cash','financing.cost','financing.margin','liquidity'],
 }
 
@@ -41,7 +42,7 @@ def render_sources(state):
 
 
 def render_workspace_guide(state):
-    page="derivatives" if state.ui.page=="structured-products" else state.ui.page
+    page=state.ui.page
     st.caption(t('guide.'+page+'.intro'))
     with st.expander(t('guide.open')):
         selected=st.selectbox(t('guide.topic'),['read','sources','changes','terms'],format_func=lambda x,lang=state.ui.language:t('guide.'+x,lang),key='guide_topic')

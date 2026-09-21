@@ -631,6 +631,8 @@ STRINGS['interactive_greeks'] = ('Interactive Greeks Lab', 'Greeks interactifs')
 STRINGS.update({
  'nav.equity-derivatives': ('Equity Derivatives', 'Options actions'),
  'nav.structured-products': ('Structured Products', 'Produits structurés'),
+ 'guide.structured-products.intro': ('Explore Athena/Phoenix cash flows, worst-of barriers and Monte Carlo valuation for the selected book contract.', 'Explorez les flux Athena/Phoenix, les barrières worst-of et la valorisation Monte Carlo du contrat sélectionné.'),
+ 'guide.structured-products.read': ('Apply contract terms to update the shared book. The proxy discounts simulated cash flows with fixed random draws; model probabilities are not forecasts. Inspect sampling error and barrier risk. Vanilla chain, cash Greeks and static hedging are in Equity Derivatives.', 'Appliquer les conditions met à jour le portefeuille partagé. Le proxy actualise des flux simulés avec des tirages fixes ; les probabilités du modèle ne sont pas des prévisions. Examinez l’erreur d’échantillonnage et le risque de barrière. Chaîne vanilla, cash Greeks et couverture statique sont dans Options actions.'),
  'welcome.equity-derivatives.title': ('Equity Derivatives', 'Options actions'),
  'welcome.equity-derivatives.question': ('How is volatility priced and hedged?', 'Comment valoriser et couvrir la volatilité ?'),
  'welcome.equity-derivatives.body': ('Read an option chain, compare smiles, cash Greeks and scenario P&L, then test a delta hedge.', 'Lisez une chaîne, comparez smiles, cash Greeks et P&L de scénario, puis testez une couverture delta.'),

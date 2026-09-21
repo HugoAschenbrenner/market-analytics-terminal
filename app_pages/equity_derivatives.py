@@ -22,6 +22,10 @@ def _load_quote(row: dict):
             del st.session_state[key]
 
 
+def _mark_position_input():
+    get_lab().position_source='USER INPUT'
+
+
 def render(state=None):
     st.title('Equity Derivatives')
     st.caption(tr('Volatility & Risk Lab · European options · Input → Calculation → Scenario → Interpretation → Export',
@@ -39,13 +43,13 @@ def render(state=None):
             st.warning(str(exc));inputs=lab.chain
         with st.form('eqd_chain_form'):
             a,b=st.columns(2)
-            as_of=a.date_input(tr('Valuation date','Date de valorisation'),value=lab.as_of)
+            as_of=a.date_input(tr('Valuation date','Date de valorisation'),value=lab.as_of,key='eqd_as_of')
             mode_labels={'iv':tr('Implied volatility (decimal)','Volatilité implicite (décimal)'),
                          'price':tr('Option prices → implied volatility','Prix d’options → volatilité implicite')}
             mode=b.selectbox(tr('Input workflow','Type de saisie'),['iv','price'],index=['iv','price'].index(lab.mode),
-                format_func=mode_labels.get)
+                format_func=mode_labels.get,key='eqd_chain_mode')
             edited=st.data_editor(inputs,num_rows='dynamic',width='stretch',key='eqd_chain_edit',height=260)
-            if st.form_submit_button(tr('Apply chain inputs','Appliquer la chaîne')):
+            if st.form_submit_button(tr('Apply chain inputs','Appliquer la chaîne'),key='eqd_apply_chain'):
                 try:
                     candidate=chain_analysis(edited,as_of,mode)
                     if candidate['chain'].empty:raise ValueError(tr('No usable quotes; check the rows and dates.','Aucune cotation exploitable : vérifiez lignes et dates.'))
@@ -64,7 +68,8 @@ def render(state=None):
         table(result['rejected'],tr('Rejected rows','Lignes rejetées'))
     labels={'chain':tr('Smile & surface','Smile et surface'),'position':tr('Price & cash Greeks','Prix et cash Greeks'),
             'scenario':tr('Scenario P&L','P&L de scénario'),'hedge':tr('Delta hedge','Couverture delta'),'greeks':tr('Greeks maps','Cartes des Greeks')}
-    view=st.segmented_control(tr('Analysis','Analyse'),list(labels),default='chain',required=True,format_func=labels.get,key='eqd_view',width='stretch')
+    view=st.segmented_control(tr('Analysis','Analyse'),list(labels),default=lab.view,required=True,format_func=labels.get,key='eqd_view',width='stretch')
+    lab.view=view
     if view=='chain':
         render_chain(lab,chain)
     else:
@@ -106,10 +111,11 @@ def render_chain(lab,chain):
                     f'L’IV au strike 90 % est à {skew:+.2f} points de vol de l’ATM. La protection baissière est '+('plus' if skew>0 else 'moins')+' chère en volatilité sur cette tranche ; cela n’établit ni la cause ni une prévision de rendement.'))
     views={'heatmap':tr('Surface heatmap','Surface en heatmap'),'surface':tr('3D surface','Surface 3D'),
            'smile':tr('Smile by maturity','Smile par échéance'),'term':tr('ATM term structure','Structure par terme ATM')}
-    view=st.selectbox(tr('Volatility view','Vue volatilité'),list(views),format_func=views.get,key='eqd_surface_view')
+    view=st.selectbox(tr('Volatility view','Vue volatilité'),list(views),index=list(views).index(lab.volatility_view),format_func=views.get,key='eqd_surface_view')
+    lab.volatility_view=view
     if view in ('heatmap','surface'):
         data=empirical_smile(chain);grid=data.pivot(index='time_to_maturity',columns='moneyness',values='implied_volatility')*100
-        fig=go.Figure(go.Heatmap(x=grid.columns,y=grid.index,z=grid.values,colorbar_title='IV %',connectgaps=False)) if view=='heatmap' else go.Figure(go.Surface(x=grid.columns,y=grid.index,z=grid.values,colorbar_title='IV %',connectgaps=False))
+        fig=go.Figure(go.Heatmap(x=grid.columns,y=grid.index,z=grid.values,colorbar_title='IV %',colorscale='Blues',connectgaps=False)) if view=='heatmap' else go.Figure(go.Surface(x=grid.columns,y=grid.index,z=grid.values,colorbar_title='IV %',colorscale='Blues',connectgaps=False))
         fig.update_layout(title=tr('Empirical implied volatility · %','Volatilité implicite empirique · %'),xaxis_title='K / S',yaxis_title=tr('Years','Années'),scene=dict(xaxis_title='K / S',yaxis_title=tr('Years','Années'),zaxis_title='IV %'))
         plot(fig,'eqd_surface',380)
         st.caption(tr('OTM put below the forward, call above; opposite type only if preferred quote is missing. Missing cells remain gaps. No arbitrage-free calibration is claimed.',
@@ -122,7 +128,8 @@ def render_chain(lab,chain):
         term=term_structure(chain)
         plot(px.line(term['data'].assign(iv_pct=term['data'].atm_iv*100),x='time_to_maturity',y='iv_pct',markers=True,
             labels={'time_to_maturity':tr('Years','Années'),'iv_pct':'ATM IV %'}),'eqd_term')
-        st.caption(tr('Descriptive shape','Forme descriptive')+': '+term['shape'])
+        shapes={'insufficient maturities':'échéances insuffisantes','approximately flat':'quasi plate','upward-sloping':'croissante','downward-sloping':'décroissante','mixed / humped':'mixte / en bosse'}
+        st.caption(tr('Descriptive shape: '+term['shape'],'Forme descriptive : '+shapes[term['shape']]))
         table(term['data'])
     rows=[{'metric':k,'value_decimal':v,'method':m['methods'].get(k,'difference of the stated IV observations')} for k,v in m.items() if k!='methods']
     table(pd.DataFrame(rows),tr('Skew metrics & interpolation','Mesures de skew et interpolation'))
@@ -130,27 +137,27 @@ def render_chain(lab,chain):
     indices=chosen.index.tolist()
     selected=st.selectbox(tr('Quote to use as position input','Cotation à utiliser pour la position'),indices,
         format_func=lambda i:f"{chosen.loc[i,'option_type']} · K {chosen.loc[i,'strike']:g} · IV {chosen.loc[i,'implied_volatility']:.2%}",key='eqd_quote')
-    st.button(tr('Load quote into position','Charger la cotation dans la position'),on_click=_load_quote,args=(chosen.loc[selected].to_dict(),))
+    st.button(tr('Load quote into position','Charger la cotation dans la position'),key='eqd_load_quote',on_click=_load_quote,args=(chosen.loc[selected].to_dict(),))
 
 
 def render_position_inputs(lab):
     p=lab.position
     with st.expander(tr('Position inputs','Paramètres de la position'),expanded=True):
         a,b,c,d=st.columns(4)
-        kind=a.selectbox('Call / Put',['Call','Put'],index=['Call','Put'].index(p.option_type),key='eqd_pos_kind')
-        spot=b.number_input('Spot',min_value=.01,value=float(p.spot),key='eqd_pos_spot')
-        strike=c.number_input('Strike',min_value=.01,value=float(p.strike),key='eqd_pos_strike')
-        years=d.number_input(tr('Remaining years · ACT/365','Années restantes · ACT/365'),min_value=.0001,max_value=50.,value=float(p.maturity),format='%.6f',key='eqd_pos_time')
+        kind=a.selectbox('Call / Put',['Call','Put'],index=['Call','Put'].index(p.option_type),key='eqd_pos_kind',on_change=_mark_position_input)
+        spot=b.number_input('Spot',min_value=.01,value=float(p.spot),key='eqd_pos_spot',on_change=_mark_position_input)
+        strike=c.number_input('Strike',min_value=.01,value=float(p.strike),key='eqd_pos_strike',on_change=_mark_position_input)
+        years=d.number_input(tr('Remaining years · ACT/365','Années restantes · ACT/365'),min_value=.0001,max_value=50.,value=float(p.maturity),format='%.6f',key='eqd_pos_time',on_change=_mark_position_input)
         a,b,c,d=st.columns(4)
-        vol=a.number_input('IV %',min_value=.01,max_value=6400.,value=float(p.volatility*100),key='eqd_pos_vol')/100
-        rate=b.number_input(tr('Continuous rate %','Taux continu %'),min_value=-50.,max_value=100.,value=float(p.rate*100),key='eqd_pos_rate')/100
-        dividend=c.number_input(tr('Dividend yield %','Rendement dividende %'),min_value=-50.,max_value=100.,value=float(p.dividend*100),key='eqd_pos_div')/100
-        quantity=d.number_input(tr('Signed contracts','Contrats signés'),value=float(p.quantity),key='eqd_pos_quantity')
+        vol=a.number_input('IV %',min_value=.01,max_value=6400.,value=float(p.volatility*100),key='eqd_pos_vol',on_change=_mark_position_input)/100
+        rate=b.number_input(tr('Continuous rate %','Taux continu %'),min_value=-50.,max_value=100.,value=float(p.rate*100),key='eqd_pos_rate',on_change=_mark_position_input)/100
+        dividend=c.number_input(tr('Dividend yield %','Rendement dividende %'),min_value=-50.,max_value=100.,value=float(p.dividend*100),key='eqd_pos_div',on_change=_mark_position_input)/100
+        quantity=d.number_input(tr('Signed contracts','Contrats signés'),value=float(p.quantity),key='eqd_pos_quantity',on_change=_mark_position_input)
         a,b=st.columns(2)
-        multiplier=a.number_input(tr('Units per contract','Unités par contrat'),min_value=.01,value=float(p.multiplier),key='eqd_pos_multiplier')
+        multiplier=a.number_input(tr('Units per contract','Unités par contrat'),min_value=.01,value=float(p.multiplier),key='eqd_pos_multiplier',on_change=_mark_position_input)
         lab.currency=b.selectbox(tr('Quote currency','Devise de cotation'),['USD','EUR','GBP','JPY'],index=['USD','EUR','GBP','JPY'].index(lab.currency),key='eqd_pos_currency')
+        st.caption(tr('Currency labels option and curve-lab amounts; changing it does not perform FX conversion.', 'La devise libelle les montants des labos options et courbe ; la modifier ne réalise aucune conversion FX.'))
         lab.position=OptionPosition(kind,spot,strike,years,rate,vol,dividend,quantity,multiplier)
-        if lab.position!=p:lab.position_source='USER INPUT'
         st.caption(tr('Input source','Source des saisies')+': '+lab.position_source)
 
 
@@ -189,7 +196,8 @@ def render_scenario(lab):
     matrix=grid.pivot(index='vol_points',columns='spot_shock',values='pnl')
     fig=go.Figure(go.Heatmap(x=matrix.columns*100,y=matrix.index,z=matrix.values,colorscale='RdBu',zmid=0,colorbar_title=lab.currency,connectgaps=False))
     fig.add_scatter(x=[0],y=[0],mode='markers',marker=dict(symbol='diamond-open',size=16,color='#eabc63'),name=tr('Base = 0','Base = 0'))
-    plot(fig.update_layout(xaxis_title=tr('Spot shock %','Choc spot %'),yaxis_title=tr('Vol points','Points de vol'),title=tr('Instantaneous spot / vol P&L · rates and time held fixed','P&L instantané spot / vol · taux et temps fixes')),'eqd_matrix')
+    plot(fig.update_layout(xaxis_title=tr('Spot shock %','Choc spot %'),yaxis_title=tr('Vol points','Points de vol'),title=tr('Instantaneous spot / vol P&L','P&L instantané spot / vol')),'eqd_matrix')
+    st.caption(tr('Matrix holds rates and time fixed; its zero-shock cell is marked with a diamond.', 'La matrice garde taux et temps fixes ; la cellule sans choc est repérée par un losange.'))
     if grid.pnl.isna().any():st.caption(tr('Blank cells: shocked IV is nonpositive; no volatility floor is imposed.','Cellules vides : IV choquée non positive ; aucun plancher de vol imposé.'))
     table(grid)
 
@@ -212,6 +220,6 @@ def render_hedge(lab):
 def render_greeks(lab):
     name=st.selectbox(tr('Greek map','Carte de Greek'),['delta','gamma','vega_1pct'],key='eqd_greek')
     data=greek_grid(lab.position,name)
-    plot(go.Figure(go.Heatmap(x=data.columns,y=data.index,z=data.values,colorbar_title=name)).update_layout(xaxis_title='Spot',yaxis_title=tr('Remaining years','Années restantes'),title=tr('Per-option-unit sensitivity','Sensibilité par unité d’option')),'eqd_greek_map')
+    plot(go.Figure(go.Heatmap(x=data.columns,y=data.index,z=data.values,colorbar_title=name,colorscale='Blues')).update_layout(xaxis_title='Spot',yaxis_title=tr('Remaining years','Années restantes'),title=tr('Per-option-unit sensitivity','Sensibilité par unité d’option')),'eqd_greek_map')
     st.caption(tr('Gamma typically concentrates near ATM at short maturities; Vega usually grows with maturity near ATM. All other inputs are held fixed.',
         'Le Gamma se concentre généralement près de l’ATM à courte échéance ; le Vega croît généralement avec la maturité près de l’ATM. Les autres paramètres restent fixes.'))

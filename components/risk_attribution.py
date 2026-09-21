@@ -28,7 +28,13 @@ def render_attribution(observations: pd.DataFrame, weights, confidence=.95, hori
     with a:plot(px.bar(base['contributions'],x='id',y='component_var',labels={'id':tr('Position','Position'),'component_var':tr('Component VaR','VaR composante')}),'lab_risk_contributions')
     with b:
         pca=base['pca']
-        plot(px.bar(pca,x='component',y=['variance_explained','portfolio_variance_share'],barmode='group',labels={'value':tr('Variance share','Part de variance')}),'lab_risk_pca')
+        fig=px.bar(pca,x='component',y=['variance_explained','portfolio_variance_share'],barmode='group',labels={'value':tr('Variance share','Part de variance'),'component':tr('Component','Composante')})
+        names={'variance_explained':tr('Overall explained variance','Variance globale expliquée'),
+               'portfolio_variance_share':tr('Portfolio variance share','Part de variance du portefeuille')}
+        for trace in fig.data:
+            trace.name=names[trace.name]
+        fig.update_layout(legend_orientation='v')
+        plot(fig,'lab_risk_pca')
     st.caption(tr('PCA uses covariance eigenvectors: overall explained variance differs from the portfolio’s variance allocation. PCA signs are conventional; components are statistical, not named economic factors.',
         'ACP sur les vecteurs propres de covariance : variance globale expliquée distincte de l’allocation de variance du portefeuille. Signes conventionnels ; composantes statistiques, pas facteurs économiques nommés.'))
     table(base['contributions'],tr('Marginal, component & percentage risk','Risques marginal, composante et pourcentage'))

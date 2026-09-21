@@ -3,6 +3,7 @@ from dataclasses import asdict
 import pandas as pd
 from reports.desk_report import write_workbook
 from services.lab import option_outputs,curve_outputs
+from engines.option_chain_engine import empirical_smile
 
 
 def lab_report_tables(lab) -> dict[str,pd.DataFrame]:
@@ -29,11 +30,13 @@ def lab_report_tables(lab) -> dict[str,pd.DataFrame]:
         'Sources':kv({'chain_source':lab.source,'chain_as_of':str(lab.as_of),'chain_mode':lab.mode,
             'position_source':lab.position_source,'quote_currency':lab.currency,'selected_maturity':options['maturity'],
             'curve_source':lab.curve_source,'risk_source':lab.risk_source or 'Not calculated this session'}),
-        'Option_Chain':options['chain']['chain'],'Rejected_Quotes':options['chain']['rejected'],
+        'Chain_Inputs':lab.chain.copy(),'Option_Chain':options['chain']['chain'],'Rejected_Quotes':options['chain']['rejected'],
+        'Empirical_Surface':empirical_smile(options['chain']['chain']),
         'Smile_Metrics':kv(smile),'Smile_Methods':kv(options['smile']['methods']),'Term_Structure':options['term']['data'],
         'Cash_Greeks':kv(options['position']),'Scenario_PnL':kv({**options['scenario']['parts'],**{k:v for k,v in options['scenario'].items() if k!='parts'}}),
         'Spot_Vol_Matrix':options['matrix'],'Delta_Hedge':kv(options['hedge']),'Hedge_Inputs':kv(asdict(lab.hedge_scenario)),
-        'Curve_Inputs':lab.curve,'Zero_Curve':curves['table'],'Curve_Scenario':curves['comparison'],
+        'Curve_Inputs':lab.curve,'Curve_Bond_Inputs':kv({'maturity_years':lab.curve_maturity,'coupon_decimal':lab.curve_coupon,'signed_nominal':lab.curve_notional,'currency':lab.currency}),
+        'Zero_Curve':curves['table'],'Curve_Scenario':curves['comparison'],
         'Curve_Cashflows':curves['risk']['cashflows'],'Curve_DV01':curves['risk']['buckets'],
         'Curve_Summary':kv({k:v for k,v in curves['risk'].items() if not isinstance(v,pd.DataFrame)}),
         **lab.risk_tables,'Methodology':pd.DataFrame({'convention':methods})}

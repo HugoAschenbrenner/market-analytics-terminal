@@ -290,8 +290,9 @@ def scenarios_to_records(scenarios: List[Scenario]) -> List[dict]:
 class MarketScenario:
     """Common lab shock units; independent from the legacy single-factor records.
 
-    Equity is a return; volatility/correlation are absolute decimal changes;
-    rate/twist are bp; time is calendar days. Twist is interpolated linearly in
+    Equity is a return; volatility an absolute decimal change; correlation a
+    signed blend weight toward +1 correlations or independence, not additive rho.
+    Rate/twist are bp; time is calendar days. Twist is interpolated linearly in
     tenor and held flat outside its nodes. Parallel and twist shocks are added.
     """
     name: str = 'Custom'
