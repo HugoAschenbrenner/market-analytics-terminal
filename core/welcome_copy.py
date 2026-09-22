@@ -53,6 +53,9 @@ WELCOME = {
 
 
 WELCOME.update({
+ 'welcome.intro': ('Browse markets, follow your chosen instruments and explore how a portfolio or contract responds to different assumptions. Observed data and analytical inputs are clearly distinguished.', 'Parcourez les marchés, suivez vos instruments et explorez la réaction d’un portefeuille ou d’un contrat à différentes hypothèses. Données observées et paramètres analytiques sont clairement distingués.'),
+ 'welcome.step1.title': ('Read the market context', 'Lisez le contexte de marché'),
+ 'welcome.step2.title': ('Follow an instrument into analytics', 'Passez du suivi aux analyses'),
  'welcome.markets.question': ('What is happening across markets?', 'Que se passe-t-il sur les marchés ?'),
  'welcome.markets.body': ('Browse observed prices, open any instrument, then explore its history, news and return correlations. Rates/FX pricing tools live under Analytics.', 'Parcourez les cotations observées, ouvrez une fiche, puis explorez historique, actualités et corrélations. Les outils de valorisation taux/FX restent dans Analyses.'),
  'welcome.step1.body': ('Open Markets or search for an instrument. Check its source and observation time before reading a price move.', 'Ouvrez Marchés ou recherchez un instrument. Vérifiez sa source et sa date avant de lire une variation.'),

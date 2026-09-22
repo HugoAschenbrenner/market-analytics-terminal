@@ -1,5 +1,5 @@
 """One reusable public security view for every instrument in the directory."""
-from components.themed_table import themed_dataframe
+from components.themed_table import compact_table
 import streamlit as st
 import plotly.graph_objects as go
 from core.securities import SECURITIES,peers
@@ -61,7 +61,7 @@ def render_chart(s,service,state):
     if q and s.unit!='yield':
         with st.expander(tr('Market statistics','Statistiques de marché')):
             pairs=[(tr('Open','Ouverture'),q.stats.get('open')),(tr('High','Plus haut'),q.stats.get('high')),(tr('Low','Plus bas'),q.stats.get('low')),(tr('52W high','Plus haut 52 sem.'),q.stats.get('fiftyTwoWeekHigh')),(tr('52W low','Plus bas 52 sem.'),q.stats.get('fiftyTwoWeekLow'))]
-            themed_dataframe([{tr('Metric','Mesure'):k,tr('Value','Valeur'):level(s,v)} for k,v in pairs],hide_index=True,width='stretch')
+            compact_table([{tr('Metric','Mesure'):k,tr('Value','Valeur'):level(s,v)} for k,v in pairs])
             if s.asset_class in ('Equities','ETFs','Commodities'):
                 st.caption(tr('Volume / 63-session average','Volume / moyenne 63 séances')+f': {large(q.stats.get("volume"))} / {large(q.stats.get("averageVolume"))}')
 

@@ -1,4 +1,4 @@
-from components.themed_table import themed_dataframe
+from components.themed_table import compact_table
 import html
 from datetime import datetime,timezone,timedelta
 import streamlit as st
@@ -44,7 +44,7 @@ def events_panel(id=None):
                          tr('Observed session','Séance observée'):move[1].strftime('%Y-%m-%d') if move else '—',
                          tr('Adjusted return','Rendement ajusté'):number(move[0]*100,2,True)+'%' if move else '—'})
         if rows:
-            themed_dataframe(rows,hide_index=True,width='stretch')
+            compact_table(rows)
             st.caption(tr('Adjusted close-to-close return for the first completed session on/after the reported date. Includes other market influences; this is not the causal impact of the event or an after-hours reaction. Missing observations are left blank.','Rendement de clôture à clôture ajusté de la première séance terminée à partir de la date publiée. Inclut les autres influences du marché : ce n’est ni un effet causal ni une réaction après clôture. Les observations manquantes restent vides.'))
         st.caption(tr('Provider-reported dates; confirm on the issuer’s investor-relations page. Earnings dates are shown in Fundamentals when supplied.','Dates publiées par le fournisseur ; à confirmer auprès des relations investisseurs. Les résultats figurent dans Fondamentaux si une date est fournie.'))
         if result.status=='stale':st.caption(tr('Event feed retained from the last successful request.','Événements conservés de la dernière requête réussie.'))
@@ -73,7 +73,7 @@ def fundamentals_panel(id):
     if fields.get('longBusinessSummary'):
         with st.expander(tr('About the company / fund','À propos de la société / du fonds')):st.write(fields['longBusinessSummary'])
     items=[(tr('Market cap','Capitalisation'),large(fields.get('marketCap'))+' '+SECURITIES[id].currency),(tr('Trailing P/E','PER historique'),number(fields.get('trailingPE'))),(tr('EPS','BPA'),number(fields.get('trailingEps'))),('Beta',number(fields.get('beta'))),(tr('Revenue','Chiffre d’affaires'),large(fields.get('totalRevenue'))),(tr('Net income','Résultat net'),large(fields.get('netIncomeToCommon')))]
-    themed_dataframe([{tr('Metric','Mesure'):label,tr('Value','Valeur'):value} for label,value in items],hide_index=True,width='stretch')
+    compact_table([{tr('Metric','Mesure'):label,tr('Value','Valeur'):value} for label,value in items])
     st.caption(tr('Financial reporting currency: ','Devise comptable : ')+str(fields.get('financialCurrency','—')))
     st.caption(tr('Monetary figures use the provider’s financial reporting currency, which can differ from the listing currency. Reporting periods and beta methodology depend on the provider.','Montants dans la devise comptable du fournisseur, qui peut différer de la devise de cotation. Périodes et méthode du bêta dépendent du fournisseur.'))
     q=get_market_service().quote(id).value
