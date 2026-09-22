@@ -60,6 +60,15 @@ def test_board_add_remove_reorder_and_book_preservation(observed):
     assert app.session_state.board_ids==['SPX','AAPL']
     assert app.session_state.terminal.book.positions.equals(before)
 
+
+def test_board_event_selection_reaches_the_selected_instrument(monkeypatch):
+    from components import market_context
+    called=[]
+    monkeypatch.setattr(market_context,'corporate_events',lambda id:(called.append(id) or [],DataResult()))
+    app=app_at('board',board_view='events',board_ids=['NVDA','AAPL'],board_ready=True)
+    app.selectbox(key='board_event_id').set_value('AAPL').run()
+    assert not app.exception and called[-1]=='AAPL'
+
 @pytest.mark.parametrize('value',[None,{},['INVALID'],['NVDA']*31,[1],'<script>'])
 def test_board_rejects_bad_configuration(value):
     with pytest.raises(ValueError):validate_board(value)

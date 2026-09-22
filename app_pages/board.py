@@ -30,8 +30,12 @@ def render(state):
     st.selectbox(tr('Add a security','Ajouter un instrument'),[id for id in SECURITIES if id not in ids],index=None,format_func=labels.get,key='board_add',on_change=_add,disabled=len(ids)>=30)
     view=st.segmented_control(tr('Board view','Vue du Board'),('quotes','news','events','sessions','portfolio'),default='quotes',format_func={'quotes':tr('Watchlist','Liste de suivi'),'news':tr('News','Actualités'),'events':tr('Events','Événements'),'sessions':tr('Sessions','Séances'),'portfolio':tr('Portfolio shortcuts','Accès portefeuille')}.get,required=True,key='board_view')
     if view=='quotes':quote_table(ids,'board_quotes')
-    elif view=='news':news_panel(ids[:12],'board',limit=12)
-    elif view=='events':events_panel(ids[0] if ids else None)
+    elif view=='news':
+        selection=st.multiselect(tr('News instruments · up to 12','Instruments des actualités · 12 maximum'),ids,default=ids[:12],max_selections=12,format_func=labels.get,key='board_news_ids')
+        news_panel(selection,'board',limit=12)
+    elif view=='events':
+        selected=st.selectbox(tr('Events for','Événements pour'),ids,index=0 if ids else None,format_func=labels.get,key='board_event_id')
+        events_panel(selected)
     elif view=='sessions':sessions()
     else:
         st.write(tr('Current book','Portefeuille courant')+f': {state.book.name} · {len(state.book.positions)} '+tr('positions','positions'))

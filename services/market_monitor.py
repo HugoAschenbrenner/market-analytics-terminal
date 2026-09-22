@@ -190,7 +190,8 @@ class MarketService:
             dates=frame.index.tz_convert(SECURITIES[id].timezone).date
             frame=frame.loc[dates==dates[-1]]
         elif period=='YTD':frame=frame.loc[frame.index>=pd.Timestamp(year=now.year,month=1,day=1,tz='UTC')]
-        elif period!='5Y':frame=frame.loc[frame.index>=now-pd.Timedelta(days={'5D':8,'1D':5,'1M':31,'6M':183,'1Y':366}.get(period,366))]
+        elif period=='5Y':frame=frame.loc[frame.index>=now-pd.DateOffset(years=5)]
+        else:frame=frame.loc[frame.index>=now-pd.Timedelta(days={'5D':8,'1D':5,'1M':31,'6M':183,'1Y':366}.get(period,366))]
         return replace(result,value=HistoricalPrices(id,frame,result.value[1].get('source',SECURITIES[id].provider),interval,'adjusted_close' in frame and frame.adjusted_close.notna().any()))
 
     def fundamentals(self,id):

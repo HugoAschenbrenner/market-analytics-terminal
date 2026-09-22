@@ -55,7 +55,7 @@ def volatility(id):
     if result.value is None:
         st.info(tr('Verified history unavailable.','Historique vérifié indisponible.'));return
     metrics=realized_volatility(result.value,window)
-    st.metric(tr('Annualized historical volatility','Volatilité historique annualisée'),number(metrics.annualized*100 if metrics.annualized is not None else None)+'%')
+    st.metric(tr('Annualized historical volatility','Volatilité historique annualisée'),number(metrics.annualized*100)+'%' if metrics.annualized is not None else '—')
     if not metrics.series.empty:
         chart(go.Figure(go.Scatter(x=metrics.series.tail(252).index,y=metrics.series.tail(252)*100,mode='lines',name='RV')).update_layout(yaxis_title='%',showlegend=False),key='security_rv',height=230)
     st.caption(f'{result.value.source} · {metrics.basis} · n={metrics.observations} · {metrics.as_of}')

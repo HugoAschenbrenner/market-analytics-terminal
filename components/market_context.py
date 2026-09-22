@@ -35,7 +35,17 @@ def events_panel(id=None):
         st.caption(tr('Reported dividends and splits','Dividendes et splits publiés'))
         recent=[e for e in events if now-timedelta(days=366)<=e.when<=now+timedelta(days=180)]
         if not recent:st.info(tr('No verified corporate events available.','Aucun événement d’entreprise vérifié disponible.'))
-        for event in recent[:10]:st.write(f'{event.when:%Y-%m-%d} · {event.title}')
+        from services.market_statistics import event_move
+        history=get_market_service().history(id,'5Y')
+        rows=[]
+        for event in recent[:10]:
+            move=event_move(history.value,event.when,now) if history.value is not None else None
+            rows.append({tr('Reported date','Date publiée'):f'{event.when:%Y-%m-%d}',tr('Event','Événement'):event.title,
+                         tr('Observed session','Séance observée'):move[1].strftime('%Y-%m-%d') if move else '—',
+                         tr('Adjusted return','Rendement ajusté'):number(move[0]*100,2,True)+'%' if move else '—'})
+        if rows:
+            themed_dataframe(rows,hide_index=True,width='stretch')
+            st.caption(tr('Adjusted close-to-close return for the first completed session on/after the reported date. Includes other market influences; this is not the causal impact of the event or an after-hours reaction. Missing observations are left blank.','Rendement de clôture à clôture ajusté de la première séance terminée à partir de la date publiée. Inclut les autres influences du marché : ce n’est ni un effet causal ni une réaction après clôture. Les observations manquantes restent vides.'))
         st.caption(tr('Provider-reported dates; confirm on the issuer’s investor-relations page. Earnings dates are shown in Fundamentals when supplied.','Dates publiées par le fournisseur ; à confirmer auprès des relations investisseurs. Les résultats figurent dans Fondamentaux si une date est fournie.'))
         if result.status=='stale':st.caption(tr('Event feed retained from the last successful request.','Événements conservés de la dernière requête réussie.'))
     events,results=macro_events()

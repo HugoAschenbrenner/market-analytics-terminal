@@ -117,3 +117,16 @@ def test_treasury_tenors_share_year_reads_and_use_dated_previous_observation(mon
     assert 'US Treasury' in second.value.source
     assert service.history('US10Y','5Y').value is not None
     assert len(calls)==6  # Expanded history reuses the two already retrieved years.
+
+
+@pytest.mark.parametrize('id',['US10Y','DE10Y','NVDA'])
+def test_five_year_view_clips_provider_calendar_year_blocks(monkeypatch,id):
+    from core.market_contracts import DataResult
+    now=pd.Timestamp.now(tz='UTC')
+    dates=[now-pd.DateOffset(years=5)-pd.Timedelta(days=1),now-pd.DateOffset(years=5)+pd.Timedelta(days=1),now-pd.Timedelta(days=1)]
+    frame=pd.DataFrame({'close':[3.,4.,5.]},index=dates)
+    service=MarketService()
+    monkeypatch.setattr(service,'raw_chart',lambda *args:DataResult((frame,{},{}),'fresh'))
+    result=service.history(id,'5Y')
+    assert result.value.frame.close.tolist()==[4.,5.]
+    assert len(frame)==3  # Shared provider history is never modified by a view.

@@ -49,3 +49,11 @@ def test_event_move_has_no_future_or_missing_reference():
     h=history('AAPL',[100,110,105])
     assert event_move(h,'2025-01-02',NOW)[0]==pytest.approx(.1)
     assert event_move(h,'2027-01-01',NOW) is None
+
+
+def test_event_return_uses_split_adjustments_and_first_completed_session():
+    dates=pd.to_datetime(['2025-01-03T21:00Z','2025-01-06T21:00Z','2025-01-07T21:00Z'])
+    h=history('AAPL',[100,51,52],dates,adjusted=[50,51,52])
+    change,day=event_move(h,'2025-01-04',NOW)
+    assert change==pytest.approx(.02) and day==pd.Timestamp('2025-01-06')
+    assert event_move(h,'2025-01-07',datetime(2025,1,7,22,tzinfo=timezone.utc)) is None

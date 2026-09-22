@@ -14,7 +14,9 @@ def render_ticker():
     items=[]
     for id,result in data.items():
         s=SECURITIES[id];q=result.value
-        status=tr('unavailable','indisponible') if q is None else f'{q.source} · {q.frequency} · {q.observed_at:%Y-%m-%d %H:%M} UTC · {result.status}'
+        from components.market_ui import status_text
+        status=status_text(result,s)
+        if q:status=q.source+' · '+status
         items.append(dict(id=id,name=s.name,level=level(s,q.price if q else None),move=move(s,q),sign='positive' if q and q.change is not None and q.change>0 else 'negative' if q and q.change is not None and q.change<0 else '',detail=f'{s.name} · {status}'))
     st.caption(tr('Delayed / indicative · ticker refreshes every 5 min · pages refresh on interaction','Différé / indicatif · ticker actualisé toutes les 5 min · pages actualisées lors des interactions'))
     path=Path(__file__).with_name('monitor')
