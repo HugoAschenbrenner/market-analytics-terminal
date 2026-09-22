@@ -4,8 +4,8 @@ from components.market_ui import sessions,quote_table
 from components.market_context import news_panel,events_panel
 
 REGIONS={
- 'Americas':(['SPX','US10Y','WTI'],['Fed','SPX','NVDA']),
- 'Europe':(['SX5E','EURUSD','BRENT'],['ECB','BNP','CAC']),
+ 'Americas':(['SPX','US10Y','WTI'],['SPX','DJI']),
+ 'Europe':(['SX5E','EURUSD','BRENT'],['SX5E','CAC']),
  'Asia-Pacific':(['NIKKEI','HSI','USDJPY'],['NIKKEI','HSI']),
 }
 def render(state):
@@ -19,4 +19,9 @@ def render(state):
     elif view=='events':events_panel()
     else:
         quote_table(ids,'world_quotes_'+region)
-        news_panel(feeds,'world',region=region,limit=8)
+        policy={'Americas':'Fed','Europe':'ECB'}.get(region)
+        if policy:
+            st.markdown('#### '+tr('Central bank releases','Publications de la banque centrale'))
+            news_panel([policy],'world_policy',region=region,limit=3)
+        st.markdown('#### '+tr('Regional market headlines','Actualités des marchés régionaux'))
+        news_panel(feeds,'world',region=region,limit=5)

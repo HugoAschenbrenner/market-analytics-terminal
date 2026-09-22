@@ -69,6 +69,14 @@ def test_board_event_selection_reaches_the_selected_instrument(monkeypatch):
     app.selectbox(key='board_event_id').set_value('AAPL').run()
     assert not app.exception and called[-1]=='AAPL'
 
+
+def test_partial_calendar_failure_discloses_incomplete_coverage(monkeypatch):
+    from components import market_context
+    monkeypatch.setattr(market_context,'macro_events',lambda:([],{'BLS':DataResult(),'BEA':DataResult([],'fresh')}))
+    app=app_at('world',world_view='events')
+    assert not app.exception
+    assert any('Calendar feeds unavailable: BLS' in item.value and 'incomplete' in item.value for item in app.caption)
+
 @pytest.mark.parametrize('value',[None,{},['INVALID'],['NVDA']*31,[1],'<script>'])
 def test_board_rejects_bad_configuration(value):
     with pytest.raises(ValueError):validate_board(value)

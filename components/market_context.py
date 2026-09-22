@@ -56,6 +56,8 @@ def events_panel(id=None):
         stamp=event.when.strftime('%Y-%m-%d' if event.timing=='date only' else '%Y-%m-%d %H:%M UTC')
         st.write(f'{stamp} · {event.title} · {event.source}')
     if any(r.status=='stale' for r in results.values()):st.warning(tr('Calendar refresh failed; dates may have changed.','Actualisation du calendrier échouée ; les dates ont pu changer.'))
+    missing=[name for name,result in results.items() if result.value is None]
+    if missing:st.caption(tr('Calendar feeds unavailable: ','Flux calendaires indisponibles : ')+', '.join(missing)+tr('. Coverage is incomplete; use the official links.','. Couverture incomplète ; consultez les liens officiels.'))
     for name,(_,url) in CALENDARS.items():st.link_button(name+' · '+tr('official calendar','calendrier officiel'),url)
     st.link_button('FOMC · '+tr('meeting calendar','calendrier des réunions'),'https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm')
     st.link_button('ECB · '+tr('meeting calendar','calendrier des réunions'),'https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html')
