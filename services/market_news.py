@@ -55,6 +55,7 @@ def parse_rss(text,source,category='Macro',region='Global',security_id=''):
 
 
 def feed(key):
+    if key in SECURITIES and SECURITIES[key].unit=='yield':return feed('ECB' if key=='DE10Y' else 'Fed')
     if key in SECURITIES:
         s=SECURITIES[key]
         url='https://feeds.finance.yahoo.com/rss/2.0/headline?'+urlencode({'s':s.symbol,'region':'US','lang':'en-US'})
@@ -97,7 +98,7 @@ def parse_ics(text,source,url):
             zone=UTC if value.endswith('Z') else ZoneInfo(re.search(r'TZID=([^;]+)',key).group(1)) if 'TZID=' in key else ZoneInfo('America/New_York')
             when=datetime.strptime(value.rstrip('Z'),'%Y%m%dT%H%M%S' if 'T' in value else '%Y%m%d').replace(tzinfo=zone).astimezone(UTC)
         except (ValueError,AttributeError,KeyError):continue
-        title=plain(record['SUMMARY'].replace('\\,',',').replace('\\n',' '),250)
+        title=plain(record['SUMMARY'].replace('\\,',',').replace('\\n',' ').replace('\\;',';').replace('\\\\','\\'),250)
         events.append(Event(title,when,source,safe_url(record.get('URL')) or url,timing='date only' if 'T' not in value else 'scheduled'))
     return sorted(events,key=lambda e:e.when)
 

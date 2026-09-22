@@ -1,4 +1,5 @@
 """Compact observed correlations and volatility, linked to the preserved labs."""
+from components.themed_table import themed_dataframe
 import html
 from concurrent.futures import ThreadPoolExecutor
 import streamlit as st
@@ -89,5 +90,5 @@ def fx_crosses(quotes):
         st.info(tr('FX dates differ; cross-rate matrix withheld.','Dates FX différentes ; matrice de taux croisés non calculée.'));return
     if len(rates)<2:return
     matrix=pd.DataFrame({quote:{base:rates[base]/rates[quote] for base in rates} for quote in rates})
-    st.dataframe(matrix.style.format('{:.4f}'),width='stretch')
+    themed_dataframe(matrix.style.format('{:.4f}'),width='stretch')
     st.caption(tr('Indicative derived cross rates: one unit of row currency in column currency. Same observation date, potentially different quote times; not executable bid/ask prices.','Taux croisés indicatifs calculés : une unité de devise en ligne exprimée dans la devise en colonne. Même date, heures de cotation potentiellement différentes ; pas des prix bid/ask exécutables.'))

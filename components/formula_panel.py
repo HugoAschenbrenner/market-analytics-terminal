@@ -1,3 +1,4 @@
+from components.themed_table import themed_dataframe
 import streamlit as st
 from core.i18n import t
 
@@ -9,4 +10,4 @@ def formula_panel(key, formulas=()):
 
 def view_data(frame):
     with st.expander(t("data")):
-        st.dataframe(frame, width="stretch")
+        themed_dataframe(frame, width="stretch")

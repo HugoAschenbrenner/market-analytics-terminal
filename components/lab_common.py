@@ -1,4 +1,5 @@
 """Small bilingual presentation helpers; existing chart theme stays authoritative."""
+from components.themed_table import themed_dataframe
 import streamlit as st
 from core.charting import style_figure
 
@@ -30,4 +31,4 @@ def metrics(items):
 
 def table(data,label=None):
     with st.expander(label or tr('Data & calculation details','Données et détails du calcul')):
-        st.dataframe(data,width='stretch',hide_index=True)
+        themed_dataframe(data,width='stretch',hide_index=True)

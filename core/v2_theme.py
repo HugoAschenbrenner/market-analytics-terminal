@@ -133,10 +133,17 @@ def apply_theme(theme):
       .js-plotly-plot {{touch-action:pan-y}}
     }}
     @media(prefers-reduced-motion:reduce) {{*,*::before,*::after {{scroll-behavior:auto!important;transition:none!important}}}}
-    .st-key-terminal-header [data-testid="stHorizontalBlock"] {{display:grid;grid-template-columns:minmax(170px,1.1fr) minmax(220px,2fr) 80px 105px;align-items:center;gap:.5rem}}
+    .st-key-terminal-header [data-testid="stHorizontalBlock"] {{display:grid;grid-template-columns:minmax(120px,220px) minmax(220px,1fr) 80px 105px;align-items:center;gap:.5rem}}
     .st-key-terminal-header [data-testid="stColumn"] {{width:100%!important;min-width:0!important;grid-column:auto!important}}
     .mat-version-switch {{margin:.2rem 0!important;padding:.3rem .6rem!important;border-radius:3px!important;background:var(--surface)!important;border-color:var(--border)!important;color:var(--text-secondary)!important;font-size:.75rem!important}}
     .mat-version-switch a {{color:var(--accent)!important}}
+    .mat-version-switch strong {{display:none!important}}
+    .mat-version-switch small:first-of-type {{display:none!important}}
+    .mat-version-switch small {{color:var(--text-secondary)!important}}
+    .mat-version-switch a.mat-version-link {{min-height:30px!important;padding:.2rem .7rem!important;border-color:var(--border)!important}}
+    .news-story {{padding:.6rem 0;border-bottom:1px solid var(--border)}}
+    .news-story a {{font-weight:600;font-size:.9rem}}
+    .news-story p {{margin:.25rem 0 0!important;font-size:.78rem!important;color:var(--text-secondary)!important}}
     .monitor-note {{font-size:.78rem;color:var(--text-secondary);line-height:1.4}}
     .monitor-heading {{font-size:1.25rem;font-weight:650;margin:.35rem 0}}
     .session-grid {{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.35rem}}

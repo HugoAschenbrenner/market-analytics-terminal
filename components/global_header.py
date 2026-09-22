@@ -72,7 +72,8 @@ def global_header(state):
     options=FAMILIES[family_for(state.ui.page)]
     st.session_state['workspace']=state.ui.page
     labels={p:page_label(p) for p in options}
-    st.segmented_control(t('workspaces'),options,format_func=labels.get,key='workspace',on_change=_page_changed,required=True,label_visibility='collapsed')
+    if len(options)>1:
+        st.segmented_control(t('workspaces'),options,format_func=labels.get,key='workspace',on_change=_page_changed,required=True,label_visibility='collapsed')
     from components.market_ticker import render_ticker
     render_ticker()
     from components.board_storage import render_board_storage

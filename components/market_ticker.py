@@ -16,6 +16,7 @@ def render_ticker():
         s=SECURITIES[id];q=result.value
         status=tr('unavailable','indisponible') if q is None else f'{q.source} · {q.frequency} · {q.observed_at:%Y-%m-%d %H:%M} UTC · {result.status}'
         items.append(dict(id=id,name=s.name,level=level(s,q.price if q else None),move=move(s,q),sign='positive' if q and q.change is not None and q.change>0 else 'negative' if q and q.change is not None and q.change<0 else '',detail=f'{s.name} · {status}'))
+    st.caption(tr('Delayed / indicative · ticker refreshes every 5 min · pages refresh on interaction','Différé / indicatif · ticker actualisé toutes les 5 min · pages actualisées lors des interactions'))
     path=Path(__file__).with_name('monitor')
     comp=components.component('mat_market_ticker',html='<div class="ticker" aria-label="Market ticker"></div>',css=(path/'ticker.css').read_text(),js=(path/'ticker.mjs').read_text())
     result=comp(key='market_ticker',height='content',data={'items':items,'tokens':TOKENS[st.session_state.terminal.ui.theme]},on_clicked_change=lambda:None)

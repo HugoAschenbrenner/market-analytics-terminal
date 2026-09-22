@@ -1,4 +1,5 @@
 """One reusable public security view for every instrument in the directory."""
+from components.themed_table import themed_dataframe
 import streamlit as st
 import plotly.graph_objects as go
 from core.securities import SECURITIES,peers
@@ -6,7 +7,7 @@ from core.market_formatting import level,move,number,large
 from core.monitor_copy import tr,asset_label
 from core.charting import chart
 from services.market_monitor import get_market_service
-from components.market_ui import provenance
+from components.market_ui import provenance,security_session
 
 def render(state):
     id=st.query_params.get('security','NVDA')
@@ -17,7 +18,8 @@ def render(state):
     st.caption(f'{asset_label(s.asset_class)} · {s.venue} · {s.currency} · {s.unit}')
     if q:
         with st.container(key='metrics-security'):
-            a,b,c=st.columns(3);a.metric(tr('Last level','Dernier niveau'),level(s,q.price));b.metric(tr('Change','Variation'),move(s,q));c.metric(tr('Previous observation','Observation précédente'),level(s,q.previous_close))
+            a,b,c,d=st.columns(4);a.metric(tr('Last level','Dernier niveau'),level(s,q.price));b.metric(tr('Change','Variation'),move(s,q));c.metric(tr('Absolute change','Variation absolue'),number(q.change,4 if s.unit=='fx' else 2,True)+(' pp' if s.unit=='yield' else ''));d.metric(tr('Previous observation','Observation précédente'),level(s,q.previous_close))
+    st.caption(security_session(s,q))
     provenance(result,s)
     from core.board import add_to_board,board_ids
     st.button(tr('Add to Board','Ajouter au Board') if id not in board_ids() else tr('Already on Board','Déjà dans le Board'),key='security_add_board',disabled=id in board_ids() or len(board_ids())>=30,on_click=add_to_board,args=(id,))
@@ -37,25 +39,29 @@ def render(state):
 
 def render_chart(s,service,state):
     id=s.id;q=service.quote(id).value
-    period=st.segmented_control(tr('Horizon','Horizon'),('1D','5D','1M','6M','YTD','1Y','5Y'),default='1Y',key='security_period',required=True)
+    control,chart_control=st.columns([3,1])
+    period=control.segmented_control(tr('Horizon','Horizon'),('1D','5D','1M','6M','YTD','1Y','5Y'),default='1Y',key='security_period',required=True)
     modes=['Line','Area'] if s.unit=='yield' else ['Line','Area','Candlestick','OHLC']
-    mode=st.selectbox(tr('Chart','Graphique'),modes,key='security_chart_'+('yield' if s.unit=='yield' else 'price'))
+    mode=chart_control.selectbox(tr('Chart','Graphique'),modes,key='security_chart_'+('yield' if s.unit=='yield' else 'price'))
     history=service.history(id,period)
     if history.value is None or history.value.frame.empty:
         st.info(tr('No verified history for this horizon.','Aucun historique vérifié sur cet horizon.'))
     else:
         frame=history.value.frame
         if mode in ('Candlestick','OHLC') and all(c in frame for c in ('open','high','low')):
+            from core.v2_theme import TOKENS
+            colors=TOKENS[state.ui.theme]
             cls=go.Candlestick if mode=='Candlestick' else go.Ohlc
-            fig=go.Figure(cls(x=frame.index,open=frame.open,high=frame.high,low=frame.low,close=frame.close,name=id))
+            fig=go.Figure(cls(x=frame.index,open=frame.open,high=frame.high,low=frame.low,close=frame.close,name=id,increasing_line_color=colors['positive'],decreasing_line_color=colors['negative']))
         else:fig=go.Figure(go.Scatter(x=frame.index,y=frame.close,mode='lines',fill='tozeroy' if mode=='Area' else None,name=id))
         fig.update_layout(xaxis_rangeslider_visible=False,yaxis_title='%' if s.unit=='yield' else 'points' if s.unit in ('index','vol_index') else s.unit if s.asset_class=='Commodities' else s.currency,showlegend=False)
         chart(fig,key='security_price',height=330)
         st.caption(tr('Unadjusted observed prices; UTC timestamps. Intraday views show the latest available session. Daily histories can reflect splits and futures rolls.','Prix observés non ajustés ; horodatage UTC. La vue intrajournalière montre la dernière séance disponible. Les historiques peuvent refléter splits et changements de contrat.'))
+        if history.status=='stale':st.warning(tr('Chart uses the last successful history; refresh failed.','Le graphique utilise le dernier historique disponible ; actualisation échouée.'))
     if q and s.unit!='yield':
         with st.expander(tr('Market statistics','Statistiques de marché')):
             pairs=[(tr('Open','Ouverture'),q.stats.get('open')),(tr('High','Plus haut'),q.stats.get('high')),(tr('Low','Plus bas'),q.stats.get('low')),(tr('52W high','Plus haut 52 sem.'),q.stats.get('fiftyTwoWeekHigh')),(tr('52W low','Plus bas 52 sem.'),q.stats.get('fiftyTwoWeekLow'))]
-            st.dataframe([{tr('Metric','Mesure'):k,tr('Value','Valeur'):level(s,v)} for k,v in pairs],hide_index=True,width='stretch')
+            themed_dataframe([{tr('Metric','Mesure'):k,tr('Value','Valeur'):level(s,v)} for k,v in pairs],hide_index=True,width='stretch')
             if s.asset_class in ('Equities','ETFs','Commodities'):
                 st.caption(tr('Volume / 63-session average','Volume / moyenne 63 séances')+f': {large(q.stats.get("volume"))} / {large(q.stats.get("averageVolume"))}')
 

@@ -99,3 +99,21 @@ def test_old_observation_detected_separately_from_cache_freshness():
     q=Quote('NVDA',100,None,datetime(2026,9,1,tzinfo=UTC),'USD','fixture')
     assert observation_is_old(SECURITIES['NVDA'],q,datetime(2026,9,21,tzinfo=UTC))
     assert not observation_is_old(SECURITIES['DE10Y'],q,datetime(2026,9,21,tzinfo=UTC))
+
+
+def test_treasury_tenors_share_year_reads_and_use_dated_previous_observation(monkeypatch):
+    from services import market_monitor
+    from urllib.parse import urlparse,parse_qs
+    calls=[]
+    def request(url):
+        year=int(parse_qs(urlparse(url).query)['field_tdr_date_value'][0]);calls.append(year)
+        return f'''<feed xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata"><m:properties><d:NEW_DATE>{year}-01-02</d:NEW_DATE><d:BC_2YEAR>4.00</d:BC_2YEAR><d:BC_10YEAR>4.20</d:BC_10YEAR></m:properties><m:properties><d:NEW_DATE>{year}-01-03</d:NEW_DATE><d:BC_2YEAR>3.95</d:BC_2YEAR><d:BC_10YEAR>4.10</d:BC_10YEAR></m:properties></feed>'''
+    monkeypatch.setattr(market_monitor,'request_text',request)
+    service=market_monitor.MarketService()
+    first=service.quote('US2Y');second=service.quote('US10Y')
+    assert len(calls)==2 and len(set(calls))==2
+    assert first.value.change==pytest.approx(-.05)
+    assert second.value.change==pytest.approx(-.1)
+    assert 'US Treasury' in second.value.source
+    assert service.history('US10Y','5Y').value is not None
+    assert len(calls)==6  # Expanded history reuses the two already retrieved years.

@@ -1,3 +1,4 @@
+from components.themed_table import themed_dataframe
 from components.education import explain
 import numpy as np
 import plotly.express as px
@@ -62,6 +63,6 @@ def render_fx(state):
             data=result['flows'].rename(columns={k:t(k) for k in ['unhedged','forward','option','collar']})
             chart(px.line(data,x='spot',y=[col for col in data if col!='spot'],title=t('fx.hedge'),labels={'spot':t('spot'),'value':t('proceeds'),'variable':t('strategy')}),height=360)
             details=result['details'].copy();details.strategy=details.strategy.map(t)
-            st.dataframe(details.rename(columns={k:t(k) for k in details}),hide_index=True,width='stretch')
+            themed_dataframe(details.rename(columns={k:t(k) for k in details}),hide_index=True,width='stretch')
             if result['collar'] is None:st.info(t('collar.unavailable'))
             formula_panel('hedge.method');view_data(result['flows'])

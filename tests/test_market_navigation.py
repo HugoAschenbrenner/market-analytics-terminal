@@ -41,3 +41,20 @@ global_header(get_state())
 open_security('SPX')
 ''',default_timeout=30).run()
     assert not app.exception and app.query_params['page']==['security']
+
+@pytest.mark.parametrize('stamp,opened,next_day',[
+    ('2026-12-25T15:00:00',False,28),
+    ('2026-11-27T17:59:00',True,27),
+    ('2026-11-27T18:01:00',False,30),
+    ('2028-07-03T18:00:00',False,5),
+])
+def test_verified_nyse_holidays_and_early_closes(stamp,opened,next_day):
+    result=session_state(SESSIONS[0],datetime.fromisoformat(stamp).replace(tzinfo=timezone.utc))
+    assert result['scheduled_open']==opened
+    assert result['holiday_verified']
+    assert result['next'].day==next_day
+
+
+def test_holiday_calendar_is_not_extrapolated_beyond_verified_years():
+    result=session_state(SESSIONS[0],datetime(2029,1,1,15,tzinfo=timezone.utc))
+    assert not result['holiday_verified']

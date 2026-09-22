@@ -1,3 +1,4 @@
+from components.themed_table import themed_dataframe
 import html
 from datetime import datetime,timezone,timedelta
 import streamlit as st
@@ -11,7 +12,7 @@ from services.market_news import collect_news,macro_events,corporate_events,CALE
 def news_panel(keys,key,query='',category='All',region=None,limit=10,order='newest'):
     from components.global_header import open_security
     articles,results=collect_news(keys)
-    articles=[a for a in articles if (category=='All' or a.category==category) and (not region or a.region in (region,'Global')) and (not query or query.lower() in (a.headline+' '+a.description).lower())]
+    articles=[a for a in articles if (category=='All' or a.category==category or category=='Rates' and a.category=='Central Banks') and (not region or a.region in (region,'Global')) and (not query or query.lower() in (a.headline+' '+a.description).lower())]
     if order=='relevance' and query:
         articles.sort(key=lambda a:(a.headline.lower().count(query.lower())*2+a.description.lower().count(query.lower())),reverse=True)
     if not articles:st.info(tr('No matching verified headlines. Feeds may be unavailable or contain no matching stories.','Aucun titre vérifié correspondant. Les flux peuvent être indisponibles ou ne contenir aucun résultat.'))
@@ -41,7 +42,9 @@ def events_panel(id=None):
     upcoming=[e for e in events if now<=e.when<=now+timedelta(days=90)]
     st.caption(tr('Upcoming official US releases · next 90 days','Prochaines publications officielles US · 90 jours'))
     if not upcoming:st.info(tr('No verified upcoming release available from the calendar feeds. Consult the official schedules below.','Aucune publication à venir vérifiée dans les flux. Consultez les calendriers officiels ci-dessous.'))
-    for event in upcoming[:12]:st.write(f'{event.when:%Y-%m-%d %H:%M UTC} · {event.title} · {event.source}')
+    for event in upcoming[:12]:
+        stamp=event.when.strftime('%Y-%m-%d' if event.timing=='date only' else '%Y-%m-%d %H:%M UTC')
+        st.write(f'{stamp} · {event.title} · {event.source}')
     if any(r.status=='stale' for r in results.values()):st.warning(tr('Calendar refresh failed; dates may have changed.','Actualisation du calendrier échouée ; les dates ont pu changer.'))
     for name,(_,url) in CALENDARS.items():st.link_button(name+' · '+tr('official calendar','calendrier officiel'),url)
     st.link_button('FOMC · '+tr('meeting calendar','calendrier des réunions'),'https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm')
@@ -57,8 +60,8 @@ def fundamentals_panel(id):
     st.write(' · '.join(str(fields[k]) for k in ('country','sector','industry') if k in fields))
     if fields.get('longBusinessSummary'):
         with st.expander(tr('About the company / fund','À propos de la société / du fonds')):st.write(fields['longBusinessSummary'])
-    items=[(tr('Market cap','Capitalisation'),large(fields.get('marketCap'))),(tr('Trailing P/E','PER historique'),number(fields.get('trailingPE'))),(tr('EPS','BPA'),number(fields.get('trailingEps'))),('Beta',number(fields.get('beta'))),(tr('Revenue','Chiffre d’affaires'),large(fields.get('totalRevenue'))),(tr('Net income','Résultat net'),large(fields.get('netIncomeToCommon')))]
-    st.dataframe([{tr('Metric','Mesure'):label,tr('Value','Valeur'):value} for label,value in items],hide_index=True,width='stretch')
+    items=[(tr('Market cap','Capitalisation'),large(fields.get('marketCap'))+' '+SECURITIES[id].currency),(tr('Trailing P/E','PER historique'),number(fields.get('trailingPE'))),(tr('EPS','BPA'),number(fields.get('trailingEps'))),('Beta',number(fields.get('beta'))),(tr('Revenue','Chiffre d’affaires'),large(fields.get('totalRevenue'))),(tr('Net income','Résultat net'),large(fields.get('netIncomeToCommon')))]
+    themed_dataframe([{tr('Metric','Mesure'):label,tr('Value','Valeur'):value} for label,value in items],hide_index=True,width='stretch')
     st.caption(tr('Financial reporting currency: ','Devise comptable : ')+str(fields.get('financialCurrency','—')))
     st.caption(tr('Monetary figures use the provider’s financial reporting currency, which can differ from the listing currency. Reporting periods and beta methodology depend on the provider.','Montants dans la devise comptable du fournisseur, qui peut différer de la devise de cotation. Périodes et méthode du bêta dépendent du fournisseur.'))
     q=get_market_service().quote(id).value
