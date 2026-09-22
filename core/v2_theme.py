@@ -19,6 +19,7 @@ def apply_theme(theme):
     h1 {{font-size:1.65rem!important}} h2 {{font-size:1.2rem!important}} h3 {{font-size:1rem!important}}
     .stApp {{font-family:Inter,Arial,sans-serif}}
     [data-testid="stVerticalBlock"] {{gap:.5rem}}
+    [data-testid="stMarkdownContainer"]:has(> div, > nav) {{margin-bottom:0!important}}
     [data-testid="stColumn"], [data-testid="stElementContainer"] {{min-width:0}}
     [data-testid="stCaptionContainer"] {{opacity:1!important}}
     [data-testid="stCaptionContainer"] p {{color:var(--text-secondary)!important;font-size:.8rem;line-height:1.45}}
@@ -31,7 +32,7 @@ def apply_theme(theme):
     [class*="st-key-metrics-"] [data-testid="stColumn"] {{width:100%!important;min-width:0!important}}
     [data-baseweb="select"] > div, [data-baseweb="input"], [data-testid="stNumberInput"] input,
     [data-testid="stTextInput"] input, [data-testid="stNumberInput"] button, .stButton button,
-    .stDownloadButton button, [data-baseweb="popover"], [role="listbox"], [role="option"],
+    .stDownloadButton button, [data-testid="stLinkButton"] a, [data-baseweb="popover"], [role="listbox"], [role="option"],
     [role="combobox"], [data-testid="stSelectbox"] [role="group"],
     [data-testid="stNumberInputContainer"], [data-testid="stTextInputRootElement"] {{background:var(--surface)!important;color:var(--text-primary)!important;border-color:var(--border)!important;border-radius:5px!important}}
     [data-testid="stSelectbox"] button, [data-testid="stSelectbox"] button svg, [data-testid="stSelectbox"] svg {{color:var(--text-secondary)!important}}

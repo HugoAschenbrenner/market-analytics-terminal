@@ -101,6 +101,128 @@ calendar entries, 17 future releases at verification. BLS returned HTTP 403;
 its failure is isolated with a direct official-calendar link. No invented dates.
 Board browser checks cover instrument addition and persisted configuration.
 
-Remaining planned polish: responsive/light/French browser checks, compact shell,
-source/session clarity, final edge-case review and full regression. No V1 files,
-dependencies or frozen manifest entries changed.
+### Completed polish and interruption recovery
+
+The initial resumed state was `e81cc05`, already on GitHub, with local UI/session
+polish only. That work was retained. A later interruption left `3a13766` already
+pushed and four context-polish files locally modified; those were recovered
+without resetting the checkout. The 63 targeted checks from that interruption
+had completed successfully.
+
+Completed afterward: compact responsive headers and chart controls, synchronized
+theme colors, native semantic market tables, bilingual source explanations,
+provider session labels, the verified NYSE 2026–2028 holiday/early-close calendar,
+precise five-calendar-year chart clipping, selectable Board news/events, adjusted
+event-date returns with no causal claim, and explicit partial-calendar coverage.
+World now separates central-bank releases from regional market headlines.
+
+Validated and pushed checkpoints: `6471599` (data foundation), `1925ddb`
+(navigation/Markets), `e81cc05` (security/context/Board), `b759151` (responsive and
+session polish), `3a13766` (event returns and Board selection), `1118f70` (macro
+priorities and calendar coverage), `a3cf7e5` (compact table consistency).
+The final documentation/visual-validation commit follows these checkpoints.
+
+The final resumption found `a3cf7e5` on the remote branch, no staged changes, and
+only this report plus two CSS corrections locally modified. The last complete
+regression run had already succeeded. Those changes were preserved: custom HTML
+blocks no longer inherit Streamlit's negative bottom margin, preventing the
+version/book and market-strip/metric overlaps; link buttons now use the V2 theme's
+surface and text colors. Rendered geometry confirmed an 8px strip-to-metrics gap,
+and computed colors confirmed readable dark-theme links.
+
+## Data conventions and limitations
+
+- Yahoo Finance chart observations are delayed/indicative, not an exchange live
+  feed; 5-minute cache, with one resource reused by all monitoring views. Daily
+  charts show raw OHLC; return analytics use adjusted closes for equities/ETFs.
+  Current local calendar days are conservatively excluded from daily analytics.
+- US Treasury yields are daily published **par** yields, cached one hour. German
+  10Y is a **monthly average** from FRED/OECD, never described as a live Bund quote.
+  FRED was unavailable during verification and the UI kept an empty observation.
+- Futures are continuous front contracts, not spot commodity prices. Contract
+  rolls can affect changes. FX cross rates are calculated indications, checked
+  for a common date, with potentially different observation times.
+- Correlations use aligned returns or yield changes in basis points. The
+  20/60/120/252 window counts common observations. Realized volatility uses sample
+  log-return dispersion and 252 periods/year (365 for crypto). No market IV is
+  invented; the existing educational chain retains its synthetic label.
+- RSS uses Yahoo, Federal Reserve and ECB feeds, cached ten minutes. Security tags
+  identify feeds; they are not a guarantee of article relevance or impact. Search
+  ranking counts text matches, without a sentiment/geopolitical risk score.
+- BEA's actual ICS subscription was verified, including UTC conversion across
+  DST. BLS returned HTTP 403: coverage is explicitly incomplete and direct
+  calendar links remain available. Corporate dividends/splits and optional
+  earnings timestamps are provider-reported, not an exhaustive events service.
+- Optional fundamentals use yfinance with an eight-second UI wait and bounded
+  concurrency. Missing fields remain empty. Financial reporting and listing
+  currencies are identified. Provider reporting periods may differ.
+- Sessions use IANA time zones and Asian lunch breaks. Only NYSE holidays and
+  early closes for 2026–2028 are verified; other holiday calendars, auctions and
+  exceptional closures remain explicitly unverified. The display is a scheduled
+  state, not live exchange status. Beyond 2028, NYSE holidays are not extrapolated.
+- Caches retain the last successful observation on failure, preserving its date;
+  failure retries are bounded. Last-success caches are in memory and disappear on
+  server restart. A fresh fetch does not imply a fresh underlying observation.
+- Board configuration persists on the same browser/origin only; it can be
+  exported/imported as JSON. Portfolio and lab states are separate. Switching
+  versions opens a new session; the existing export warning remains visible.
+
+Source references: [Tape](https://tapefinance.com/#/),
+[NYSE calendar](https://www.nyse.com/trade/hours-calendars),
+[Treasury rates](https://home.treasury.gov/resource-center-data-chart-center/interest-rates),
+[BEA subscription](https://www.bea.gov/news/schedule/ics/online-calendar-subscription.ics),
+[BLS calendar](https://www.bls.gov/schedule/),
+[FRED German yield series](https://fred.stlouisfed.org/series/IRLTLT01DEM156N).
+
+## Architecture and material files
+
+The V2 router is `terminal_v2.py`; `components/global_header.py` owns grouped
+navigation and global security search. New routes are `app_pages/market_monitor.py`,
+`security.py`, `world.py`, `news.py`, and `board.py`. The preserved rates/FX page is
+registered as `analytics`. Metadata, contracts, financial formatting and exchange
+schedules live in `core/securities.py` and `core/market_*`. Fetch/cache, news,
+statistics and explicit lab transfers live in `services/market_*` and
+`services/security_workflows.py`. Monitoring presentation lives in
+`components/market_*` and `components/monitor/`; `core/v2_theme.py` is V2-only.
+
+No dependencies, V1 pages, V1 engine files, `app.py`, `core/theme.py`, version-switch
+implementation or freeze-manifest entries were changed by this redesign.
+
+## Validation
+
+Automated suite: **917 passed**, most recent completed full run 89.72 seconds,
+including the final CSS corrections.
+This includes financial calculation/regression tests, JS interactive-Greeks
+parity, Streamlit route/state interactions, cache failure and single-flight tests,
+feed parsing, date/return alignment, split adjustments, common-date comparisons,
+Board persistence contracts and explicit Options/FX transfer preservation.
+Python compilation and `git diff --check` pass. No separate lint/type/build
+configuration is defined in this Python/Streamlit repository.
+
+V1 proof: all **42 frozen files** were compared byte-for-byte with Git reference
+`a68b64c1d1e9092322a4a6fce0c4f9fc19ced0b9`; zero differences. The tests also
+verify its complete local import closure, all six V1 routes, and default/invalid
+version routing in both languages. Existing analytics assertions were preserved;
+navigation tests were adjusted to the new V2 grouping only.
+
+Browser checks used real rendered Streamlit pages, live provider responses and
+DOM width checks. Tested CSS widths include **391, 900, 1440 and 1920 pixels**.
+Dark/English and light/French were inspected. Checked Markets and correlations,
+NVDA price/volatility/events/fundamentals, chart theme changes, World regional news
+and sessions, News, Board and its retained Apple entry after reload, Treasury
+curve/2s10s and FX crosses. Mobile charts fit their container; menus wrap, metric
+cards form two columns, and wide tables scroll within their own container.
+No document-wide horizontal overflow was observed at those tested widths.
+Preserved EQD smile/surface, rates/FX analytics and portfolio overview were also
+inspected. Structured Products' unloaded-book state was inspected; its pricing
+and loaded-book behaviors are covered by automated regression tests.
+
+The actual V2 “Back to V1” link was followed and the frozen V1 appearance checked.
+Opening the bare root URL displayed V1's “Multi-Asset Desk Utility Platform”;
+clicking “Discover V2” then loaded the redesigned V2 welcome page with its market
+ticker, grouped navigation and introductory workflows. Both directions work.
+
+The redesigned code is pushed to **`codex/terminal-v2`**. The production `main`
+branch is intentionally unchanged, with V1 still the default. A GitHub push is
+not evidence of a Streamlit Cloud redeployment: the new V2 public deployment is
+not claimed as verified. The localhost preview runs this branch at port 8502.
