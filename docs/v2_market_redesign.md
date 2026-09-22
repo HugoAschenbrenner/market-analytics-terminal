@@ -222,7 +222,29 @@ Opening the bare root URL displayed V1's “Multi-Asset Desk Utility Platform”
 clicking “Discover V2” then loaded the redesigned V2 welcome page with its market
 ticker, grouped navigation and introductory workflows. Both directions work.
 
-The redesigned code is pushed to **`codex/terminal-v2`**. The production `main`
-branch is intentionally unchanged, with V1 still the default. A GitHub push is
-not evidence of a Streamlit Cloud redeployment: the new V2 public deployment is
-not claimed as verified. The localhost preview runs this branch at port 8502.
+At the original implementation handoff, the redesigned code was pushed only to
+`codex/terminal-v2`; the public deployment had not yet been updated or verified.
+
+## Streamlit publication — 22 September 2026
+
+The user subsequently requested publication on the existing Streamlit app.
+The complete suite was rerun: **917 passed in 61.97 seconds**, with compilation,
+diff checks and all 42 frozen V1 file comparisons passing. The tested application
+commit `7e7bbce5048e7eaf0eb9d9a5a637e8ba586305f7` was fast-forwarded from
+`codex/terminal-v2` to `main`; both remote refs were verified at that SHA. No
+application code or dependency changes were needed for publication.
+
+The public app refreshed after the push and loaded the restored five-module V1
+at its bare root. Its Discover V2 link loaded the new grouped navigation, global
+search, market ticker and introductory workflow. Production Markets displayed
+dated Yahoo observations and Treasury yields; the unavailable German series
+stayed empty. Clicking S&P 500 opened its security page with prices, provenance,
+chart horizons and a rendered one-year history. This verifies the actual hosted
+interface, rather than inferring deployment solely from a GitHub push.
+The Back to V1 link then returned to the restored V1 home successfully.
+
+Public entry points: [V1 default](https://market-analytics-terminal.streamlit.app/)
+and [V2](https://market-analytics-terminal.streamlit.app/?version=v2&page=welcome&lang=en&theme=dark).
+The earlier pending-deployment note in `docs/v1_freeze.md` records the prior
+checkpoint and is superseded by this production verification. Provider and
+calendar limitations documented above continue to apply.
