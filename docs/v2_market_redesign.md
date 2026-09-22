@@ -77,3 +77,30 @@ and corrected a light table on the dark theme and navigation after component
 triggers. Yahoo observations loaded in the local preview; FRED timed out, while
 Treasury XML, Yahoo RSS, Federal Reserve RSS and ECB RSS responded successfully.
 BLS calendar requests returned HTTP 403; event views must preserve this limitation.
+
+### Security/context checkpoint
+
+Added return correlations (20/60/120/252 matched observations), adjusted-return
+realized volatility, public RSS with source/date/filtering, corporate events,
+official economic calendars, optional fundamentals, regional World, and a
+personal Board. Board IDs can be added/removed/reordered, stored in the browser
+or exported/imported as JSON. Explicit security→Options/FX transfers retain the
+existing labs and label user assumptions; observed prices never relabel the
+synthetic option chain. The old book is not silently re-marked by Board prices.
+
+US yields now come from the official Treasury daily par-yield XML (year resources
+shared across tenors). FRED remains the labelled German monthly series. Daily
+moves use the preceding dated close, including crypto's UTC calendar boundary.
+Compact sparklines, Treasury curves/spreads and indicative FX crosses were added.
+
+Validation before interruption: 905 tests passed in 55.90s, including all V1
+freeze tests. On resumption, 130 relevant tests passed again. Public-provider
+smoke: all tested US tenors and 54 combined Yahoo/Fed/ECB headlines available.
+The BEA subscription page's actual ICS link was resolved and verified: 119
+calendar entries, 17 future releases at verification. BLS returned HTTP 403;
+its failure is isolated with a direct official-calendar link. No invented dates.
+Board browser checks cover instrument addition and persisted configuration.
+
+Remaining planned polish: responsive/light/French browser checks, compact shell,
+source/session clarity, final edge-case review and full regression. No V1 files,
+dependencies or frozen manifest entries changed.

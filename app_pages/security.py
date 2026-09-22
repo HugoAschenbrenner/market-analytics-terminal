@@ -1,7 +1,7 @@
 """One reusable public security view for every instrument in the directory."""
 import streamlit as st
 import plotly.graph_objects as go
-from core.securities import SECURITIES
+from core.securities import SECURITIES,peers
 from core.market_formatting import level,move,number,large
 from core.monitor_copy import tr,asset_label
 from core.charting import chart
@@ -19,6 +19,24 @@ def render(state):
         with st.container(key='metrics-security'):
             a,b,c=st.columns(3);a.metric(tr('Last level','Dernier niveau'),level(s,q.price));b.metric(tr('Change','Variation'),move(s,q));c.metric(tr('Previous observation','Observation précédente'),level(s,q.previous_close))
     provenance(result,s)
+    from core.board import add_to_board,board_ids
+    st.button(tr('Add to Board','Ajouter au Board') if id not in board_ids() else tr('Already on Board','Déjà dans le Board'),key='security_add_board',disabled=id in board_ids() or len(board_ids())>=30,on_click=add_to_board,args=(id,))
+    from components.market_context import news_panel,events_panel,fundamentals_panel
+    from components.market_analytics import volatility,correlations
+    views=['summary','volatility','correlation','news','events']+(['fundamentals'] if s.asset_class in ('Equities','ETFs') else [])
+    labels={'summary':tr('Overview','Vue générale'),'volatility':tr('Volatility','Volatilité'),'correlation':tr('Peers / correlation','Pairs / corrélation'),'news':tr('News','Actualités'),'events':tr('Events','Événements'),'fundamentals':tr('Fundamentals','Fondamentaux')}
+    view=st.segmented_control(tr('Security context','Contexte de l’instrument'),views,default='summary',format_func=labels.get,key='security_view',required=True)
+    if view=='summary':render_chart(s,service,state)
+    elif view=='volatility':volatility(id)
+    elif view=='correlation':correlations([id,*peers(s)],'security_corr')
+    elif view=='news':news_panel([id]+(['Fed','ECB'] if s.asset_class in ('FX','Rates') else []),'security_news',limit=8)
+    elif view=='events':events_panel(id)
+    elif view=='fundamentals':fundamentals_panel(id)
+    analytical_links(s,q)
+
+
+def render_chart(s,service,state):
+    id=s.id;q=service.quote(id).value
     period=st.segmented_control(tr('Horizon','Horizon'),('1D','5D','1M','6M','YTD','1Y','5Y'),default='1Y',key='security_period',required=True)
     modes=['Line','Area'] if s.unit=='yield' else ['Line','Area','Candlestick','OHLC']
     mode=st.selectbox(tr('Chart','Graphique'),modes,key='security_chart_'+('yield' if s.unit=='yield' else 'price'))
@@ -31,7 +49,7 @@ def render(state):
             cls=go.Candlestick if mode=='Candlestick' else go.Ohlc
             fig=go.Figure(cls(x=frame.index,open=frame.open,high=frame.high,low=frame.low,close=frame.close,name=id))
         else:fig=go.Figure(go.Scatter(x=frame.index,y=frame.close,mode='lines',fill='tozeroy' if mode=='Area' else None,name=id))
-        fig.update_layout(xaxis_rangeslider_visible=False,yaxis_title='%' if s.unit=='yield' else s.currency,showlegend=False)
+        fig.update_layout(xaxis_rangeslider_visible=False,yaxis_title='%' if s.unit=='yield' else 'points' if s.unit in ('index','vol_index') else s.unit if s.asset_class=='Commodities' else s.currency,showlegend=False)
         chart(fig,key='security_price',height=330)
         st.caption(tr('Unadjusted observed prices; UTC timestamps. Intraday views show the latest available session. Daily histories can reflect splits and futures rolls.','Prix observés non ajustés ; horodatage UTC. La vue intrajournalière montre la dernière séance disponible. Les historiques peuvent refléter splits et changements de contrat.'))
     if q and s.unit!='yield':
@@ -40,3 +58,19 @@ def render(state):
             st.dataframe([{tr('Metric','Mesure'):k,tr('Value','Valeur'):level(s,v)} for k,v in pairs],hide_index=True,width='stretch')
             if s.asset_class in ('Equities','ETFs','Commodities'):
                 st.caption(tr('Volume / 63-session average','Volume / moyenne 63 séances')+f': {large(q.stats.get("volume"))} / {large(q.stats.get("averageVolume"))}')
+
+
+def analytical_links(s,q):
+    from components.global_header import navigate,open_security
+    from services.security_workflows import open_options,open_fx
+    with st.expander(tr('Continue into analytics','Poursuivre dans les analyses')):
+        st.caption(tr('Observed security data and book/lab assumptions are separate. Transfers require an explicit action.','Données observées et hypothèses des labos/portefeuilles sont séparées. Un transfert exige une action explicite.'))
+        if s.asset_class in ('Equities','Indexes','ETFs') and s.currency in ('USD','EUR','GBP','JPY'):
+            st.info(tr('No verified option chain / market IV is attached to this security. Realized volatility is not a substitute for implied volatility. The lab chain remains separately labelled.','Aucune chaîne d’options / IV de marché vérifiée n’est rattachée à cet instrument. La volatilité réalisée ne remplace pas l’implicite. La chaîne du labo conserve son propre libellé.'))
+            vol=st.number_input(tr('Model volatility assumption (%)','Hypothèse de volatilité du modèle (%)'),min_value=.1,max_value=300.,value=20.,key='security_assumed_vol')
+            st.button(tr('Use this spot in Options Lab · ATM example','Utiliser ce spot dans le labo options · exemple ATM'),key='security_open_options',disabled=q is None,on_click=open_options,args=(s.id,q,vol/100))
+        if s.asset_class=='FX':
+            st.caption(tr('Transfers the pair and observed spot. Domestic/foreign rates and option volatility remain separate user/model inputs.','Transfère la paire et le spot observé. Taux domestique/étranger et volatilité restent des hypothèses distinctes.'))
+            st.button(tr('Open FX analytics with this pair','Ouvrir les analyses FX avec cette paire'),key='security_open_fx',on_click=open_fx,args=(s.id,q))
+        st.button(tr('Open advanced analytics','Ouvrir les analyses avancées'),key='security_advanced',on_click=navigate,args=('analytics',))
+        st.button(tr('Open Portfolio / Risk','Ouvrir Portefeuille / Risque'),key='security_risk',on_click=navigate,args=('risk',))

@@ -3,12 +3,11 @@ import html
 from pathlib import Path
 import streamlit.components.v2 as components
 from core.v2_theme import TOKENS
-import pandas as pd
 import streamlit as st
 from core.securities import SECURITIES
-from core.market_formatting import level,move,number
+from core.market_formatting import level,move
 from core.market_sessions import SESSIONS,session_state
-from core.monitor_copy import tr,asset_label
+from core.monitor_copy import tr
 from services.market_monitor import get_market_service,observation_is_old
 
 
@@ -25,7 +24,7 @@ def quote_table(ids,key):
     rows=[]
     for id,result in quotes.items():
         s=SECURITIES[id];q=result.value
-        rows.append({tr('Instrument','Instrument'):f'{id} · {s.name}',tr('Level','Niveau'):level(s,q.price if q else None),tr('Move','Variation'):move(s,q),tr('Unit','Unité'):'%' if s.unit=='yield' else s.name if s.unit=='fx' else s.unit if s.asset_class=='Commodities' else s.currency if s.unit in ('price','crypto') else 'points',tr('Observation / status','Observation / statut'):status_text(result,s)})
+        rows.append({tr('Instrument','Instrument'):f'{id} · {s.name}',tr('Level','Niveau'):level(s,q.price if q else None),tr('Move','Variation'):move(s,q),tr('Recent path','Évolution récente'):None,tr('Unit','Unité'):'%' if s.unit=='yield' else s.name if s.unit=='fx' else s.unit if s.asset_class=='Commodities' else s.currency if s.unit in ('price','crypto') else 'points',tr('Observation / status','Observation / statut'):status_text(result,s)})
     if not rows:
         st.info(tr('No instruments selected.','Aucun instrument sélectionné.'));return quotes
     path=Path(__file__).with_name('monitor')
@@ -33,8 +32,10 @@ def quote_table(ids,key):
     rendered=[]
     for (id,result),row in zip(quotes.items(),rows):
         change=result.value.change if result.value else None
-        rendered.append(dict(id=id,cells=list(row.values()),sign='positive' if change is not None and change>0 else 'negative' if change is not None and change<0 else ''))
-    event=component(key=key,height='content',data={'headers':list(rows[0]),'rows':rendered,'tokens':TOKENS[st.session_state.terminal.ui.theme]},on_selected_change=lambda:None)
+        history=service.raw_chart(id)
+        spark=history.value[0].close.tail(30).dropna().astype(float).tolist() if history.value else []
+        rendered.append(dict(id=id,cells=list(row.values()),spark=spark,sign='positive' if change is not None and change>0 else 'negative' if change is not None and change<0 else ''))
+    event=component(key=key,height='content',data={'headers':list(rows[0]),'rows':rendered,'sparkLabel':tr('Last 30 available observations; independent scale','30 dernières observations disponibles ; échelle indépendante'),'tokens':TOKENS[st.session_state.terminal.ui.theme]},on_selected_change=lambda:None)
     if event.selected in quotes:
         open_security(event.selected);st.rerun()
     st.caption(tr('Select a row to open its security page. Moves compare with the previous observation; yields use basis points.','Sélectionnez une ligne pour ouvrir sa fiche. La variation compare les deux dernières observations ; les taux sont en points de base.'))

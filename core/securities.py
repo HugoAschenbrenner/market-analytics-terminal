@@ -42,18 +42,18 @@ DIRECTORY = [
     _s('NIKKEI','Nikkei 225','Indexes','^N225',currency='JPY',venue='Tokyo',region='Asia-Pacific',timezone='Asia/Tokyo',unit='index'),
     _s('HSI','Hang Seng','Indexes','^HSI',currency='HKD',venue='Hong Kong',region='Asia-Pacific',timezone='Asia/Hong_Kong',unit='index'),
     _s('VIX','Cboe VIX','Volatility','^VIX',venue='Cboe',unit='vol_index',aliases='volatility'),
-    *[_s(id,name,'FX',symbol,currency=currency,venue='OTC indicative',unit='fx',region='Global',aliases=id)
+    *[_s(id,name,'FX',symbol,currency=currency,venue='OTC indicative',unit='fx',region='Global',timezone='UTC',aliases=id)
       for id,name,symbol,currency in [('EURUSD','EUR/USD','EURUSD=X','USD'),('GBPUSD','GBP/USD','GBPUSD=X','USD'),
       ('USDJPY','USD/JPY','JPY=X','JPY'),('USDCHF','USD/CHF','CHF=X','CHF'),('AUDUSD','AUD/USD','AUDUSD=X','USD'),('USDCAD','USD/CAD','CAD=X','CAD')]],
-    *[_s(id,name,'Rates',symbol,provider='FRED / Federal Reserve H.15',unit='yield',venue='Daily constant maturity')
+    *[_s(id,name,'Rates',symbol,provider='US Treasury · daily par yield curve',unit='yield',venue='Daily Treasury par yield')
       for id,name,symbol in [('US2Y','US 2Y','DGS2'),('US5Y','US 5Y','DGS5'),('US10Y','US 10Y','DGS10'),('US30Y','US 30Y','DGS30')]],
     _s('DE10Y','Germany 10Y · monthly average','Rates','IRLTLT01DEM156N',currency='EUR',provider='FRED / OECD',unit='yield',venue='Monthly benchmark',region='Europe',timezone='Europe/Berlin',aliases='Bund German 10Y'),
     *[_s(id,name,'Commodities',symbol,venue='Futures · continuous front contract',unit=unit,region='Global')
       for id,name,symbol,unit in [('GOLD','Gold futures','GC=F','USD / troy oz'),('SILVER','Silver futures','SI=F','USD / troy oz'),
       ('BRENT','Brent futures','BZ=F','USD / barrel'),('WTI','WTI futures','CL=F','USD / barrel'),('COPPER','Copper futures','HG=F','USD / lb'),('WHEAT','Wheat futures','ZW=F','US cents / bushel')]],
     *[_s(id,name,'ETFs',venue='NYSE Arca / Nasdaq') for id,name in [('SPY','SPDR S&P 500 ETF'),('QQQ','Invesco QQQ'),('IWM','iShares Russell 2000 ETF'),('TLT','iShares 20+ Year Treasury ETF'),('HYG','iShares High Yield Corporate Bond ETF'),('GLD','SPDR Gold Shares')]],
-    _s('BTC','Bitcoin / USD','Crypto','BTC-USD',venue='Composite indicative',region='Global',unit='crypto'),
-    _s('ETH','Ethereum / USD','Crypto','ETH-USD',venue='Composite indicative',region='Global',unit='crypto'),
+    _s('BTC','Bitcoin / USD','Crypto','BTC-USD',venue='Composite indicative',region='Global',unit='crypto',timezone='UTC'),
+    _s('ETH','Ethereum / USD','Crypto','ETH-USD',venue='Composite indicative',region='Global',unit='crypto',timezone='UTC'),
 ]
 SECURITIES = {s.id:s for s in DIRECTORY}
 ASSET_GROUPS = ('Overview','Equities','Indexes','FX','Rates','Commodities','ETFs','Volatility','Crypto')

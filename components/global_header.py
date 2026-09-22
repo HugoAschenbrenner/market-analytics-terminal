@@ -10,6 +10,7 @@ FAMILIES={
     'derivatives':('equity-derivatives','structured-products','derivatives'),
     'analytics':('analytics',),
     'portfolio':('overview','risk','financing'),
+    'world':('world',),'news':('news',),'board':('board',),
 }
 PAGES=tuple(p for family in FAMILIES.values() for p in family)
 ALIASES={'home':'overview','cross-asset-dashboard':'overview','fixed-income-risk':'analytics','portfolio-risk':'risk','repo-sec-lending':'financing'}
@@ -41,6 +42,9 @@ def _family_changed():
 def _page_changed():navigate(st.session_state['workspace'])
 
 def page_label(page):
+    if page=='world':return tr('World','Monde')
+    if page=='news':return tr('News','Actualités')
+    if page=='board':return 'Board'
     if page=='markets':return tr('Market monitor','Vue marchés')
     if page=='analytics':return tr('Rates · FX · Cross-asset','Taux · FX · Multi-actifs')
     if page=='security':return tr('Security','Instrument')
@@ -71,6 +75,8 @@ def global_header(state):
     st.segmented_control(t('workspaces'),options,format_func=labels.get,key='workspace',on_change=_page_changed,required=True,label_visibility='collapsed')
     from components.market_ticker import render_ticker
     render_ticker()
+    from components.board_storage import render_board_storage
+    render_board_storage()
 
 def footer():
     with st.expander(t('about')):
