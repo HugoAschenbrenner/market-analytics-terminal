@@ -1,0 +1,26 @@
+{
+  "imports_seconds": 1.2612,
+  "provider_fixture": "0.15 seconds per request then OSError; no network",
+  "welcome": {
+    "cold_seconds": 1.3367,
+    "warm_seconds": 0.0162
+  },
+  "equity-derivatives": {
+    "cold_seconds": 0.8873,
+    "warm_seconds": 0.0393
+  },
+  "structured-products": {
+    "cold_seconds": 0.7182,
+    "warm_seconds": 0.0167
+  },
+  "market_failure": {
+    "cold_seconds": 0.1514,
+    "cached_seconds": 0.0011
+  },
+  "portfolio_100_seconds": 0.0431,
+  "option_matrix_35_cells_seconds": 0.0006,
+  "structured_10000_paths_seconds": 0.0163,
+  "lab_report_seconds": 0.1313,
+  "report_bytes": 54648,
+  "provider_requests": 57
+}
