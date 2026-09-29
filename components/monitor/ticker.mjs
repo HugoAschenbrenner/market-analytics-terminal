@@ -1,6 +1,20 @@
 export default function({data,parentElement,setTriggerValue}) {
  const root=parentElement.querySelector('.ticker');
  root.style.cssText=`--bg:${data.tokens.surface};--fg:${data.tokens.text_primary};--muted:${data.tokens.text_secondary};--line:${data.tokens.border};--up:${data.tokens.positive};--down:${data.tokens.negative};--accent:${data.tokens.accent}`;
+ // Keep the animated strip on fragment polls, including while prices load.
+ // Recreating it every five seconds would restart the 100-second animation.
+ const identity=JSON.stringify(data.items.map(item=>item.id));
+ const existing=root.querySelector('.strip');
+ if(existing && root.dataset.identity===identity){
+  for(const group of existing.children) data.items.forEach((item,i)=>{
+   const button=group.children[i];button.title=item.detail;button.setAttribute('aria-label',item.detail);
+   button.children[0].textContent=item.name;button.children[1].textContent=item.level;
+   button.children[2].textContent=item.move;button.children[2].className=item.sign;
+   button.onclick=()=>setTriggerValue('clicked',item.id);
+  });
+  return;
+ }
+ root.dataset.identity=identity;
  const strip=document.createElement('div'); strip.className='strip';
  for(let repeat=0;repeat<2;repeat++){
   const group=document.createElement('div');group.className='group';

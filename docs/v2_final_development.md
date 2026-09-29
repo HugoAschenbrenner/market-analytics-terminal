@@ -95,3 +95,27 @@ Each substantial completed unit must be tested, committed and pushed before the
 next. Live-provider smoke tests are bounded and separate from deterministic CI.
 No advanced stochastic-volatility/correlation/XVA model is planned. Unavailable
 external inputs retain manual/offline alternatives with honest labels.
+
+## Checkpoint 1a — deferred global ticker, complete
+
+The global ticker now returns a nonblocking snapshot and polls its fragment every
+5 seconds, with 5-minute price and 1-hour yield refresh eligibility. A shared
+six-worker queue de-duplicates requests across sessions and is bounded by the
+security directory; failure retries wait 60 seconds. Prior observations and
+successful retrieval dates survive failed refreshes. No worker touches session
+state. Explicit market pages reuse the same in-flight requests. Ticker DOM nodes
+are updated in place so polling does not restart the scrolling animation.
+
+Validation: **922 passed in 61.08s**, including blocked-provider independent-page
+render tests, concurrency/retry/observation preservation and Node DOM identity.
+Local browser: English/dark welcome rendered while all ticker data was loading,
+with explicit loading labels and no substituted prices. Full responsive matrix
+remains checkpoint 7. Diff whitespace check passed.
+
+Measured local timings in `performance/v2_deferred_ticker.json`: welcome first
+0.6967s/warm 0.0074s; EQD 0.2032s/0.0413s; structured entry 0.1046s/0.0064s;
+controlled failure 0.3104s/cached 0.0000s. Independent pages no longer wait for
+provider completion. These measurements include local runtime variation; the
+stronger regression is that rendering completes while providers remain blocked.
+Benchmark teardown cancels unneeded queued work; its request count is not a
+production traffic forecast. Other checkpoint 1 items remain pending.

@@ -13,8 +13,10 @@ from services.market_monitor import get_market_service,observation_is_old
 
 def status_text(result,security):
     q=result.value
+    if result.status=='loading':return tr('Loading in background · no substitute price','Chargement en arrière-plan · aucun prix de substitution')
     if not q:return tr('Unavailable · no substitute price','Indisponible · aucun prix de substitution')
     status=tr('Last success · refresh failed','Dernier succès · actualisation échouée') if result.status=='stale' else tr('Old observation','Observation ancienne') if observation_is_old(security,q) else tr('Delayed / indicative','Différé / indicatif')
+    if result.status=='refreshing':status=tr('Last observation · refreshing','Dernière observation · actualisation en cours')
     if security.unit=='yield':
         frequency=tr('Monthly average','Moyenne mensuelle') if security.id=='DE10Y' else tr('Daily published yield','Taux quotidien publié')
         return f'{frequency} · {q.observed_at:%Y-%m-%d}'+(' · '+status if result.status=='stale' or observation_is_old(security,q) else '')

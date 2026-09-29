@@ -125,6 +125,10 @@ def chart_quote(security,chart):
 class MarketService:
     def __init__(self,cache=None):
         self.cache=cache or MarketCache()
+        self.quote_pool=ThreadPoolExecutor(max_workers=6,thread_name_prefix='mat-quotes')
+        self.quote_jobs={}
+        self.quote_results={}
+        self.quote_lock=RLock()
         self.fundamental_pool=ThreadPoolExecutor(max_workers=2)
         self.fundamental_jobs={}
         self.fundamental_lock=RLock()
@@ -175,10 +179,47 @@ class MarketService:
         try:return replace(result,value=chart_quote(SECURITIES[id],result.value))
         except (ValueError,TypeError,IndexError,OverflowError):return DataResult(message='Invalid quote from provider.')
 
+    def quote_snapshot(self,ids):
+        """Return immediately; at most one queued/running refresh per security.
+
+        Workers only fetch/parse data, never access Streamlit/session state.
+        The finite directory bounds the queue and retained results. All sessions
+        use the same six workers; failed results wait 60s before another attempt.
+        """
+        now=self.cache.clock();results={}
+        with self.quote_lock:
+            for id in dict.fromkeys(id for id in ids if id in SECURITIES):
+                job=self.quote_jobs.get(id)
+                if job is not None and job.done():
+                    try:result=job.result()
+                    except Exception:result=DataResult(message='Provider unavailable.')
+                    self.quote_results[id]=(result,now)
+                    del self.quote_jobs[id];job=None
+                previous=self.quote_results.get(id)
+                ttl=60 if previous and previous[0].status in ('stale','unavailable') else 3600 if SECURITIES[id].unit=='yield' else 300
+                expired=previous is None or (now-previous[1]).total_seconds()>=ttl
+                if expired and job is None:
+                    job=self.quote_pool.submit(self.quote,id);self.quote_jobs[id]=job
+                if job is not None:
+                    results[id]=replace(previous[0],status='refreshing') if previous and previous[0].value is not None else DataResult(status='loading')
+                else:results[id]=previous[0]
+        return results
+
     def quotes(self,ids):
-        ids=tuple(dict.fromkeys(id for id in ids if id in SECURITIES))
-        with ThreadPoolExecutor(max_workers=6) as pool:
-            return dict(zip(ids,pool.map(self.quote,ids)))
+        """Explicit market views may wait; share the ticker's in-flight work."""
+        results=self.quote_snapshot(ids)
+        with self.quote_lock:jobs={id:self.quote_jobs[id] for id in results if id in self.quote_jobs}
+        for id,job in jobs.items():
+            try:results[id]=job.result()
+            except Exception:results[id]=DataResult(message='Provider unavailable.')
+        # Another session may have drained a completed job since our snapshot.
+        # Re-read the shared result after waiting so no loading state escapes.
+        return self.quote_snapshot(results)
+
+    def close(self):
+        """Lifecycle hook for isolated tests/benchmarks, never a per-page action."""
+        self.quote_pool.shutdown(wait=True,cancel_futures=True)
+        self.fundamental_pool.shutdown(wait=True,cancel_futures=True)
 
     def history(self,id,period='1Y'):
         result=self.raw_chart(id,period)

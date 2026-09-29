@@ -12,3 +12,8 @@ def offline_v2_context(monkeypatch):
     from services import market_news
     monkeypatch.setattr(market_news,'request_text',lambda *a,**kw: (_ for _ in ()).throw(OSError('Offline test')))
     monkeypatch.setattr(market_monitor.MarketService,'fundamentals',lambda *a,**kw: __import__('core.market_contracts',fromlist=['DataResult']).DataResult())
+    yield
+    # Background ticker fetches must finish under the offline fixture, before
+    # monkeypatch restores real network adapters for the next test.
+    market_monitor.get_market_service().close()
+    market_monitor.get_market_service.clear()

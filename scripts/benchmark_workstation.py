@@ -51,6 +51,8 @@ def main():
             _, warm = measure(app.run)
             assert not app.exception, app.exception
             results[page] = {'cold_seconds': cold, 'warm_seconds': warm}
+            current = market_monitor.get_market_service()
+            if hasattr(current, 'close'): current.close()
         service = market_monitor.MarketService()
         _, failed = measure(lambda: service.quotes(('SPX', 'NVDA', 'DE10Y')))
         _, cached = measure(lambda: service.quotes(('SPX', 'NVDA', 'DE10Y')))

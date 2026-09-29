@@ -7,10 +7,10 @@ from core.v2_theme import TOKENS
 from core.monitor_copy import tr
 from services.market_monitor import get_market_service
 
-@st.fragment(run_every=300)
+@st.fragment(run_every=5)
 def render_ticker():
     from components.global_header import open_security
-    data=get_market_service().quotes(TICKER_IDS)
+    data=get_market_service().quote_snapshot(TICKER_IDS)
     items=[]
     for id,result in data.items():
         s=SECURITIES[id];q=result.value
