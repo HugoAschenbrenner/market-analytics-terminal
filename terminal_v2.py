@@ -8,13 +8,13 @@ from app_pages import overview, markets, risk_lab, derivatives_lab, financing, w
 def render():
     from services.market_data import ensure_market
     state=get_state()
-    book_pages=('overview','analytics','risk','derivatives','financing','structured-products')
+    book_pages=('overview','analytics','risk','derivatives','financing')
     if page_from_query() in book_pages:
         ensure_market(state)
     global_header(state)
     from components.version_switch import render_version_switch
     render_version_switch("v2", state.ui.language, state.ui.theme)
-    if state.ui.page in book_pages or state.ui.page=='equity-derivatives':
+    if state.ui.page in book_pages or state.ui.page in ('equity-derivatives','structured-products'):
         context=st.session_state.get('security_context')
         if context:
             from core.monitor_copy import tr

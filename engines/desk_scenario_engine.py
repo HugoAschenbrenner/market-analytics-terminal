@@ -50,7 +50,7 @@ def evaluate_scenario(marks,market,book,scenario):
         elif r.asset_class=='Structured':
             from dataclasses import replace
             from services.structured import contract_for
-            from engines.structured_risk_engine import value_note
+            from engines.structured_risk_engine import value_note,correlation_bounds
             inputs,ratios,product,memory,_=contract_for(r._asdict(),market,book.structured_terms)
             scale=r.quantity*r.multiplier*market.fx[r.currency]/market.fx[book.base_currency]
             def val(i,rr):return value_note(i,tuple(rr),product,memory)['summary']['value']*scale
@@ -58,8 +58,8 @@ def evaluate_scenario(marks,market,book,scenario):
             spot=val(inputs,shocked)
             vi=replace(inputs,volatilities=tuple(max(.001,v+scenario.volatility) for v in inputs.volatilities))
             vol=val(vi,shocked);ri=replace(vi,risk_free_rate=vi.risk_free_rate+rates/1e4);rate_value=val(ri,shocked)
-            lower=-1/(len(ratios)-1)+.0001 if len(ratios)>1 else -.99
-            ci=replace(ri,correlation=float(np.clip(ri.correlation+scenario.correlation,lower,.9999)))
+            lower,upper=correlation_bounds(len(ratios))
+            ci=replace(ri,correlation=float(np.clip(ri.correlation+scenario.correlation,lower,upper)))
             final=val(ci,shocked)
             factors.update(equity=spot-base,volatility=vol-spot,rates=rate_value-vol,correlation=final-rate_value)
         if r.currency!=book.base_currency:

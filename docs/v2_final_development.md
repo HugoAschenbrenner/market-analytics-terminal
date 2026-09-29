@@ -119,3 +119,30 @@ provider completion. These measurements include local runtime variation; the
 stronger regression is that rendering completes while providers remain blocked.
 Benchmark teardown cancels unneeded queued work; its request count is not a
 production traffic forecast. Other checkpoint 1 items remain pending.
+
+## Checkpoint 1b — independent structured laboratory, complete
+
+Structured Products opens a fixed-date Phoenix worst-of example immediately,
+without calling the shared-book market initializer. Independent edits preserve
+positions, NAV inputs, market context, risk settings and financing; shared-book
+analysis is an explicit alternate mode. An empty shared book is never replaced.
+Draft product/basket selectors update dependent fields before applying a validated
+contract. Athena has no ineffective memory checkbox. Independent labels describe
+laboratory terms rather than claiming they modify the portfolio.
+
+V2 accepts the closed PSD equicorrelation domain [-1/(n-1), 1]. The audited
+interior GBM simulator remains reused; singular endpoints use the limiting
+Cholesky factor without artificial jitter. Correlation sensitivities use common
+random draws and bounded one-sided/secant bumps at endpoints. Zero-shock book
+scenarios now preserve endpoint correlations exactly. Workloads are bounded to
+20,000 paths, 8 names, 12 observations/year, 30 years and two million path values;
+path-cache capacity is reduced from 128 to 16. The independent example contains
+no inherited repo liability or unrelated collateral.
+
+Validation: **940 passed in 82.50s**, zero failures/skips. Includes legacy Athena/
+Phoenix payoff parity, endpoint matrix reconstruction for 2/3/5/8 names, fixed-seed
+reproducibility, bounded sensitivity, zero-shock reconciliation and independent
+state/mode/EN/FR application tests. V1 freeze remains intact. Local browser checked
+French/light independent opening, model value and fixed-date caption; corrected
+scope-specific wording was confirmed after server restart. Full responsive visual
+coverage remains checkpoint 7. Other checkpoint 1 items remain pending.

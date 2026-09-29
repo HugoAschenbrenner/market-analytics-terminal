@@ -1,3 +1,4 @@
+from components.lab_common import tr
 from components.education import explain
 from dataclasses import replace
 import numpy as np
@@ -8,23 +9,39 @@ import streamlit as st
 from core.i18n import t,error_message
 from core.charting import chart
 from services.structured import contract_for
-from engines.structured_risk_engine import value_note,bump_risk,cashflows
+from engines.structured_risk_engine import value_note,bump_risk,cashflows,correlation_bounds
 from components.formula_panel import view_data,formula_panel
 from components.kpi_card import kpis
 
 
-def render_structured(state):
-    explain("structured")
+def render_structured(state, scope="shared"):
+    prefix = "note_" + scope
+    if scope == 'shared':
+        explain("structured")
+    else:
+        st.caption(tr('Fixed-seed Monte Carlo · probabilities are model estimates, not forecasts. Barrier sensitivities can be noisy.',
+                      'Monte Carlo à graine fixe · probabilités théoriques, pas des prévisions. Les sensibilités de barrière peuvent être bruitées.'))
     notes=state.book.positions.query("asset_class=='Structured'")
     if notes.empty:st.info(t('structured.none'));return
-    selected=st.selectbox(t('structured.select'),notes.id.tolist(),key='note_select')
+    selected=st.selectbox(t('structured.select') if scope=='shared' else tr('Laboratory contract','Contrat du laboratoire'),notes.id.tolist(),key=prefix+'_select')
     row=notes.set_index('id',drop=False).loc[selected].to_dict()
     inputs,ratios,product,memory,names=contract_for(row,state.market,state.book.structured_terms)
-    with st.expander(t('structured.terms')):
-        with st.form('note_terms'):
+    with st.expander(t('structured.terms') if scope=='shared' else tr('Contract inputs','Paramètres du contrat')):
+        # Draft product/basket controls rerun before rendering dependent inputs.
+        # The committed contract changes only on explicit form submission.
+        draft = f'{prefix}_{selected}_{state.book.revision}'
+        kind=st.selectbox(t('product'),['Athena','Phoenix'],index=['Athena','Phoenix'].index(product),key=draft+'_kind')
+        chosen=st.multiselect(t('underlyings'),[k for k in state.market.spots if k not in ['VIX','EURUSD']],default=list(names),max_selections=3,key=draft+'_names')
+        lower,upper=correlation_bounds(max(1,len(chosen)))
+        if len(chosen)>1:
+            st.caption(tr(f'Valid constant correlation: {lower:g} ≤ ρ ≤ {upper:g} for {len(chosen)} names. Bounds include singular positive-semidefinite cases.',
+                          f'Corrélation constante valide : {lower:g} ≤ ρ ≤ {upper:g} pour {len(chosen)} sous-jacents. Les bornes semi-définies positives sont admises.'))
+        with st.form(draft+'_terms'):
+
             a,b,c=st.columns(3)
-            kind=a.selectbox(t('product'),['Athena','Phoenix'],index=['Athena','Phoenix'].index(product))
-            mem=b.checkbox(t('memory'),value=memory)
+            mem=a.checkbox(t('memory'),value=memory) if kind=='Phoenix' else False
+            if kind=='Athena':
+                a.caption(tr('Athena: coupon accrues until redemption; no separate memory setting.', 'Athena : coupon accumulé au remboursement ; pas de réglage mémoire séparé.'))
             count=c.selectbox(t('simulations'),[1000,3000,10000],index=[1000,3000,10000].index(inputs.simulations))
             a,b,c=st.columns(3)
             ac=a.number_input(t('autocall_barrier'),min_value=.5,max_value=2.,value=inputs.autocall_barrier)
@@ -32,12 +49,12 @@ def render_structured(state):
             pb=c.number_input(t('protection_barrier'),min_value=.01,max_value=1.,value=inputs.protection_barrier)
             a,b,c=st.columns(3)
             coupon=a.number_input(t('coupon_rate'),min_value=0.,max_value=40.,value=inputs.coupon_rate*100)/100
-            corr=b.slider(t('correlation'),-.9,.95,float(inputs.correlation))
+            corr=b.slider(t('correlation'),lower,upper,float(np.clip(inputs.correlation,lower,upper)),step=.01,key=draft+f'_corr_{len(chosen)}') if len(chosen)>1 else 0.
             freq=c.selectbox(t('observations_year'),[1,2,4,12],index=[1,2,4,12].index(inputs.observations_per_year))
-            chosen=st.multiselect(t('underlyings'),[k for k in state.market.spots if k not in ['VIX','EURUSD']],default=list(names),max_selections=3)
-            detail=pd.DataFrame(dict(underlying=names,fixing=inputs.initial_spots,volatility=inputs.volatilities))
+            old_fixings=dict(zip(names,inputs.initial_spots));old_vols=dict(zip(names,inputs.volatilities))
+            detail=pd.DataFrame(dict(underlying=chosen,fixing=[old_fixings.get(n,state.market.spots[n]) for n in chosen],volatility=[old_vols.get(n,row['volatility']) for n in chosen]))
             edited=st.data_editor(detail,disabled=['underlying'],hide_index=True,column_config={'underlying':t('underlying'),'fixing':t('fixing'),'volatility':t('vol.decimal')})
-            if st.form_submit_button(t('book.apply')):
+            if st.form_submit_button(tr('Apply contract terms','Appliquer les termes du contrat')):
                 try:
                     old=edited.set_index('underlying')
                     fixings=tuple(float(old.loc[n,'fixing']) if n in old.index else state.market.spots[n] for n in chosen)
@@ -46,7 +63,7 @@ def render_structured(state):
                     ci,cr,cp,cm,_=contract_for(row,state.market,{selected:candidate});value_note(ci,cr,cp,cm)
                     state.book.structured_terms[selected]=candidate;state.book.revision+=1;state.risk.results.clear();st.rerun()
                 except (ValueError,ZeroDivisionError) as exc:st.error(error_message(exc))
-    tabs=st.tabs([t(k) for k in ['product','risk','simulation','advanced']],key='structured_tabs',on_change='rerun')
+    tabs=st.tabs([t(k) for k in ['product','risk','simulation','advanced']],key='structured_tabs' if scope=='shared' else prefix+'_tabs',on_change='rerun')
     result=value_note(inputs,ratios,product,memory);summary=result['summary'];flows=result['cashflows']
     if tabs[0].open:
         with tabs[0]:
@@ -63,6 +80,7 @@ def render_structured(state):
     if tabs[1].open:
         with tabs[1]:
             risk=bump_risk(inputs,ratios,product,memory)
+            st.caption(tr('Correlation sensitivity: a 1-point change with common random draws; a bounded one-sided bump is used near PSD limits.', 'Sensibilité de corrélation : variation de 1 point avec tirages communs ; choc unilatéral borné près des limites de validité.'))
             a,b=st.columns(2)
             with a:
                 distances=pd.DataFrame({t('autocall_barrier'):(np.array(ratios)-inputs.autocall_barrier)*100,t('coupon_barrier'):(np.array(ratios)-inputs.coupon_barrier)*100,t('protection_barrier'):(np.array(ratios)-inputs.protection_barrier)*100},index=names)

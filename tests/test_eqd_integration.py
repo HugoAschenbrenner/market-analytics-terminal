@@ -56,9 +56,9 @@ def test_v2_structured_products_has_dedicated_route():
     assert not app.exception and not app.error
     assert app.session_state.terminal.ui.page=='structured-products'
     assert not any(item.key=='eqd_view' for item in app.button_group)
-    app.button(key='load_structured_demo').click().run()
-    assert not app.exception and not app.error
     assert app.get('plotly_chart')
+    assert app.session_state.terminal.book.name == 'balanced'
+    assert app.session_state.structured_lab.book.positions.asset_class.eq('Structured').all()
 
 
 def test_report_includes_computed_inputs_and_no_formula_injection():
