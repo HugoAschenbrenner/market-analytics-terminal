@@ -42,6 +42,14 @@ def render(state):
         f'<span>{copy(state.book.source)}</span></div>', unsafe_allow_html=True,
     )
     st.caption(t('welcome.keep'))
+    from components.lab_common import tr
+    from app_pages.demonstrations import open_demo
+    st.subheader(tr('Start with a guided case', 'Commencez par un cas guidé'))
+    st.caption(tr('Three fixed offline examples. Opening them preserves your current portfolio.',
+                  'Trois exemples fixes hors ligne. Leur ouverture conserve votre portefeuille.'))
+    for col,key,label in zip(st.columns(3),('collar','eqd','autocallable'),
+                              (tr('1 · Equity protection','1 · Protection actions'),tr('2 · Option P&L & hedge','2 · P&L option et couverture'),tr('3 · Worst-of note','3 · Note worst-of'))):
+        col.button(label,key='welcome-demo-'+key,on_click=open_demo,args=(key,),width='stretch')
     st.header(t('welcome.menu'))
     st.caption(t('welcome.menu_hint'))
     with st.container(key='welcome-menu'):

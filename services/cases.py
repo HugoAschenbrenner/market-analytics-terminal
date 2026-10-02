@@ -36,7 +36,7 @@ MODEL_METADATA = {
 # Only selected views; numerical values live in validated domain models.
 VIEW_KEYS = {'eqd_view', 'eqd_surface_view', 'eqd_smile_axis', 'eqd_greek', 'structured_mode',
              'structured_tabs', 'note_independent_tabs', 'derivative_tabs', 'risk_tabs',
-             'risk_diagnostic', 'financing_tabs', 'board_view'}
+             'risk_diagnostic', 'financing_tabs', 'board_view', 'demo_choice'}
 INTERACTIVE_BOUNDS = {'S':(1,250), 'K':(1,250), 'T':(.01,10), 'sigma':(.01,1.5), 'r':(-.05,.2), 'q':(0,.2)}
 
 
@@ -291,7 +291,7 @@ def apply_case(raw, session, query):
 
 def valid_views(views,language):
     from core.i18n import t
-    enums={'eqd_view':('chain','position','scenario','hedge','greeks'), 'eqd_surface_view':('heatmap','surface','smile','term'),
+    enums={'demo_choice':('collar','eqd','autocallable'), 'eqd_view':('chain','position','scenario','hedge','greeks'), 'eqd_surface_view':('heatmap','surface','smile','term'),
            'eqd_smile_axis':('moneyness','strike'), 'eqd_greek':('delta','gamma','vega_1pct'), 'structured_mode':('lab','book'),
            'risk_diagnostic':('rolling','correlation'), 'board_view':('quotes','news','events','sessions','portfolio')}
     for key,terms in {'structured_tabs':('product','risk','simulation','advanced'), 'note_independent_tabs':('product','risk','simulation','advanced'),

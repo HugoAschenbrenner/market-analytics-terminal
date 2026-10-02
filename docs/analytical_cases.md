@@ -1,6 +1,6 @@
 # Analytical cases (JSON v1)
 
-Open **Board → Saved cases** (FR: **Board → Cas sauvegardés**). Apply pending
+Open **Workspace → Saved cases** (FR: **Espace personnel → Cas sauvegardés**). Apply pending
 forms, prepare the file, then download `MAT_case_v1.json`. Upload a case to inspect
 it, then explicitly restore it. Restore replaces the current working case, so
 first download any current work you want to retain.

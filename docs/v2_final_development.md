@@ -204,3 +204,34 @@ and explicitly captured with confirmation. Screenshot:
 `screenshots/checkpoint1/case-restored-fr.jpg`. This is targeted workflow evidence,
 not the final responsive/language/theme matrix. Checkpoint 1 is now implemented;
 checkpoints 2–8 and final V2-only public deployment remain pending.
+
+## Checkpoint 2a — workflow navigation and guided cases, complete (2 October)
+
+Five workflow families now retain every existing route: Markets (including World
+and News), Derivatives, Rates & FX, Portfolio / Risk, and Workspace (Board, saved
+cases and demonstrations). A compact shared-book valuation context accompanies
+book pages. The welcome page opens three provider-independent, dated examples:
+collar protection, EQD repricing/Delta hedge, and worst-of Phoenix cash flows.
+They disclose inputs, initial cost, risk conventions, scenario effects and model
+limitations; details are expandable and Excel uses the same computed tables.
+Transfers into independent labs are explicit and preserve the shared book. The
+option transfer preserves the separately uploaded chain and its observation date.
+
+Contractual timelines are computed inside the existing cash-flow engine, including
+coupon arrears and survival state, rather than by a second payoff implementation.
+Their coupon/principal/discounted-payment totals reconcile to the original output
+for Athena, Phoenix, memory/no-memory, barrier equality and a final stub period.
+Normal Monte Carlo calls do not allocate timelines. Timeline capture is bounded
+to 20 illustrative paths.
+
+Validation: **16 new tests passed**; full suite **990 passed in 70.24s**, no
+failures/skips. Every demonstration was opened and exported through AppTest in
+English/dark and French/light; signed hedge and payoff identities were checked.
+Compilation and whitespace checks passed. Real browser: header, navigation,
+indicators, payoff/timeline, waterfall and legends checked; document widths
+391, 768, 900, 1440 and 1920 CSS pixels had no document overflow. Browser zoom was
+75%, so viewport overrides were adjusted using actual DOM measurements. The
+391 px timeline legend remained readable; French/light P&L at 768 px is saved in
+`screenshots/checkpoint2/eqd-demo-fr-light.jpg`. Viewport override was reset.
+Full all-module responsive coverage remains checkpoint 7, alongside the remaining
+context/financial workflow improvements in checkpoints 3–6. No public release yet.

@@ -6,11 +6,11 @@ from core.monitor_copy import tr
 from core.securities import DIRECTORY, SECURITIES
 
 FAMILIES={
-    'markets':('welcome','markets','security'),
+    'markets':('welcome','markets','security','world','news'),
     'derivatives':('equity-derivatives','structured-products','derivatives'),
     'analytics':('analytics',),
     'portfolio':('overview','risk','financing'),
-    'world':('world',),'news':('news',),'board':('board','cases'),
+    'board':('board','cases','demonstrations'),
 }
 PAGES=tuple(p for family in FAMILIES.values() for p in family)
 ALIASES={'home':'overview','cross-asset-dashboard':'overview','fixed-income-risk':'analytics','portfolio-risk':'risk','repo-sec-lending':'financing'}
@@ -46,6 +46,7 @@ def page_label(page):
     if page=='news':return tr('News','Actualités')
     if page=='board':return 'Board'
     if page=='cases':return tr('Saved cases','Cas sauvegardés')
+    if page=='demonstrations':return tr('Guided demos','Démos guidées')
     if page=='markets':return tr('Market monitor','Vue marchés')
     if page=='analytics':return tr('Rates · FX · Cross-asset','Taux · FX · Multi-actifs')
     if page=='security':return tr('Security','Instrument')
@@ -68,7 +69,7 @@ def global_header(state):
             st.query_params['lang'],st.query_params['theme']=lang,mode
             st.rerun()
     st.session_state['desk_section']=family_for(state.ui.page)
-    family_labels={'markets':tr('Markets','Marchés'),'derivatives':tr('Derivatives','Dérivés'),'analytics':tr('Analytics','Analyses'),'portfolio':tr('Portfolio / Risk','Portefeuille / Risque'),'world':tr('World','Monde'),'news':tr('News','Actualités'),'board':'Board'}
+    family_labels={'markets':tr('Markets','Marchés'),'derivatives':tr('Derivatives','Dérivés'),'analytics':tr('Rates & FX','Taux & FX'),'portfolio':tr('Portfolio / Risk','Portefeuille / Risque'),'board':tr('Workspace','Espace personnel')}
     st.segmented_control(tr('Explore','Explorer'),tuple(FAMILIES),format_func=family_labels.get,key='desk_section',on_change=_family_changed,required=True,label_visibility='collapsed')
     options=FAMILIES[family_for(state.ui.page)]
     st.session_state['workspace']=state.ui.page

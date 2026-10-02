@@ -82,17 +82,22 @@ def simulate_note_paths(inputs):
     return paths
 
 
-def cashflows(paths,inputs,product='Athena',memory=True):
+def cashflows(paths,inputs,product='Athena',memory=True,*,capture_timeline=False):
     paths=np.asarray(paths,dtype=float);times=build_observation_times(inputs)
     if product not in ('Athena','Phoenix') or paths.ndim!=3 or paths.shape[1]!=len(times) or paths.shape[2]!=len(inputs.initial_spots) or not len(paths) or not np.isfinite(paths).all() or (paths<0).any():raise ValueError('structured.invalid')
+    if capture_timeline and len(paths)>20:raise ValueError('Timeline is limited to 20 paths.')
+    records=[]
     worst=paths.min(axis=2);n=len(paths);alive=np.ones(n,dtype=bool)
     coupon=np.zeros(n);pv=np.zeros(n);redemption=np.zeros(n);event=np.full(n,times[-1]);autocalled=np.zeros(n,dtype=bool);arrears=np.zeros(n)
     dt=np.diff(np.r_[0,times])
     for j,time in enumerate(times):
+        if capture_timeline:
+            before=alive.copy();old_coupon=coupon.copy();old_redemption=redemption.copy();old_pv=pv.copy()
         call=alive&(worst[:,j]>=inputs.autocall_barrier)
         if product=='Phoenix':
             due=inputs.notional*inputs.coupon_rate*dt[j]
-            arrears[alive]+=due
+            if memory:arrears[alive]+=due
+            else:arrears[alive]=due
             paid=alive&(worst[:,j]>=inputs.coupon_barrier)
             amount=np.where(paid,arrears if memory else due,0.)
             coupon+=amount;pv+=amount*np.exp(-inputs.risk_free_rate*time);arrears[paid]=0
@@ -101,13 +106,25 @@ def cashflows(paths,inputs,product='Athena',memory=True):
             coupon+=amount;pv+=amount*np.exp(-inputs.risk_free_rate*time)
         redemption[call]=inputs.notional;pv[call]+=inputs.notional*np.exp(-inputs.risk_free_rate*time)
         event[call]=time;autocalled[call]=True;alive[call]=False
+        if capture_timeline:
+            records.append(pd.DataFrame(dict(path=np.arange(n),time_years=time,worst_ratio=worst[:,j],alive_before=before,alive_after=alive.copy(),coupon_paid=coupon-old_coupon,principal_paid=redemption-old_redemption,discounted_payment=pv-old_pv,autocalled=call,coupon_arrears=arrears.copy() if memory and product=='Phoenix' else np.zeros(n))))
     loss=alive&(worst[:,-1]<inputs.protection_barrier)
     redemption[alive]=np.where(loss[alive],inputs.notional*worst[alive,-1],inputs.notional)
     pv[alive]+=redemption[alive]*np.exp(-inputs.risk_free_rate*times[-1])
     if product=='Athena':
         amount=np.where(alive&(worst[:,-1]>=inputs.coupon_barrier),inputs.notional*inputs.coupon_rate*times[-1],0.)
         coupon+=amount;pv+=amount*np.exp(-inputs.risk_free_rate*times[-1])
-    return pd.DataFrame(dict(payoff=redemption+coupon,discounted_payoff=pv,coupon_paid=coupon,redemption=redemption,event_time_years=event,autocalled=autocalled,protection_barrier_breached=loss))
+    flows=pd.DataFrame(dict(payoff=redemption+coupon,discounted_payoff=pv,coupon_paid=coupon,redemption=redemption,event_time_years=event,autocalled=autocalled,protection_barrier_breached=loss))
+    if capture_timeline:
+        # Replace the final observation's deltas after maturity settlement.
+        records[-1]['coupon_paid']=coupon-old_coupon
+        records[-1]['principal_paid']=redemption-old_redemption
+        records[-1]['discounted_payment']=pv-old_pv
+        records[-1]['alive_after']=False
+        timeline=pd.concat(records,ignore_index=True)
+        timeline['payment']=timeline.coupon_paid+timeline.principal_paid
+        return flows,timeline
+    return flows
 
 
 @lru_cache(maxsize=16)

@@ -22,7 +22,7 @@ def test_welcome_renders_in_both_languages_and_themes(lang, theme):
     assert not app.exception and not app.error
     assert app.session_state.terminal.ui.page == 'welcome'
     assert any(TRANSLATIONS[lang]['welcome.title'] in item.value for item in app.markdown)
-    assert len(app.button) == 7  # Start plus six focused workspace cards.
+    assert len(app.button) == 10  # Start, six workspaces, three isolated guided cases.
     assert not app.metric and not app.get('plotly_chart')
     assert not any(box.key == 'demo_selector' for box in app.selectbox)
 

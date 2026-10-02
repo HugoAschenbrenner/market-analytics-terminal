@@ -13,7 +13,7 @@ LAB_COPY = {
     'q': ('Dividend yield q · %', 'Rendement dividende q · %'),
     'number': ('numeric input', 'saisie numérique'), 'slider': ('slider', 'curseur'),
     'saveCase': ('Include in saved case', 'Inclure dans le cas'),
-    'caseSaved': ('Included · save the case from Board → Saved cases', 'Inclus · sauvegardez via Board → Cas sauvegardés'),
+    'caseSaved': ('Included · save the case from Workspace → Saved cases', 'Inclus · sauvegardez via Espace personnel → Cas sauvegardés'),
     'reset': ('Reset defaults', 'Rétablir les valeurs'), 'fit': ('Fit chart axes', 'Ajuster les axes'),
     'invalid': ('Enter a number within the displayed bounds; charts retain the last valid value.',
                 'Saisissez un nombre dans les bornes indiquées ; les graphiques conservent la dernière valeur valide.'),
