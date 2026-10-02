@@ -19,7 +19,7 @@ def status_text(result,security):
     if result.status=='refreshing':status=tr('Last observation · refreshing','Dernière observation · actualisation en cours')
     if security.unit=='yield':
         frequency=tr('Monthly average','Moyenne mensuelle') if security.id=='DE10Y' else tr('Daily published yield','Taux quotidien publié')
-        return f'{frequency} · {q.observed_at:%Y-%m-%d}'+(' · '+status if result.status=='stale' or observation_is_old(security,q) else '')
+        return f'{frequency} · {q.observed_at:%Y-%m-%d}'+(' · '+status if result.status in ('stale','refreshing') or observation_is_old(security,q) else '')
     return f'{status} · {q.observed_at:%Y-%m-%d %H:%M} UTC'
 
 

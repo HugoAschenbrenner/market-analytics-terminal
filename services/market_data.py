@@ -10,6 +10,7 @@ from urllib.parse import quote
 import numpy as np
 import pandas as pd
 import streamlit as st
+from core.provenance import DEMO_DATE, metadata, public_metadata, failed_refresh
 
 TENORS = [1,2,5,10,30]
 SYMBOLS = {'SPY':'SPY','QQQ':'QQQ','VIX':'^VIX','EURUSD':'EURUSD=X','GBPUSD':'GBPUSD=X','USDJPY':'JPY=X'}
@@ -17,7 +18,9 @@ SYMBOLS = {'SPY':'SPY','QQQ':'QQQ','VIX':'^VIX','EURUSD':'EURUSD=X','GBPUSD':'GB
 def read_url(url):
     request=Request(url,headers={'User-Agent':'MarketAnalyticsTerminal/2.0','Accept':'text/csv,application/json;q=0.9,*/*;q=0.8'})
     with urlopen(request,timeout=5,context=ssl.create_default_context(cafile=certifi.where())) as response:
-        return response.read(5_000_000).decode('utf-8')
+        content=response.read(5_000_001)
+    if len(content)>5_000_000:raise ValueError('Provider response too large')
+    return content.decode('utf-8-sig')
 
 def parse_fred_csv(text):
     frame=pd.read_csv(StringIO(text),na_values=['.'])
@@ -45,7 +48,7 @@ def clean_curve(frame):
 
 def synthetic_curve(currency):
     rng=np.random.default_rng(72 if currency=='USD' else 73)
-    dates=pd.bdate_range(end=date.today()-timedelta(days=1),periods=504)
+    dates=pd.bdate_range(end=DEMO_DATE,periods=504)
     x=np.linspace(-1,1,len(TENORS))
     changes=rng.normal(size=(len(dates),3))@np.vstack([np.ones(5)*.025,x*.012,(x*x-.5)*.01])
     paths=changes.cumsum(axis=0)
@@ -60,19 +63,24 @@ def fetch_curve(currency):
     else:
         url='https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_1Y+SR_2Y+SR_5Y+SR_10Y+SR_30Y?format=csvdata&startPeriod='+start
         history=parse_ecb_csv(read_url(url)); provider='ECB AAA'; basis='zero_coupon'
-    return {'history':history,'source':'PUBLIC','provider':provider,'as_of':history.index[-1].date().isoformat(),'basis':basis,'url':url}
+    return {'history':history,**public_metadata(history.index[-1].date().isoformat(),provider),'basis':basis,'url':url}
 
 def fetch_quote(symbol):
     payload=json.loads(read_url('https://query1.finance.yahoo.com/v8/finance/chart/'+quote(symbol,safe='')+'?range=5d&interval=1d'))
     result=payload['chart']['result'][0]
     prices=result['indicators']['quote'][0]['close']
+    timestamps=result['timestamp']
+    if not timestamps or len(timestamps)!=len(prices):raise ValueError('Inconsistent quote timestamps')
+    dates=pd.to_datetime(timestamps,unit='s',utc=True,errors='coerce')
+    if dates.isna().any() or dates.has_duplicates or not dates.is_monotonic_increasing or dates[-1]>pd.Timestamp.now(tz='UTC')+pd.Timedelta(minutes=5):
+        raise ValueError('Invalid quote timestamp')
     latest=float(prices[-1])
     if not np.isfinite(latest) or latest<=0:
         raise ValueError('Invalid latest close')
     prior=prices[-2] if len(prices)>1 else None
     change=(latest/float(prior)-1) if prior is not None and np.isfinite(prior) and prior>0 else None
-    return {'price':latest,'change':change,'source':'PUBLIC','provider':'Yahoo Finance',
-            'as_of':datetime.fromtimestamp(result['timestamp'][-1],timezone.utc).isoformat(),'basis':'daily_bar_last'}
+    return {'price':latest,'change':change,**public_metadata(dates[-1].isoformat(),'Yahoo Finance','daily bar · delayed / indicative'),
+            'basis':'daily_bar_last'}
 
 @st.cache_data(ttl=900,show_spinner=False,max_entries=4)
 def load_public_context(refresh=0):
@@ -89,22 +97,25 @@ def load_public_context(refresh=0):
 def ensure_market(state,refresh=False):
     if state.market.curves and not refresh:
         return
+    attempted=datetime.now(timezone.utc).isoformat()
     public=load_public_context(state.market.revision+int(refresh))
     for currency in ('USD','EUR'):
         result=public.get(('curve',currency))
         if result is None:
-            result=state.market.curves.get(currency)
+            previous=state.market.curves.get(currency)
+            result=failed_refresh(previous,attempted) if previous else None
         if result is None:
             history=synthetic_curve(currency)
             result={'history':history,'source':'SYNTHETIC','provider':'demo','as_of':history.index[-1].date().isoformat(),'basis':'constant_maturity' if currency=='USD' else 'zero_coupon'}
-        state.market.curves[currency]=result
+        state.market.curves[currency]={**result,**metadata(result)}
     defaults={'SPY':550.,'QQQ':475.,'VIX':20.,'EURUSD':1.10,'GBPUSD':1.28,'USDJPY':147.}
     for ticker,value in defaults.items():
         previous=state.market.provenance.get(ticker,{})
         observation=previous if previous.get('source')=='USER INPUT' else public.get(('quote',ticker))
         if observation is None:
-            observation=state.market.provenance.get(ticker,{'price':value,'change':None,'source':'SYNTHETIC','provider':'demo','as_of':'2026-09-09','basis':'daily_bar_last'})
-        state.market.provenance[ticker]=observation
+            previous=state.market.provenance.get(ticker)
+            observation=failed_refresh(previous,attempted) if previous else {'price':value,'change':None,'source':'SYNTHETIC','provider':'demo','as_of':DEMO_DATE,'basis':'fixed_example'}
+        state.market.provenance[ticker]={**observation,**metadata(observation)}
         state.market.spots[ticker]=observation['price']
     state.market.fx.update(EUR=state.market.spots['EURUSD'],GBP=state.market.spots['GBPUSD'],JPY=1/state.market.spots['USDJPY'])
     sources={item['source'] for item in [*state.market.curves.values(),*state.market.provenance.values()]}

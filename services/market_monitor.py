@@ -54,7 +54,7 @@ class MarketCache:
             try:
                 value=loader()
                 if value is None:raise ValueError('No observation')
-                result=DataResult(value,'fresh',now,now)
+                result=DataResult(value,'fresh',self.clock(),now)
             except Exception:
                 # Boundary around untrusted provider payloads; never expose their
                 # response bodies, exceptions or credentials in the application.

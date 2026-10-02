@@ -3,6 +3,8 @@ import html
 import streamlit as st
 from core.i18n import t
 from core.explanations import METRIC_HELP
+from core.provenance import metadata
+from components.data_status import provenance_text
 
 PAGE_TERMS = {
     'overview':['nav','es','dv01','vega','worst_loss','liquidity','risk_contribution'],
@@ -18,11 +20,11 @@ def source_inventory(state):
     """Use the actual shared-state provenance, never infer freshness from retrieval."""
     rows=[]
     for currency,payload in state.market.curves.items():
-        rows.append(dict(item=currency+' · '+t('curve',state.ui.language),source=payload['source'],provider=payload['provider'],as_of=payload['as_of'],use='curve'))
+        rows.append(dict(item=currency+' · '+t('curve',state.ui.language),**metadata(payload),use='curve'))
     for ticker in state.market.spots:
         payload=state.market.provenance.get(ticker,{})
         use='vix' if ticker=='VIX' else 'fx' if ticker in ('EURUSD','GBPUSD','USDJPY') else 'quote'
-        rows.append(dict(item=ticker,source=payload.get('source','SYNTHETIC'),provider=payload.get('provider','demo'),as_of=payload.get('as_of','—'),use=use))
+        rows.append(dict(item=ticker,**metadata(payload),use=use))
     return rows
 
 
@@ -31,7 +33,8 @@ def render_sources(state):
     st.caption(t('guide.sources.snapshot',stamp=state.market.as_of))
     cards=[]
     for row in source_inventory(state):
-        label=t(row['source'])+' · '+row['provider']+' · '+row['as_of'].replace('T',' ')
+        label=provenance_text(row)
+        if row['retrieved_at']:label+=' · '+t('guide.sources.snapshot',stamp=row['retrieved_at'])
         use=t('guide.source.used',use=t('guide.use.'+row['use']))
         cards.append('<div class="source-card"><strong>'+html.escape(row['item'])+'</strong><small>'+html.escape(label)+'</small><small>'+html.escape(use)+'</small></div>')
     st.markdown('<div class="source-grid">'+''.join(cards)+'</div>',unsafe_allow_html=True)

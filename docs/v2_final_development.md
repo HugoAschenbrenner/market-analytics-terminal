@@ -146,3 +146,31 @@ state/mode/EN/FR application tests. V1 freeze remains intact. Local browser chec
 French/light independent opening, model value and fixed-date caption; corrected
 scope-specific wording was confirmed after server restart. Full responsive visual
 coverage remains checkpoint 7. Other checkpoint 1 items remain pending.
+
+## Checkpoint 1c — provenance and fixed demonstrations, complete (2 October)
+
+Resumed from verified remote `293e6098c9f8493bb423dc32f23404beb32ec48e`.
+The interrupted provenance changes were retained and reviewed; their former
+transient test log was unavailable, so the targeted and full tests were rerun.
+
+Book-context observations now expose source, observation time, successful
+retrieval, attempted refresh, frequency, status and cache policy. Failed refreshes
+retain the last success as stale, without inventing a new observation/retrieval.
+Public monitoring cache records retrieval completion separately from request
+start. Old observations remain old even after a recent retrieval. Context labels
+and source cards expose this distinction; compact tiles retain detailed tooltips.
+Synthetic USD/EUR curve histories now end on fixed 2026-09-09 instead of moving
+with today's date. Invalid, duplicate/reversed/future quote timestamps and
+oversized context responses are rejected. Missing changes remain unavailable.
+
+The existing adapter separation is preserved: the public monitor has no synthetic
+fallback; the educational portfolio context explicitly labels its fixed fallback.
+Treasury par/constant-maturity versus ECB zero-curve conventions, German monthly
+yield status, futures labels, adjusted-return disclosures and directional FX
+conversion continue to pass their existing regression tests. Source cards do not
+supply invented retrieval dates for older saved/manual metadata.
+
+Validation: targeted provenance/market/guidance/deferred tests **51 passed**;
+full suite **947 passed in 71.36s**, zero failures/skips; diff whitespace check
+passed. Complete-case save/restore is the remaining checkpoint 1 item. The final
+V2-only release remains pending and production has not been changed.
