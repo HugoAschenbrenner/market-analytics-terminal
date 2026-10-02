@@ -4,8 +4,8 @@ import {marketUnits} from './engine.mjs';
 import {formatNumber,GREEK_NAMES} from './format.mjs';
 
 // Streamlit v2 component: DOM instances survive every live update. No callbacks
-// to Python; sessionStorage retains this tab's scenario across component mounts.
-export default function mount({parentElement,data}) {
+// during slider updates; sessionStorage retains this tab's scenario across component mounts.
+export default function mount({parentElement,data,setTriggerValue}) {
   const root=parentElement.querySelector('.lab'), text=data.copy;
   for (const [key,value] of Object.entries(data.tokens)) root.style.setProperty('--'+key.replaceAll('_','-'),value);
   root.style.colorScheme=data.theme;
@@ -14,6 +14,12 @@ export default function mount({parentElement,data}) {
   const storageKey='mat.interactive-greeks.v1';
   let state={...DEFAULTS};
   try {const saved=JSON.parse(sessionStorage.getItem(storageKey));if(validState(saved)) state=saved;} catch { /* storage may be disabled */ }
+  const revisionKey=storageKey+'.case';
+  try {
+    if(data.caseRevision && sessionStorage.getItem(revisionKey)!==data.caseRevision && validState(data.caseInputs)){
+      state={...data.caseInputs};sessionStorage.setItem(revisionKey,data.caseRevision);
+    }
+  } catch { if(validState(data.caseInputs)) state={...data.caseInputs}; }
   let ranges=domains(state), yRanges=[], frame=0, dragging=false, frames=0, dragFrames=0, inputEvents=0;
   let curveClipped=false;
   const frameCosts=[];
@@ -33,6 +39,8 @@ export default function mount({parentElement,data}) {
   const actions=el('div','actions',null,heading);
   const reset=el('button','',text.reset,actions), fit=el('button','',text.fit,actions);
   reset.type=fit.type='button';
+  const save=el('button','',text.saveCase,actions);save.type='button';
+  save.onclick=()=>{if(validState(state)){setTriggerValue('saved',{...state});save.textContent=text.caseSaved;}};
   const controlBar=el('div','controls',null), widgets={};
   const error=el('p','error','');error.id='lab-input-error';error.setAttribute('role','status');
   for (const control of CONTROLS) {

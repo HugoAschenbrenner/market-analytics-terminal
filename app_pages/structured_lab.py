@@ -16,10 +16,12 @@ def render(state):
     ) or 'lab'
     if mode == 'lab':
         lab = get_structured_lab(state.ui)
+        if lab.book.source=='USER INPUT':
+            st.caption(f'USER INPUT · {lab.valuation_date.isoformat()} · '+tr('Independent contract assumptions · no portfolio change.', 'Hypothèses de contrat indépendantes · portefeuille inchangé.'))
         st.caption(tr(
-            'Independent inputs · fixed synthetic example dated 9 September 2026 · no market download required. '
+            'Independent inputs · starts from a fixed synthetic example dated 9 September 2026 · no market download required. '
             'Edits affect this laboratory only. Values are educational model estimates per 100 of notional.',
-            'Paramètres indépendants · exemple synthétique fixe au 9 septembre 2026 · aucun téléchargement requis. '
+            'Paramètres indépendants · initialisés sur un exemple synthétique fixe au 9 septembre 2026 · aucun téléchargement requis. '
             'Les modifications restent dans ce laboratoire. Valeurs théoriques pédagogiques pour 100 de nominal.',
         ))
         render_structured(lab, scope='independent')

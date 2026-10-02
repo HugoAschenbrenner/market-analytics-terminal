@@ -61,7 +61,9 @@ def render_structured(state, scope="shared"):
                     vols=tuple(float(old.loc[n,'volatility']) if n in old.index else row['volatility'] for n in chosen)
                     candidate=dict(underlyings=tuple(chosen),fixings=fixings,volatilities=vols,product=kind,memory=mem,simulations=count,autocall=ac,coupon_barrier=cb,protection=pb,coupon=coupon,correlation=corr,frequency=freq)
                     ci,cr,cp,cm,_=contract_for(row,state.market,{selected:candidate});value_note(ci,cr,cp,cm)
-                    state.book.structured_terms[selected]=candidate;state.book.revision+=1;state.risk.results.clear();st.rerun()
+                    state.book.structured_terms[selected]=candidate;state.book.revision+=1;state.risk.results.clear()
+                    if scope=='independent':state.book.source='USER INPUT'
+                    st.rerun()
                 except (ValueError,ZeroDivisionError) as exc:st.error(error_message(exc))
     tabs=st.tabs([t(k) for k in ['product','risk','simulation','advanced']],key='structured_tabs' if scope=='shared' else prefix+'_tabs',on_change='rerun')
     result=value_note(inputs,ratios,product,memory);summary=result['summary'];flows=result['cashflows']

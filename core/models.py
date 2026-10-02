@@ -8,6 +8,7 @@ CURRENCIES = ("USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD")
 
 @dataclass
 class MarketState:
+    mode: str = "mixed"  # saved/demo contexts never auto-fetch; explicit refresh may load public data.
     as_of: str = "2026-09-09"
     source: str = "SYNTHETIC"
     spots: dict = field(default_factory=lambda: {"SPY": 550., "QQQ": 475., "SX5E": 5000., "EURUSD": 1.10, "VIX": 20.})

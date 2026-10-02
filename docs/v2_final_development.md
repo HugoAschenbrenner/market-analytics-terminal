@@ -174,3 +174,33 @@ Validation: targeted provenance/market/guidance/deferred tests **51 passed**;
 full suite **947 passed in 71.36s**, zero failures/skips; diff whitespace check
 passed. Complete-case save/restore is the remaining checkpoint 1 item. The final
 V2-only release remains pending and production has not been changed.
+
+## Checkpoint 1d — versioned analytical cases, complete (2 October)
+
+Added the Saved cases workspace under Board, a pure bounded JSON codec/validator,
+preview then explicit restore, and labelled frozen market-context mode. Cases
+include shared book/contracts/financing, both independent laboratories, chain/
+curve/scenario inputs, attribution snapshots, Board IDs, views and preferences.
+All validation precedes session replacement. Old widget/derived result caches
+are invalidated; Board browser storage cannot overwrite a restored list. Existing
+Board-only JSON import remains available. No credentials or arbitrary objects
+are serialized. See `analytical_cases.md` for conventions and limits.
+
+Interactive Greeks has one explicit capture button and one-time restored-input
+handoff; its slider/curve loop remains in JavaScript. An edited independent note
+now states USER INPUT rather than implying an unchanged fixed demonstration.
+
+Validation: **106 targeted tests passed**; full regression **974 passed in
+67.46s**, zero failures/skips, including existing Python/JS parity. Compilation
+and diff whitespace checks passed. Round-trip tests reconcile marked positions,
+option scenario P&L and curve PV and preserve provenance/snapshots. Adversarial
+imports test atomic rejection of wrong versions/fields, invalid currencies/FX,
+PSD/model domains, sizes, nesting, duplicate keys and nonfinite JSON numbers.
+
+Real local browser, French/light: prepared and downloaded a 17.8 KB case, uploaded
+that same file, previewed it and restored successfully. The independent Phoenix
+value remained 97.27 per 100 nominal. Interactive Greeks spot was changed to 112
+and explicitly captured with confirmation. Screenshot:
+`screenshots/checkpoint1/case-restored-fr.jpg`. This is targeted workflow evidence,
+not the final responsive/language/theme matrix. Checkpoint 1 is now implemented;
+checkpoints 2–8 and final V2-only public deployment remain pending.

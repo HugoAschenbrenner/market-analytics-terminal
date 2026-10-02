@@ -7,6 +7,7 @@ Node is only needed to run cross-runtime financial tests, not to deploy MAT.
 from pathlib import Path
 import re
 
+import streamlit as st
 import streamlit.components.v2 as components
 
 from core.greeks_lab_copy import lab_copy
@@ -33,7 +34,16 @@ def lab_component():
 
 
 def render_interactive_greeks(state):
-    lab_component()(key='interactive_greeks_lab', height='content', data={
+    result=lab_component()(key='interactive_greeks_lab', height='content', on_saved_change=lambda:None, data={
         'copy': lab_copy(state.ui.language), 'language': state.ui.language,
         'theme': state.ui.theme, 'tokens': TOKENS[state.ui.theme],
+        'caseInputs':st.session_state.get('interactive_case'),
+        'caseRevision':st.session_state.get('interactive_revision'),
     })
+
+    if result.saved:
+        from services.cases import validate_interactive
+        try:
+            st.session_state['interactive_case']=validate_interactive(result.saved)
+        except (ValueError,TypeError):
+            st.warning('Invalid Interactive Greeks inputs.')

@@ -3,7 +3,7 @@ from core.state import get_state
 from core.i18n import t, error_message
 from components.global_header import global_header, footer, page_from_query
 from components.book_editor import book_selector
-from app_pages import overview, markets, risk_lab, derivatives_lab, financing, welcome, equity_derivatives, structured_lab, market_monitor, security, world, news, board
+from app_pages import overview, markets, risk_lab, derivatives_lab, financing, welcome, equity_derivatives, structured_lab, market_monitor, security, world, news, board, cases
 
 def render():
     from services.market_data import ensure_market
@@ -24,7 +24,7 @@ def render():
         book_selector(state)
         from components.education import render_workspace_guide
         render_workspace_guide(state)
-    PAGES={'welcome':welcome,'overview':overview,'markets':market_monitor,'analytics':markets,'security':security,'world':world,'news':news,'board':board,'risk':risk_lab,'derivatives':derivatives_lab,'financing':financing,'equity-derivatives':equity_derivatives,'structured-products':structured_lab}
+    PAGES={'welcome':welcome,'overview':overview,'markets':market_monitor,'analytics':markets,'security':security,'world':world,'news':news,'board':board,'cases':cases,'risk':risk_lab,'derivatives':derivatives_lab,'financing':financing,'equity-derivatives':equity_derivatives,'structured-products':structured_lab}
     try:
         PAGES[state.ui.page].render(state)
     except (ValueError,KeyError,TypeError) as exc:

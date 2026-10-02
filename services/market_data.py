@@ -98,7 +98,7 @@ def ensure_market(state,refresh=False):
     if state.market.curves and not refresh:
         return
     attempted=datetime.now(timezone.utc).isoformat()
-    public=load_public_context(state.market.revision+int(refresh))
+    public={} if getattr(state.market,'mode','mixed') in ('saved','demo') and not refresh else load_public_context(state.market.revision+int(refresh))
     for currency in ('USD','EUR'):
         result=public.get(('curve',currency))
         if result is None:

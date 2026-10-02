@@ -10,7 +10,7 @@ FAMILIES={
     'derivatives':('equity-derivatives','structured-products','derivatives'),
     'analytics':('analytics',),
     'portfolio':('overview','risk','financing'),
-    'world':('world',),'news':('news',),'board':('board',),
+    'world':('world',),'news':('news',),'board':('board','cases'),
 }
 PAGES=tuple(p for family in FAMILIES.values() for p in family)
 ALIASES={'home':'overview','cross-asset-dashboard':'overview','fixed-income-risk':'analytics','portfolio-risk':'risk','repo-sec-lending':'financing'}
@@ -45,6 +45,7 @@ def page_label(page):
     if page=='world':return tr('World','Monde')
     if page=='news':return tr('News','Actualités')
     if page=='board':return 'Board'
+    if page=='cases':return tr('Saved cases','Cas sauvegardés')
     if page=='markets':return tr('Market monitor','Vue marchés')
     if page=='analytics':return tr('Rates · FX · Cross-asset','Taux · FX · Multi-actifs')
     if page=='security':return tr('Security','Instrument')
