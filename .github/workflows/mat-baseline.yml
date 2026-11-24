@@ -1,0 +1,60 @@
+name: MAT baseline
+on:
+  push:
+    branches: [codex/mission-003-ci-baseline]
+permissions:
+  contents: read
+jobs:
+  baseline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.5.0'
+      - name: Run baseline and retain each exit status
+        run: |
+          logs="$RUNNER_TEMP/mat-baseline"
+          mkdir -p "$logs"
+          failed=0
+          check() {
+            local name="$1" rc=0
+            shift
+            "$@" >"$logs/$name.log" 2>&1 || rc=$?
+            cat "$logs/$name.log"
+            printf '%s %d\n' "$name" "$rc" | tee -a "$logs/status.txt"
+            if (( rc != 0 )); then failed=1; fi
+            return "$rc"
+          }
+          check environment bash -ec 'uname -a; git --version; git rev-parse HEAD HEAD^; python -VV; python -m pip --version; node --version; Rscript --version' || :
+          if check install python -m pip install -r requirements.txt; then
+            check dependencies python -m pip check || :
+            check pytest python -m pytest -q -ra -p no:cacheprovider --junitxml="$logs/pytest.xml" || :
+            check r_parity python -m pytest -v -ra -p no:cacheprovider tests/test_terminal_audit_regressions.py::test_r_companion_matches_python_drawdown_and_risk_metrics || :
+          fi
+          check packages python -m pip freeze || :
+          check javascript node --test tests/js/greeks_client.test.mjs || :
+          check compile env PYTHONPYCACHEPREFIX="$RUNNER_TEMP/pycache" python -m compileall -q . || :
+          check objects git fsck --full || :
+          check tree bash -ec 'git diff --check; git diff --exit-code; git diff --cached --exit-code; git status --porcelain > "$RUNNER_TEMP/mat-status"; cat "$RUNNER_TEMP/mat-status"; test ! -s "$RUNNER_TEMP/mat-status"' || :
+          exit "$failed"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mat-baseline
+          path: ${{ runner.temp }}/mat-baseline
